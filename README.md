@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Orion Live Vision Understanding
 
-## Getting Started
+Real-time scene understanding system using YOLOv11n on iOS and MLX-powered vision-language models on Apple Silicon Macs.
 
-First, run the development server:
+## System Overview
 
+1. **iOS App**:
+   - Runs YOLOv11n for real-time object detection
+   - Streams detections and frame data to server
+   - Displays enhanced scene understanding
+
+2. **Mac Server**:
+   - Runs on Apple Silicon (M1/M2/M3)
+   - Uses MLX for efficient model inference
+   - Combines iOS detections with enhanced vision understanding
+   - Provides contextual scene analysis
+
+## Requirements
+
+- Apple Silicon Mac (M1/M2/M3)
+- macOS 12.0 or later
+- Python 3.13+
+- iOS 15.0+ device
+- Local network connection
+
+## Quick Start
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/riddhimanrana/orion-live
+cd orion-live
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install and setup server:
+```bash
+cd server
+chmod +x orion.sh
+./orion.sh --install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Start the server:
+```bash
+./orion.sh --start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## iOS App Setup
 
-## Learn More
+1. Open the iOS project in Xcode:
+```bash
+cd ios/Orion
+open Orion.xcodeproj
+```
 
-To learn more about Next.js, take a look at the following resources:
+2. Update server address in `Constants.swift`
+3. Build and run on your device
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## System Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### iOS Components
+- Real-time camera feed
+- YOLOv11n object detection
+- WebSocket communication
+- Detection visualization
 
-## Deploy on Vercel
+### Server Components
+- MLX vision-language model for scene understanding
+- Gemma 3B for language processing
+- Context memory system
+- WebSocket server
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Model Information
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The server uses:
+- Apple MLX for efficient inference
+- Vision-Language model for scene understanding
+- Gemma 3B for contextual analysis
+- Scene memory for temporal context
+
+## Performance Notes
+
+- YOLOv11n runs in real-time on iOS devices
+- MLX enables efficient inference on Apple Silicon
+- Low-latency WebSocket communication
+- Contextual understanding with 1-second history
+
+## Customization
+
+### Environment Variables
+```bash
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+DEBUG=true
+LOG_LEVEL=INFO
+
+# MLX Models
+VLM_MODEL_PATH=weights/vlm/model.mlx
+GEMMA_MODEL_PATH=weights/gemma/model.mlx
+```
+
+### Model Weights
+- Models are downloaded automatically during setup
+- Custom models can be placed in `server/weights/`
+
+## Development
+
+- iOS app code in `ios/Orion/`
+- Server code in `server/`
+- Models in `server/weights/`
+
+## License
+
+MIT License - See LICENSE file for details.
+
+## Support
+
+- Works exclusively on Apple Silicon Macs
+- Requires MLX for model inference
+- Local network deployment only

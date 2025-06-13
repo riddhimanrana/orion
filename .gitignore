@@ -1,41 +1,135 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
 
-# testing
-/coverage
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
 
-# next.js
-/.next/
-/out/
+# IDE - PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
 
-# production
-/build
+# Logs and databases
+*.log
+*.sqlite
+logs/
+*.db
 
-# misc
+# OS generated files
 .DS_Store
-*.pem
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# debug
+# Project specific
+server/weights/
+weights/
+server/logs/
+server/temp/
+*.pt
+*.onnx
+*.mlmodel
+
+# Test coverage
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Node
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+.pnp/
+.pnp.js
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
+# React/Next.js
+.next/
+out/
+web/build/
 .vercel
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# iOS
+## User settings
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+## Obj-C/Swift specific
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+.swiftpm
+
+# CocoaPods
+Pods/
+*.xcworkspace
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Local development
+docker-compose.override.yml
