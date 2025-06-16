@@ -33,33 +33,136 @@ export default function Home() {
       },
       onMessage: (event) => {
         try {
-          const message = JSON.parse(event.data as string);
-          console.log('Parsed WebSocket message:', message);
+          const serverMessage = JSON.parse(event.data as string);
+          console.log('Dashboard received message:', serverMessage);
 
-          // Basic message routing based on a 'type' field in the message
-          // The Python server will need to send messages in this format:
-          // { "type": "video_frame", "payload": "base64_string..." }
-          // { "type": "detections", "payload": [{...}, {...}] }
-          // etc.
+          if (serverMessage.type === 'connection_ack') {
+            setSystemLogs(prevLogs => [...prevLogs, {
+              id: `log-${Date.now()}-${Math.random()}`, // Add unique ID
+              timestamp: new Date().toISOString(),
+              level: 'info',
+              message: `Connected to dashboard WebSocket. Client ID: ${serverMessage.client_id}`,
+            }]);
+            return; // Acknowledgment handled
+          }
+          
+          if (serverMessage.type === 'system_message' && serverMessage.event === 'shutdown') {
+            setSystemLogs(prevLogs => [...prevLogs, {
+              id: `log-${Date.now()}-${Math.random()}`, // Add unique ID
+              timestamp: new Date().toISOString(),
+              level: 'warn',
+              message: `Server is shutting down: ${serverMessage.message}`,
+            }]);
+            // Optionally, disable UI elements or show a disconnected state
+            return;
+          }
 
-          if (message.type === 'video_frame' && message.payload) {
-            setVideoFrame(message.payload as string);
-          } else if (message.type === 'detections' && message.payload) {
-            // Assuming payload is an array of detections.
-            // Decide if you want to append or replace. For now, let's append.
-            setDetections(prevDetections => [...prevDetections, ...(message.payload as RawDetection[])]);
-          } else if (message.type === 'vision_context_graph' && message.payload) {
-            setVisionGraph(message.payload as VisionGraphData);
-          } else if (message.type === 'llm_reasoning' && message.payload) {
-            setLlmReasoning(message.payload as LLMReasoningNode);
-          } else if (message.type === 'system_log' && message.payload) {
-            setSystemLogs(prevLogs => [...prevLogs, message.payload as SystemLog]);
+          if (serverMessage.type === 'live_update') {
+            const data = serverMessage; // The server_message itself is the live_update data
+
+            // Add a general log entry for the update
+            setSystemLogs(prevLogs => [...prevLogs, {
+              id: `log-${data.frame_id}-${Date.now()}`, // Add unique ID
+              timestamp: new Date(data.timestamp * 1000).toISOString(), // Server timestamp is in seconds
+              level: 'info',
+              message: `Live update received for frame: ${data.frame_id}`,
+            }]);
+
+            // Video Frame - not sending full image data in this example
+            // If you decide to send it from server:
+            // if (data.ios_frame_summary.image_data) { // Assuming image_data is added to ios_frame_summary
+            //   setVideoFrame(data.ios_frame_summary.image_data);
+            // } else {
+            //   setVideoFrame(null); // Or a placeholder
+            // }
+            // For now, let's simulate a new frame coming by just updating a text or something
+            // Or, if the iOS app sends frames to a *different* WebSocket that this dashboard also listens to,
+            // that would be another way to get live video.
+            // For this exercise, we'll assume VideoPlayer might show a static image or status.
+            // If `data.vlm_analysis.scene_features` contains an image URL or processed image, use that.
+            // For now, no direct update to setVideoFrame from this message.
+
+            // Detections - using vlm_analysis.detections
+            if (data.vlm_analysis && data.vlm_analysis.detections) {
+              // Ensure the structure matches RawDetection: { label, confidence, bbox, track_id? }
+              // The `vlm_analysis.detections` from VisionProcessor._enhance_detection matches this.
+              setDetections(data.vlm_analysis.detections as RawDetection[]);
+            } else {
+              setDetections([]); // Clear if no detections
+            }
+
+            // Vision Context Graph - placeholder, needs transformation
+            if (data.vlm_analysis && data.vlm_analysis.scene_features) {
+              // TODO: Transform scene_features (likely embeddings or relationships) into VisionGraphData
+              // For now, just log and clear/reset the graph
+              console.log('Scene Features for Vision Graph:', data.vlm_analysis.scene_features);
+              setVisionGraph({ nodes: [], edges: [] }); // Reset or update with transformed data
+               setSystemLogs(prevLogs => [...prevLogs, {
+                id: `log-vlm-${data.frame_id}-${Date.now()}`, // Add unique ID
+                timestamp: new Date().toISOString(),
+                level: 'debug',
+                message: `VLM Scene Features: ${JSON.stringify(data.vlm_analysis.scene_features).substring(0,100)}...`,
+              }]);
+            }
+
+            // LLM Reasoning Tree
+            if (data.llm_reasoning) {
+              const llmData = data.llm_reasoning;
+              // Construct a simple tree structure for now
+              // LLMReasoningNode: { id: string, name: string, children?: LLMReasoningNode[] }
+              const reasoningRoot: LLMReasoningNode = {
+                id: `llm-${data.frame_id}`,
+                name: `Frame: ${data.frame_id}`, // Use 'name' instead of 'label'
+                children: [
+                  { id: `desc-${data.frame_id}`, name: `Scene: ${llmData.scene_description || 'N/A'}`, value: llmData.scene_description || 'N/A' },
+                  ...(llmData.contextual_insights?.map((insight: string, index: number) => ({
+                    id: `insight-${data.frame_id}-${index}`,
+                    name: `Insight ${index + 1}`, // Use 'name'
+                    value: insight,
+                  })) || []),
+                  // You could add enhanced_detections here too if desired
+                  // Example:
+                  // ...(llmData.enhanced_detections?.map((det: any, index: number) => ({
+                  //  id: `enhanced-det-${data.frame_id}-${index}`,
+                  //  name: `Enhanced Det ${index + 1}: ${det.label}`,
+                  //  value: `Conf: ${det.confidence}, Context: ${ (det.context || '').substring(0,50)}...`
+                  // })) || [])
+                ],
+              };
+              setLlmReasoning(reasoningRoot);
+            } else {
+              setLlmReasoning(null);
+            }
+            
+            // Log errors from server processing if any
+            if (data.final_ios_response_summary && data.final_ios_response_summary.error) {
+                setSystemLogs(prevLogs => [...prevLogs, {
+                    id: `log-error-${data.frame_id}-${Date.now()}`, // Add unique ID
+                    timestamp: new Date().toISOString(),
+                    level: 'error',
+                    message: `Server processing error for frame ${data.frame_id}: ${data.final_ios_response_summary.error}`,
+                }]);
+            }
+
+
           } else {
-            console.warn('Received WebSocket message with unknown type or missing payload:', message);
+            console.warn('Received WebSocket message with unknown type or missing payload:', serverMessage);
+             setSystemLogs(prevLogs => [...prevLogs, {
+              id: `log-unknown-${Date.now()}-${Math.random()}`, // Add unique ID
+              timestamp: new Date().toISOString(),
+              level: 'warn',
+              message: `Unknown WS message type: ${serverMessage.type || 'N/A'}`,
+            }]);
           }
 
         } catch (error) {
           console.error('Error parsing WebSocket message or handling data:', error);
+          setSystemLogs(prevLogs => [...prevLogs, {
+            id: `log-client-error-${Date.now()}-${Math.random()}`, // Add unique ID
+            timestamp: new Date().toISOString(),
+            level: 'error',
+            message: `Client-side WS error: ${(error as Error).message}`,
+          }]);
         }
       },
       onError: (error) => {

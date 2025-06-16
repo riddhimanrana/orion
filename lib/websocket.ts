@@ -1,6 +1,7 @@
 // lib/websocket.ts
 
-const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8000/ios'; // Updated to /ios
+// Default to the new dashboard WebSocket endpoint
+const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8000/ws/dashboard';
 
 let socket: WebSocket | null = null;
 

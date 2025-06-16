@@ -42,16 +42,40 @@ MLX_READY = check_mlx_availability()
 
 import numpy as np
 from PIL import Image
+# Attempt to import coremltools and its ComputeUnit
+_ctm = None
+_ct_ComputeUnit = None
+_COREMLTOOLS_AVAILABLE = False
+
+try:
+    import coremltools.models as _ctm_module
+    from coremltools import ComputeUnit as _ComputeUnit_enum
+    _ctm = _ctm_module
+    _ct_ComputeUnit = _ComputeUnit_enum
+    _COREMLTOOLS_AVAILABLE = True
+    logger.info("coremltools and ComputeUnit loaded successfully.")
+except ImportError:
+    logger.warning(
+        "coremltools or coremltools.ComputeUnit not available. "
+        "VLM .mlpackage loading might be affected or use default compute units. "
+        "Please install/update coremltools."
+    )
 
 class ModelManager:
     """Manages MLX models for vision and language processing."""
     
     def __init__(self):
         """Initialize model manager."""
+        # MLX is still needed for Gemma
         if not MLX_READY:
-            raise RuntimeError("MLX or mlx-lm is required but not available. Please install them.")
-            
-        self.vlm_model: Optional[Any] = None # Actual type depends on how .mlpackage loads
+            raise RuntimeError("MLX or mlx-lm is required for Gemma but not available. Please install them.")
+        if not _COREMLTOOLS_AVAILABLE:
+            # Depending on strictness, you might allow server to run without VLM
+            # or raise an error if VLM is critical.
+            logger.error("coremltools is required for VLM .mlpackage but not available. VLM functionality will be disabled.")
+            # raise RuntimeError("coremltools is required for VLM .mlpackage but not available.")
+
+        self.vlm_model: Optional[Any] = None # Will be coremltools.models.MLModel if loaded
         self.gemma_model: Optional[Any] = None # mlx_lm.model.Model
         self.gemma_tokenizer: Optional[Any] = None # mlx_lm.tokenizer.Tokenizer
         
@@ -92,45 +116,58 @@ class ModelManager:
             raise
             
     async def _load_vlm_model(self) -> Any:
-        """Load vision-language model (.mlpackage)."""
-        if not MLX_READY or not mx:
-            raise RuntimeError("MLX not properly initialized for VLM loading")
-            
-        vlm_model_path = Path(self.vlm_path_str)
-        if not vlm_model_path.exists():
-            raise FileNotFoundError(f"VLM model package not found at {self.vlm_path_str}")
-        # Updated check for .mlpackage structure: Data/com.apple.CoreML/model.mlmodel
-        mlmodel_path = vlm_model_path / "Data" / "com.apple.CoreML" / "model.mlmodel"
-        if not vlm_model_path.is_dir() or not mlmodel_path.exists():
-            logger.warning(f"{self.vlm_path_str} does not appear to be a valid .mlpackage directory containing Data/com.apple.CoreML/model.mlmodel. Attempting to load anyway.")
+        """Load vision-language model (.mlpackage) using Core ML."""
+        if not _COREMLTOOLS_AVAILABLE or not _ctm: # _ct_ComputeUnit might be None if import failed, but _ctm is essential
+            logger.error("Cannot load VLM model: coremltools or its models module is not available.")
+            # Return a dummy model or raise an error to prevent further issues
+            def dummy_vlm_model_coreml_unavailable(*args, **kwargs) -> Dict[str, Any]:
+                logger.warning("CoreML VLM is unavailable because coremltools is missing or failed to import. Returning dummy output.")
+                return {"description": "VLM (CoreML) unavailable", "confidence": 0.0, "features": []}
+            return dummy_vlm_model_coreml_unavailable
 
+        vlm_model_path_str = str(Path(self.vlm_path_str))
+        if not Path(vlm_model_path_str).exists():
+            raise FileNotFoundError(f"VLM model package not found at {vlm_model_path_str}")
+
+        mlmodel_file = Path(vlm_model_path_str) / "Data" / "com.apple.CoreML" / "model.mlmodel"
+        if not mlmodel_file.exists():
+            logger.warning(
+                f"{vlm_model_path_str} does not appear to be a valid .mlpackage. Missing {mlmodel_file}. "
+                "Attempting to load with Core ML anyway."
+            )
+        
         try:
-            # Loading .mlpackage might be more complex and depend on its internal structure
-            # For now, assuming mx.core.load can handle it or it's a directory MLX can interpret.
-            # This part may need adjustment based on how FastVLM's .mlpackage is structured for MLX.
-            # A common pattern for MLX models is to load weights and instantiate a model class.
-            # If fastvithd.mlpackage is a CoreML package, direct MLX loading might not be straightforward.
-            # For now, this is a placeholder for actual .mlpackage loading logic with MLX.
-            # If it's a directory of MLX artifacts (e.g. weights + config), it would be different.
-            logger.info(f"Attempting to load VLM from: {self.vlm_path_str}")
-            # This is a placeholder. Actual loading of an .mlpackage might require specific MLX utilities
-            # or conversion if it's a CoreML package not directly compatible with generic MLX loading.
-            # For demonstration, we'll assume it's a path MLX can load, or this needs specific implementation.
-            # model = mx.load(str(vlm_model_path)) # This is a guess, mx.load is usually for .npz or .safetensors
+            logger.info(f"Attempting to load VLM .mlpackage from: {vlm_model_path_str} using Core ML")
             
-            # Placeholder: If direct loading isn't simple, this needs the actual FastVLM MLX loading code.
-            # For now, returning a dummy callable to avoid crashing, but this MUST be implemented.
-            def dummy_vlm_model(image_tensor):
-                logger.warning("Using dummy VLM model. Implement actual FastVLM .mlpackage loading and inference.")
-                if mx is None: # Should not happen if MLX_READY is True and mx is assigned
-                    raise RuntimeError("MLX core (mx) is None in dummy_vlm_model.")
-                return mx.random.normal(shape=(1, 512)) # Dummy features
-            model = dummy_vlm_model
-            logger.info("VLM model loaded (or placeholder activated).")
+            # Load the Core ML model package without specifying compute_units, letting it use the default.
+            logger.info("Loading VLM model with default compute units.")
+            model = _ctm.MLModel(vlm_model_path_str)
+            
+            # Log input/output descriptions for user to verify
+            try:
+                spec = model.get_spec()
+                logger.info("Core ML VLM Input Descriptions:")
+                for i_desc in spec.description.input:
+                    logger.info(f"  Name: {i_desc.name}, Type: {i_desc.type.WhichOneof('Type')}")
+                    if i_desc.type.WhichOneof('Type') == 'imageType':
+                        logger.info(f"    Image Details - Width: {i_desc.type.imageType.width}, Height: {i_desc.type.imageType.height}, Format: {i_desc.type.imageType.colorSpace}")
+                logger.info("Core ML VLM Output Descriptions:")
+                for o_desc in spec.description.output:
+                    logger.info(f"  Name: {o_desc.name}, Type: {o_desc.type.WhichOneof('Type')}")
+            except Exception as spec_e:
+                logger.warning(f"Could not retrieve or log Core ML model spec details: {spec_e}")
+
+            logger.info("VLM .mlpackage model loaded successfully using Core ML.")
             return model
         except Exception as e:
-            logger.error(f"Failed to load VLM model from {self.vlm_path_str}: {e}")
-            raise
+            logger.error(f"Failed to load VLM .mlpackage model from {vlm_model_path_str} using Core ML: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Return a dummy model or raise an error
+            def dummy_vlm_model_load_failed(*args, **kwargs) -> Dict[str, Any]: # Ensure return type hint is correct
+                logger.error(f"CoreML VLM failed to load. Using dummy output. Error: {e}")
+                return {"description": f"VLM (CoreML) load failed: {e}", "confidence": 0.0, "features": []}
+            return dummy_vlm_model_load_failed
 
     async def _load_gemma_model(self) -> Optional[Tuple[Any, Any]]:
         """Load Gemma language model using mlx_lm."""
@@ -150,89 +187,155 @@ class ModelManager:
             logger.error(f"Failed to load Gemma model from {self.gemma_path_str}: {e}")
             raise
         
-    def _preprocess_image(self, image_data: str, target_size: int = 224) -> Any:
+    def _preprocess_image_for_coreml(self, image_data: str) -> Image.Image:
         """
-        Preprocess base64 image data for model input.
-        
-        Args:
-            image_data: Base64 encoded image
-            target_size: The target size (height and width) for the image.
-            
-        Returns:
-            Processed image tensor (batch_size, height, width, channels)
+        Preprocess base64 image data for Core ML VLM model input.
+        Returns a PIL Image.
         """
-        if not MLX_READY or not mx:
-            raise RuntimeError("MLX not properly initialized for image preprocessing")
-            
-        # Decode base64
-        image_bytes = base64.b64decode(image_data)
-        image = Image.open(BytesIO(image_bytes))
-        
-        # Resize and convert to RGB
-        image = image.convert('RGB')
-        image = image.resize((target_size, target_size))
-        
-        # Convert to numpy array and normalize
-        image_array = np.array(image)
-        image_array = image_array.astype(np.float32) / 255.0
-        
-        # Convert to MLX array and add batch dimension
-        # Expected shape for many vision models: (batch_size, height, width, channels)
-        image_tensor = mx.array(image_array)
-        image_tensor = mx.expand_dims(image_tensor, axis=0)
-        
-        return image_tensor
-            
+        try:
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(BytesIO(image_bytes))
+            image = image.convert('RGB')
+
+            # --- IMPORTANT: RESIZING LOGIC ---
+            # Your Core ML model (FastVLM) likely expects a specific input image size.
+            # You need to find this size (e.g., from model.get_spec() or documentation)
+            # and resize the image here if it doesn't match.
+            # Example: If your model expects 224x224
+            # target_width = 224 # Replace with actual width from your model spec
+            # target_height = 224 # Replace with actual height from your model spec
+            # if image.width != target_width or image.height != target_height:
+            #     logger.debug(f"Resizing image from {image.size} to ({target_width},{target_height}) for Core ML VLM.")
+            #     image = image.resize((target_width, target_height))
+            # else:
+            #     logger.debug(f"Image size {image.size} matches Core ML VLM expected input size (or no specific size found in spec).")
+            # For now, we are not resizing, assuming the model handles it or input is already correct.
+            # You SHOULD verify this. The settings.IMAGE_SIZE might be relevant here if it matches VLM's need.
+            if settings.IMAGE_SIZE > 0 : # Assuming IMAGE_SIZE is for VLM
+                 current_size = settings.IMAGE_SIZE
+                 if image.width != current_size or image.height != current_size:
+                     logger.debug(f"Resizing image from {image.size} to ({current_size},{current_size}) for Core ML VLM based on settings.IMAGE_SIZE.")
+                     image = image.resize((current_size, current_size))
+
+
+            return image
+        except Exception as e:
+            logger.error(f"Error during Core ML image preprocessing: {e}")
+            raise
+
     async def process_vision(self, image_data: str) -> Dict[str, Any]:
         """
-        Process image with vision model.
-        
-        Args:
-            image_data: Base64 encoded image
-            
-        Returns:
-            Vision analysis results
+        Process image with Core ML VLM model.
         """
-        if not MLX_READY or not mx or not self.vlm_model:
-            raise RuntimeError("Vision model (VLM) not available or MLX not ready")
-            
-        try:
-            # Preprocess image
-            # FastVLM might have specific image size requirements, adjust settings.IMAGE_SIZE if needed
-            image_tensor = self._preprocess_image(image_data, target_size=settings.IMAGE_SIZE)
-            
-            # Get vision features
-            # The actual call to self.vlm_model depends on how it's loaded and its API
-            # This is a placeholder and needs to be adapted to the actual FastVLM model object
-            logger.debug(f"Processing vision with image tensor shape: {image_tensor.shape}")
-            features = self.vlm_model(image_tensor) # This call needs to be correct for the loaded VLM
-            
-            # Placeholder for actual results from FastVLM
-            # FastVLM might return embeddings, text descriptions, or other structured data.
-            # This needs to be updated based on FastVLM's output.
-            description_placeholder = "VLM analysis placeholder (implement actual FastVLM output processing)"
-            confidence_placeholder = 0.75 # Placeholder
-            
-            # Assuming features is an MLX array
-            if not isinstance(features, mx.array):
-                 logger.warning(f"VLM output 'features' is not an MLX array, type: {type(features)}. Conversion to list might fail.")
-                 features_list = []
-            else:
-                 features_list = features.tolist()
+        if not self.vlm_model or not _COREMLTOOLS_AVAILABLE or not _ctm: # Check _ctm as well
+            logger.error("Core ML Vision model (VLM) not available or coremltools/models module missing.")
+            return {
+                "description": "VLM unavailable",
+                "confidence": 0.0,
+                "features": []
+            }
+        
+        # If the loaded vlm_model is actually a dummy function due to load failure/unavailability
+        if callable(self.vlm_model) and not isinstance(self.vlm_model, _ctm.MLModel): # Use _ctm.MLModel
+            logger.warning("VLM model is a dummy function, likely due to load failure or coremltools unavailability.")
+            # Call the dummy function. Since self.vlm_model is Optional[Any],
+            # Pylance might not infer the return type of the callable.
+            # We know our dummy functions return Dict[str, Any].
+            # An explicit cast or check could be used if Pylance is strict,
+            # but the dummy functions themselves are type-hinted.
+            # Let's assume the type hint on the dummy functions is sufficient for runtime.
+            # If Pylance error persists here and is problematic, we might need a more explicit cast.
+            result = self.vlm_model()
+            if isinstance(result, dict): # Runtime check to be safe
+                return result
+            else: # Should not happen if dummy functions are correct
+                logger.error("Dummy VLM function did not return a dictionary as expected.")
+                return {"description": "Error: Dummy VLM returned unexpected type", "confidence": 0.0, "features": []}
 
+
+        try:
+            pil_image = self._preprocess_image_for_coreml(image_data)
+            
+            # --- CRITICAL: REPLACE WITH YOUR MODEL'S ACTUAL INPUT NAME ---
+            # From logs: Core ML VLM Input Name is "images"
+            vlm_input_name = "images"
+            
+            logger.debug(f"Processing vision with Core ML VLM. Input name: '{vlm_input_name}', Image size: {pil_image.size}")
+            # The input to predict should be a dictionary where the key is "images"
+            # and the value is the PIL Image.
+            # However, the model input type is "multiArrayType", not "imageType".
+            # This means it likely expects a NumPy array, not a PIL Image directly.
+            # We need to convert the PIL image to a NumPy array and potentially reshape/transpose it.
+
+            # Convert PIL image to NumPy array
+            img_np = np.array(pil_image).astype(np.float32) # Ensure float32
+
+            # CoreML multiArray inputs often expect (Batch, Channel, Height, Width) or (Channel, Height, Width)
+            # PIL Image to NumPy array is (Height, Width, Channel)
+            # Let's assume (Channel, Height, Width) for now, and add batch dim.
+            # This might need adjustment based on the exact model spec for "images" input.
+            if img_np.ndim == 3: # H, W, C
+                img_np = np.transpose(img_np, (2, 0, 1)) # C, H, W
+            
+            # Add batch dimension if not present (model might expect a batch of 1)
+            if img_np.ndim == 3: # C, H, W
+                 img_np = np.expand_dims(img_np, axis=0) # B, C, H, W
+            
+            logger.debug(f"NumPy array for Core ML VLM input '{vlm_input_name}' shape: {img_np.shape}")
+
+            prediction = self.vlm_model.predict({vlm_input_name: img_np})
+            
+            # --- CRITICAL: EXTRACT OUTPUTS BASED ON YOUR MODEL'S ACTUAL OUTPUT NAMES ---
+            # Inspect model.get_spec().description.output
+            # Example: prediction might be {'text_description': "...", 'features_output': np.array(...)}
+            
+            description = "Description from Core ML VLM (Update extraction logic)"
+            confidence = 0.75  # Placeholder
+            features_np = np.array([]) # Placeholder for NumPy array features
+
+            # Attempt to get common output names. YOU MUST VERIFY THESE.
+            # For text description: (FastVLM typically outputs features, not direct text descriptions)
+            # The output name is "image_features"
+            description = "Features extracted by VLM, description to be generated by LLM." # Placeholder
+            
+            # For features (embeddings):
+            # From logs: Core ML VLM Output Name is "image_features"
+            output_features_name = "image_features"
+            if output_features_name in prediction:
+                features_np = prediction[output_features_name]
+            else:
+                logger.warning(f"Could not find output '{output_features_name}' in Core ML VLM prediction. Keys: {list(prediction.keys())}. Using empty features.")
+                features_np = np.array([])
+
+            if isinstance(features_np, np.ndarray):
+                logger.debug(f"Core ML VLM features extracted, shape: {features_np.shape}")
+                features_list = features_np.tolist()
+            else:
+                logger.warning(f"Extracted VLM features are not a NumPy array (type: {type(features_np)}). Using empty list.")
+                features_list = []
+            
+            # Confidence might not be directly output by all VLMs.
+            # If your model outputs probabilities or scores, you might derive confidence here.
+
+            logger.info(f"Core ML VLM processed. Description (raw): '{str(description)[:100]}...'")
 
             return {
-                "description": description_placeholder,
-                "confidence": confidence_placeholder,
+                "description": str(description), # Ensure it's a string
+                "confidence": confidence,
                 "features": features_list
             }
             
         except Exception as e:
-            logger.error(f"Vision processing failed: {e}")
-            # Log traceback for more details
+            logger.error(f"Core ML Vision processing failed: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            raise
+            # Return a structured error response
+            return {
+                "description": f"Error in VLM processing: {e}",
+                "confidence": 0.0,
+                "features": [],
+                "error": str(e)
+            }
             
     async def process_text(
         self,

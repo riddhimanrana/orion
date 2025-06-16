@@ -179,6 +179,61 @@ async def ios_websocket(websocket: WebSocket):
         if websocket_manager:
             await websocket_manager.remove_ios_client(client_id)
 
+@app.websocket("/ws/dashboard")
+async def dashboard_websocket(websocket: WebSocket):
+    """WebSocket endpoint for dashboard web client connections."""
+    if not websocket_manager or not check_services():
+        await websocket.close(code=1013, reason="Server not ready")
+        return
+
+    client_id = f"dashboard_{id(websocket)}"
+    try:
+        await websocket_manager.add_dashboard_client(websocket, client_id)
+        
+        # Send a connection acknowledgment to the dashboard client
+        try:
+            await websocket.send_json({"type": "connection_ack", "status": "connected", "client_id": client_id})
+            logger.info(f"Sent connection_ack to dashboard client {client_id}")
+        except Exception as e:
+            logger.error(f"Failed to send connection_ack to dashboard {client_id}: {e}")
+            if websocket_manager:
+                await websocket_manager.remove_dashboard_client(client_id)
+            return
+
+        # Keep the connection alive, listen for potential messages (e.g., settings changes from dashboard)
+        # For now, it's mostly a one-way street (server to dashboard)
+        while True:
+            try:
+                # Dashboards might not send data, or might send control messages in future
+                # Set a timeout to periodically check connection or allow server to send updates
+                # For now, just keep it open. If dashboard sends data, it would be received here.
+                # data = await websocket.receive_text()
+                # logger.debug(f"Received from dashboard {client_id}: {data}")
+                await asyncio.sleep(0.01) # Keep loop running, prevent tight loop if no receive_text
+                # This loop is mainly to keep the connection open from the server side.
+                # Actual data is broadcast from process_frame.
+            except WebSocketDisconnect:
+                logger.info(f"Dashboard client {client_id} disconnected (explicitly by client or timeout).")
+                break # Exit loop on disconnect
+            except asyncio.CancelledError:
+                logger.info(f"Dashboard client {client_id} connection task cancelled.")
+                break
+            except Exception as e:
+                # Handle other errors, e.g. if client sends unexpected data type
+                logger.error(f"Dashboard WebSocket error for {client_id}: {e}")
+                # Depending on error, might break or continue
+                break
+
+
+    except WebSocketDisconnect: # This handles cases where accept() fails or initial handshake issues
+        logger.info(f"Dashboard client {client_id} disconnected (before or during main loop).")
+    except Exception as e:
+        logger.error(f"Dashboard WebSocket error for {client_id} (outer): {e}")
+    finally:
+        if websocket_manager:
+            await websocket_manager.remove_dashboard_client(client_id)
+
+
 async def process_frame(client_id: str, data: str):
     """Process incoming frame from iOS app."""
     if not check_services():
@@ -231,7 +286,32 @@ async def process_frame(client_id: str, data: str):
         # Send response back to iOS
         await websocket_manager.send_to_ios_client(client_id, response.model_dump())
         
-        logger.debug(f"Processed frame {frame.frame_id} successfully")
+        # Prepare and broadcast data to dashboards
+        dashboard_message = {
+            "type": "live_update",
+            "timestamp": asyncio.get_event_loop().time(),
+            "frame_id": frame.frame_id,
+            "ios_frame_summary": { # Sending only a summary to avoid too much data initially
+                "frame_id": frame.frame_id,
+                "timestamp": frame.timestamp,
+                "device_id": frame.device_id,
+                "detections_count": len(frame.detections),
+                # Not sending full image_data to dashboard by default, can be added if needed
+            },
+            "vlm_analysis": vision_analysis, # Contains description, confidence, scene_features
+            "llm_reasoning": llm_result,     # Contains scene_description, contextual_insights, enhanced_detections
+            "final_ios_response_summary": { # Summary of what was sent to iOS
+                "frame_id": response.frame_id,
+                "scene_description": response.analysis.scene_description,
+                "contextual_insights_count": len(response.analysis.contextual_insights),
+                "enhanced_detections_count": len(response.analysis.enhanced_detections),
+                "error": response.error
+            }
+            # Optionally add logs or other system stats here
+        }
+        await websocket_manager.broadcast_to_dashboards(dashboard_message)
+        
+        logger.debug(f"Processed frame {frame.frame_id} successfully and broadcast to dashboards")
         
     except Exception as e:
         error_msg = f"Error processing frame: {str(e)}"

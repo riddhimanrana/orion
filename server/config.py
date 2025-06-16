@@ -27,7 +27,7 @@ class Settings(BaseModel):
     MEMORY_CLEANUP_INTERVAL: int = 300  # 5 minutes
     
     # Processing settings
-    IMAGE_SIZE: int = 224
+    IMAGE_SIZE: int = 1024 # Changed from 224 to match FastVLM CoreML requirement
     MAX_TEXT_LENGTH: int = 512
     
     def __init__(self, **data: Dict[str, Any]):

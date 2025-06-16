@@ -33,6 +33,7 @@ class DetectionFrame(BaseModel):
     timestamp: float
     image_data: Optional[str] = None  # Base64 encoded image
     detections: List[Detection] = []
+    device_id: Optional[str] = None # Added to match iOS FrameData
 
 class AnalysisResult(BaseModel):
     """Enhanced analysis result."""

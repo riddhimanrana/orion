@@ -12,3 +12,4 @@ rich==13.7.0
 python-json-logger==2.0.7
 huggingface-hub
 structlog
+coremltools
