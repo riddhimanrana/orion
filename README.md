@@ -1,6 +1,6 @@
-# Orion Live Vision Understanding
+# Orion Live
 
-Real-time scene understanding system using **fastVLM-0.5b** and **YOLOv11n** on iOS, with **Gemma**-powered contextual analysis and temporal memory on Apple Silicon Macs.
+Real-time scene understanding with temporal vision context combining on-device **fastVLM-0.5b** and **YOLOv11n** with **gemma3:1.5b** reasoning to track, remember, and analyze visual events as they unfold.
 
 ## System Overview
 
@@ -13,7 +13,7 @@ Real-time scene understanding system using **fastVLM-0.5b** and **YOLOv11n** on 
 2. **Mac Server**:
    - Runs on Apple Silicon (M1/M2/M3)
    - Receives detections and descriptions from iOS device
-   - Uses **Gemma** for language and contextual analysis
+   - Uses **gemma3:1.5b** for language and contextual analysis
    - Maintains **temporal context** for richer, history-aware responses
    - Sends back contextual scene analysis and answers
 
