@@ -1,5 +1,5 @@
 """
-Orion Live Computer Vision Server
+Orion Computer Vision Server
 
 A real-time computer vision server that processes video streams from iOS devices,
 performs object detection and scene analysis using git-base and Gemma models,
@@ -15,7 +15,7 @@ Components:
 """
 
 __version__ = "1.0.0"
-__author__ = "Orion Live Team"
+__author__ = "Riddhiman Rana"
 
 from .models import (
     DetectionFrame,

@@ -9,7 +9,7 @@ description = "Real-time computer vision server with enhanced context understand
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
-    { name = "Orion Live Team", email = "team@orionlive.example.com" }
+    { name = "Riddhiman Rana", email = "riddhiman.rana@gmail.com" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -36,8 +36,8 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/yourusername/orion-live#readme"
-Source = "https://github.com/yourusername/orion-live"
+Documentation = "https://github.com/riddhimanrana/orion#readme"
+Source = "https://github.com/riddhimanrana/orion"
 
 [tool.hatch.build.targets.wheel]
 packages = ["server"]

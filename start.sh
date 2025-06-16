@@ -196,13 +196,13 @@ fi
 echo # Add a blank line for readability
 
 # --- Launch Server (Python Backend) ---
-print_status "Starting Orion Live Server (Python Backend)..."
+print_status "Starting Orion Server (Python Backend)..."
 cd "$SERVER_DIR" || { print_error "Failed to change directory to $SERVER_DIR"; exit 1; }
 "$VENV_DIR/bin/python" main.py &
 PYTHON_PID=$!
 wait $PYTHON_PID
 
-print_success "Orion Live Server script finished."
+print_success "Orion Server script finished."
 
 # Optional: Clean up background Next.js process if Python server exits
 if [ ! -z "$NEXTJS_PID" ]; then

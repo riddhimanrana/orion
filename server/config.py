@@ -1,4 +1,4 @@
-"""Configuration settings for the Orion Live server."""
+"""Configuration settings for the Orion server."""
 import os
 from pathlib import Path
 from typing import Any, Dict

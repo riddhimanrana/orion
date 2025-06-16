@@ -15,7 +15,7 @@ struct OrionApp: App {
         setupLogging()
         
         // Log app launch
-        logInfo("Orion Live Vision launched", category: .general)
+        logInfo("Orion Vision launched", category: .general)
     }
     
     var body: some Scene {

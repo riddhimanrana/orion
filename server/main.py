@@ -1,4 +1,4 @@
-"""Orion Live Computer Vision Server using MLX."""
+"""Orion Computer Vision Server using MLX."""
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown."""
     global websocket_manager, vision_processor, llm_processor, context_memory, model_manager
     
-    console.print("[bold green]🚀 Starting Orion Live Server (MLX)...[/bold green]")
+    console.print("[bold green]🚀 Starting Orion Server (MLX)...[/bold green]")
     
     try:
         # Initialize model manager first
@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
     
     finally:
         # Cleanup on shutdown
-        console.print("[bold yellow]🛑 Shutting down Orion Live Server...[/bold yellow]")
+        console.print("[bold yellow]🛑 Shutting down Orion Server...[/bold yellow]")
         
         if websocket_manager:
             await websocket_manager.shutdown()
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Orion Live - Computer Vision Server (MLX)",
+    title="Orion - Computer Vision Server (MLX)",
     description="Real-time computer vision processing with Apple MLX",
     version="1.0.0",
     lifespan=lifespan

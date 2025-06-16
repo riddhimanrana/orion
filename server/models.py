@@ -1,4 +1,4 @@
-"""Data models for the Orion Live server."""
+"""Data models for the Orion server."""
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, field_validator
 
