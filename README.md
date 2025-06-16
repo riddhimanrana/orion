@@ -19,11 +19,11 @@ Real-time scene understanding with temporal vision context combining on-device *
 
 ## Requirements
 
-- Apple Silicon Mac (M1/M2/M3)
+- Apple Silicon Mac (M1/M2/M3/M4)
 - macOS 12.0 or later
-- Python 3.13+
+- Python 3.10+
 - iOS 15.0+ device
-- Local network connection
+- Local network connection(since we use websocket for communication)
 
 ## Quick Start
 
@@ -33,6 +33,8 @@ Real-time scene understanding with temporal vision context combining on-device *
 git clone https://github.com/riddhimanrana/orion
 cd orion
 ```
+
+*This is broken for now, it will be eventually fixed*
 
 1. Install and setup server:
 
