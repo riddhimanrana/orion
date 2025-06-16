@@ -34,7 +34,9 @@ git clone https://github.com/riddhimanrana/orion
 cd orion
 ```
 
-*This is broken for now, it will be eventually fixed*
+### Note
+
+This is broken for now, it will be eventually fixed
 
 1. Install and setup server:
 
