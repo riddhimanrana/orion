@@ -22,6 +22,7 @@ share/python-wheels/
 MANIFEST
 
 # mobile(moved to riddhimanrana/orion-mobile)
+mobile/
 
 # Virtual Environment
 venv/
