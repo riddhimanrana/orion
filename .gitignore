@@ -21,6 +21,8 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# mobile(moved to riddhimanrana/orion-mobile)
+
 # Virtual Environment
 venv/
 env/
