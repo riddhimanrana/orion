@@ -1,6 +1,12 @@
 # Orion Live
 
+***Note: This project is currently a work in-progress***
+
 Real-time scene understanding with temporal vision context combining on-device **fastVLM-0.5b** and **YOLOv11n** with **gemma3:1.5b** reasoning to track, remember, and analyze visual events as they unfold.
+
+I've published my model and training dataset on Huggingface at these links:
+[https://huggingface.co/riddhimanrana/fastvlm-0.5b-captions](https://huggingface.co/riddhimanrana/fastvlm-0.5b-captions)
+[https://huggingface.co/datasets/riddhimanrana/coco-fastvlm-2k-val2017](https://huggingface.co/riddhimanrana/fastvlm-0.5b-captions)
 
 ## System Overview
 
