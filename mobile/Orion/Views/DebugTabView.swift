@@ -4,7 +4,7 @@ import Combine
 // MARK: - Data Models & Enums (Defined at top level to avoid ambiguity)
 
 enum LogCategory: String, CaseIterable {
- all = "All"
+    case all = "All"
     case sent = "Sent"
     case received = "Received"
     case error = "Error"
@@ -173,7 +173,7 @@ struct DebugTabView: View {
             MetricRow(label: "Objects Detected", value: cameraManager.lastDetections.map { $0.label }.joined(separator: ", ").isEmpty ? "None" : cameraManager.lastDetections.map { $0.label }.joined(separator: ", "), target: "")
             MetricRow(label: "VLM Description", value: cameraManager.lastVLMDescription ?? "N/A", target: "")
             MetricRow(label: "VLM Confidence", value: String(format: "%.2f", cameraManager.lastVLMConfidence ?? 0.0), target: "> 0.5")
-        }/ch
+        }
     }
 
     private var webSocketStatusSection: some View {
