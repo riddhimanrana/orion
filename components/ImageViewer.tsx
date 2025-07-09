@@ -1,10 +1,10 @@
 import React from 'react';
 
-interface VideoPlayerProps {
+interface ImageViewerProps {
   frameData: string | null; // Expecting base64 encoded image string or null
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ frameData }) => {
+const ImageViewer: React.FC<ImageViewerProps> = ({ frameData }) => {
   return (
     <div className="bg-muted border rounded-lg h-full w-full flex items-center justify-center overflow-hidden">
       {frameData ? (
@@ -21,4 +21,4 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ frameData }) => {
   );
 };
 
-export default VideoPlayer;
+export default ImageViewer;

@@ -84,45 +84,66 @@ print_success "Dependencies installed."
 
 # --- Model Directory and Acquisition ---
 WEIGHTS_DIR="$SERVER_DIR/weights"
-FASTVLM_DIR="$WEIGHTS_DIR/fastvlm-1.5"
-FASTVLM_MODEL_PATH="$FASTVLM_DIR/fastvithd.mlpackage"
-GEMMA_MODEL_DIR="$WEIGHTS_DIR/gemma-3b-it-4bit-mlx"
+GEMMA_MODEL_DIR="$WEIGHTS_DIR/gemma-3-1b-it-4bit"
+YOLO_MODEL_DIR="$WEIGHTS_DIR/yolov11n"
+FASTVLM_MODEL_DIR="$WEIGHTS_DIR/fastvlm-0.5b"
 
 print_status "Creating model directories if they don't exist..."
-mkdir -p "$FASTVLM_DIR"
 mkdir -p "$GEMMA_MODEL_DIR"
+mkdir -p "$YOLO_MODEL_DIR"
+mkdir -p "$FASTVLM_MODEL_DIR"
 print_success "Model directories ensured."
 
-# Fast-VLM Model Check
-print_status "Checking for Fast-VLM model..."
-if [ ! -d "$FASTVLM_MODEL_PATH" ]; then # .mlpackage is a directory
-    print_error "Fast-VLM model (fastvithd.mlpackage) not found at $FASTVLM_MODEL_PATH"
-    print_status "Please download or place the 'fastvithd.mlpackage' directory into $FASTVLM_DIR."
-    # exit 1 # Do not exit, allow server to start and potentially fail at model load if user wants to try
-else
-    print_success "Fast-VLM model package found at $FASTVLM_MODEL_PATH."
-fi
-
-# Gemma-3b Model Check & Download
-print_status "Checking for Gemma-3b model..."
-# Check for a common file that indicates model presence, e.g., model.safetensors or weights.safetensors
+# Gemma-1b Model Check & Download
+print_status "Checking for Gemma-1b model..."
 if [ ! -f "$GEMMA_MODEL_DIR/model.safetensors" ] && [ ! -f "$GEMMA_MODEL_DIR/weights.safetensors" ]; then
-    print_status "Gemma-3b model not found in $GEMMA_MODEL_DIR. Attempting to download..."
+    print_status "Gemma-1b model not found. Attempting to download..."
     if command -v huggingface-cli &> /dev/null; then
-        huggingface-cli download mlx-community/gemma-3-4b-it-qat-4bit --local-dir "$GEMMA_MODEL_DIR" --local-dir-use-symlinks False --quiet
+        huggingface-cli download mlx-community/gemma-3-1b-it-4bit --local-dir "$GEMMA_MODEL_DIR" --local-dir-use-symlinks False --quiet
         if [ $? -eq 0 ]; then
-            print_success "Gemma-3b model downloaded successfully to $GEMMA_MODEL_DIR."
+            print_success "Gemma-1b model downloaded successfully."
         else
-            print_error "Failed to download Gemma-3b model using huggingface-cli."
-            print_status "Please ensure 'huggingface-hub' is installed and you are logged in if required, or download manually."
+            print_error "Failed to download Gemma-1b model."
         fi
     else
-        print_error "huggingface-cli not found. Cannot download Gemma-3b model automatically."
-        print_status "Please install 'huggingface-hub' (pip install huggingface-hub) or download the model manually to $GEMMA_MODEL_DIR."
+        print_error "huggingface-cli not found. Cannot download Gemma-1b model."
     fi
 else
-    print_success "Gemma-3b model found in $GEMMA_MODEL_DIR."
+    print_success "Gemma-1b model found."
 fi
+
+# YOLOv11n Model Check & Download
+print_status "Checking for YOLOv11n model..."
+if [ ! -d "$YOLO_MODEL_DIR/yolo11n.mlpackage" ]; then
+    print_status "YOLOv11n model not found. Attempting to download..."
+    YOLO_URL="https://github.com/RiddhimanRana/yolo11n-mlx/archive/refs/heads/main.zip"
+    YOLO_ZIP_PATH="$WEIGHTS_DIR/yolo11n.zip"
+    curl -L "$YOLO_URL" -o "$YOLO_ZIP_PATH"
+    unzip -q "$YOLO_ZIP_PATH" -d "$WEIGHTS_DIR"
+    # Move contents from the unzipped folder to the target directory
+    mv "$WEIGHTS_DIR/yolo11n-mlx-main/yolo11n.mlpackage" "$YOLO_MODEL_DIR/"
+    rm -rf "$WEIGHTS_DIR/yolo11n-mlx-main" "$YOLO_ZIP_PATH"
+    print_success "YOLOv11n model downloaded and extracted."
+else
+    print_success "YOLOv11n model found."
+fi
+
+# FastVLM Model Check & Download
+print_status "Checking for FastVLM model..."
+if [ ! -f "$FASTVLM_MODEL_DIR/model.safetensors" ]; then
+    print_status "FastVLM model not found. Attempting to download..."
+    FASTVLM_URL="https://ml-site.cdn-apple.com/datasets/fastvlm/llava-fastvithd_0.5b_stage3_llm.fp16.zip"
+    FASTVLM_ZIP_PATH="$WEIGHTS_DIR/fastvlm.zip"
+    curl -L "$FASTVLM_URL" -o "$FASTVLM_ZIP_PATH"
+    unzip -q "$FASTVLM_ZIP_PATH" -d "$WEIGHTS_DIR"
+    # The zip extracts to a folder named after the model, move its contents
+    mv "$WEIGHTS_DIR/llava-fastvithd_0.5b_stage3_llm.fp16"/* "$FASTVLM_MODEL_DIR/"
+    rm -rf "$WEIGHTS_DIR/llava-fastvithd_0.5b_stage3_llm.fp16" "$FASTVLM_ZIP_PATH"
+    print_success "FastVLM model downloaded and extracted."
+else
+    print_success "FastVLM model found."
+fi
+
 
 # --- Environment File (.env) ---
 ENV_FILE="$SERVER_DIR/.env"
@@ -136,8 +157,10 @@ DEBUG=true
 LOG_LEVEL=INFO
 
 # Model paths (primarily for reference if ModelManager uses config.py directly)
-# VISION_MODEL_PATH="weights/fastvlm-1.5/fastvithd.mlpackage"
-# LLM_MODEL_PATH="weights/gemma-3b-it-4bit-mlx/"
+LLM_MODEL_PATH="weights/gemma-3-1b-it-4bit/"
+YOLO_MODEL_PATH="weights/yolov11n/"
+FASTVLM_MODEL_PATH="weights/fastvlm-0.5b/"
+PROCESSING_MODE="split" # "split" or "full"
 EOL
     print_success ".env file created."
 else

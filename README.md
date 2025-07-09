@@ -1,6 +1,6 @@
 # Orion Live
 
-Real-time scene understanding with temporal vision context combining on-device **fastVLM-0.5b** and **YOLOv11n** with **gemma3:1.5b** reasoning to track, remember, and analyze visual events as they unfold.
+Real-time scene understanding with temporal vision context combining on-device **fastVLM-0.5b** and **YOLOv11n** with **gemma-3b-it** reasoning to track, remember, and analyze visual events as they unfold.
 
 ## System Overview
 
@@ -13,7 +13,7 @@ Real-time scene understanding with temporal vision context combining on-device *
 2. **Mac Server**:
    - Runs on Apple Silicon (M1/M2/M3)
    - Receives detections and descriptions from iOS device
-   - Uses **gemma3:1.5b** for language and contextual analysis
+   - Uses **gemma-3b-it** for language and contextual analysis
    - Maintains **temporal context** for richer, history-aware responses
    - Sends back contextual scene analysis and answers
 
@@ -34,22 +34,12 @@ git clone https://github.com/riddhimanrana/orion
 cd orion
 ```
 
-### Note
 
-This is broken for now, it will be eventually fixed
 
 1. Install and setup server:
 
 ```bash
-cd server
-chmod +x orion.sh
-./orion.sh --install
-```
-
-1. Start the server:
-
-```bash
-./orion.sh --start
+./start.sh
 ```
 
 ## iOS App Setup
@@ -77,7 +67,7 @@ open Orion.xcodeproj
 ### Server Components
 
 - Receives detections and VLM descriptions from iOS
-- **Gemma** model for language/contextual analysis
+- **gemma-3b-it** model for language/contextual analysis
 - **Temporal context memory** for scene history and continuity
 - WebSocket server for communication
 
@@ -88,14 +78,14 @@ open Orion.xcodeproj
   - **fastVLM-0.5b** for image/scene description
 
 - **Server (Mac):**
-  - **Gemma** for language and contextual analysis
+  - **gemma-3b-it** for language and contextual analysis
   - Temporal context module for scene memory
 
 ## Performance Notes
 
 - All vision-language inference (fastVLM-0.5b) runs on-device for privacy and speed
 - Only lightweight data (detections + descriptions) sent to server
-- Server maintains context and provides fast, relevant responses using Gemma
+- Server maintains context and provides fast, relevant responses using gemma-3b-it
 - Low-latency WebSocket communication
 
 ## Customization
@@ -108,12 +98,17 @@ HOST=0.0.0.0
 PORT=8000
 DEBUG=true
 LOG_LEVEL=INFO
+
+# Model Paths (for server-side processing)
+YOLO_MODEL_PATH="weights/yolov11n/" # Placeholder path
+FASTVLM_MODEL_PATH="weights/fastvlm-0.5b/" # Placeholder path
+PROCESSING_MODE="split" # "split" or "full"
 ```
 
 ### Model Weights
 
 - iOS models (YOLOv11n, fastVLM-0.5b) are bundled or downloaded on first launch
-- Server models (Gemma) are downloaded automatically during setup
+- Server models (gemma-3b-it) are downloaded automatically during setup
 - Custom models can be placed in `server/weights/`
 
 ## Development

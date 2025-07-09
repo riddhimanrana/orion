@@ -5,6 +5,7 @@ export interface Detection { // Exporting for use in page.tsx
   id: string;
   label: string;
   confidence: number;
+  contextual_label?: string;
   // TODO: Add other relevant properties like bounding box coordinates (e.g., x, y, width, height)
 }
 
@@ -22,7 +23,7 @@ const DetectionList: React.FC<DetectionListProps> = ({ detections }) => {
         <ul className="space-y-2">
           {detections.map((detection) => ( // Use detection.id for key if available and unique
             <li key={detection.id || Math.random().toString()} className="p-2 border-b border-border text-sm">
-              <div className="font-medium text-foreground">{detection.label}</div>
+              <div className="font-medium text-foreground">{detection.contextual_label || detection.label}</div>
               <div className="text-xs text-muted-foreground">
                 Confidence: {(detection.confidence * 100).toFixed(1)}%
               </div>

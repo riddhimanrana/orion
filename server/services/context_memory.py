@@ -106,6 +106,7 @@ class ContextMemory:
                 "frame_id": frame.frame_id,
                 "timestamp": frame.timestamp,
                 "detections": [d.model_dump() for d in frame.detections],
+                "vlm_description": frame.vlm_description, # Add vlm_description
                 "analysis": analysis
             }
             

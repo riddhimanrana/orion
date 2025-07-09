@@ -1,9 +1,9 @@
-"""Vision processing service using MLX."""
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
-from models import DetectionFrame, Detection
+from models import Detection, FrameDataMessage
 from services.model_manager import ModelManager
 from utils.logger import get_logger
+from config import settings
 
 logger = get_logger(__name__)
 
@@ -11,12 +11,6 @@ class VisionProcessor:
     """Handles vision processing and scene understanding."""
     
     def __init__(self, model_manager: ModelManager):
-        """
-        Initialize vision processor.
-        
-        Args:
-            model_manager: MLX model manager instance
-        """
         self.model_manager = model_manager
         self.stats = {
             "frames_processed": 0,
@@ -26,55 +20,57 @@ class VisionProcessor:
         logger.info("VisionProcessor initialized")
         
     async def initialize(self) -> None:
-        """Initialize vision processing."""
         logger.info("Vision processor ready")
         
-    async def analyze_frame(self, frame: DetectionFrame) -> Dict[str, Any]:
-        """
-        Analyze a frame with iOS detections.
-        
-        Args:
-            frame: Frame data with iOS YOLOv11n detections
-            
-        Returns:
-            Enhanced analysis results
-        """
+    async def analyze_frame(self, frame: FrameDataMessage) -> Dict[str, Any]:
         try:
-            # Log received detections from iOS
-            detection_info = [f"{d.label} ({d.confidence:.2f})" for d in frame.detections]
-            logger.debug(f"iOS detections: {', '.join(detection_info)}")
+            detections: List[Detection] = []
+            vlm_description: Optional[str] = None
+            vlm_confidence: Optional[float] = None
+
+            if settings.PROCESSING_MODE == "full":
+                if not frame.image_data:
+                    raise ValueError("Image data is required for full processing mode.")
+                
+                yolo_results = await self.model_manager.process_image_for_yolo(frame.image_data)
+                detections = [Detection(**d) for d in yolo_results]
+
+                # The prompt for VLM is now dynamic and based on the YOLO detections
+                vlm_prompt = self._build_vlm_prompt(detections)
+                vlm_results = await self.model_manager.process_image_for_vlm(frame.image_data, vlm_prompt)
+                vlm_description = vlm_results.get("description")
+                vlm_confidence = vlm_results.get("confidence")
+
+                logger.info(f"Server-side YOLO Detections Count: {len(detections)}")
+                logger.info(f"Server-side VLM Description: {vlm_description}")
+
+            else: # split mode
+                detections = frame.detections or []
+                vlm_description = frame.vlm_description or ""
+                vlm_confidence = frame.vlm_confidence or 0.0
+                logger.info(f"Received iOS YOLO Detections Count: {len(detections)}")
+                logger.info(f"Received iOS VLM Description: {vlm_description}")
             
-            # Get enhanced understanding from MLX models
-            if frame.image_data:
-                # Get VLM analysis
-                vision_result = await self.model_manager.process_vision(frame.image_data)
+            detection_info = [f"{d.label} ({d.confidence:.2f})" for d in detections]
+            logger.debug(f"Detections: {', '.join(detection_info)}")
+            
+            analysis = {
+                "description": vlm_description,
+                "confidence": vlm_confidence,
+                "detections": [self._enhance_detection(d) for d in detections],
+                "scene_features": [],
+                "ios_frame_summary": {
+                    "image_data": frame.image_data
+                },
+                "error": None
+            }
                 
-                # Combine iOS detections with MLX understanding
-                analysis = {
-                    "description": vision_result["description"],
-                    "confidence": vision_result["confidence"],
-                    "detections": [self._enhance_detection(d) for d in frame.detections],
-                    "scene_features": vision_result.get("features", []),
-                    "error": None
-                }
-                
-            else:
-                # No image data, just use iOS detections
-                analysis = {
-                    "description": self._generate_description(frame.detections),
-                    "confidence": sum(d.confidence for d in frame.detections) / len(frame.detections) if frame.detections else 0.0,
-                    "detections": [self._enhance_detection(d) for d in frame.detections],
-                    "scene_features": [],
-                    "error": "No image data available"
-                }
-                
-            # Update stats
             self.stats["frames_processed"] += 1
-            if frame.detections:
-                self.stats["total_detections"] += len(frame.detections)
+            if detections:
+                self.stats["total_detections"] += len(detections)
                 self.stats["average_confidence"] = (
                     (self.stats["average_confidence"] * (self.stats["frames_processed"] - 1) + 
-                    analysis["confidence"]) / self.stats["frames_processed"]
+                    (vlm_confidence or 0.0)) / self.stats["frames_processed"]
                 )
                 
             return analysis
@@ -88,53 +84,33 @@ class VisionProcessor:
                 "scene_features": [],
                 "error": str(e)
             }
+
+    def _build_vlm_prompt(self, detections: List[Detection]) -> str:
+        """Builds a concise prompt for the VLM based on YOLO detections."""
+        if not detections:
+            return "Describe the scene briefly."
+        
+        labels = [det.label for det in detections]
+        return f"Describe the scene containing: {', '.join(labels)}. Be concise."
             
     def _enhance_detection(self, detection: Detection) -> Dict[str, Any]:
-        """Enhance a single detection with additional info."""
         return {
             "label": detection.label,
             "confidence": detection.confidence,
             "bbox": detection.bbox,
             "track_id": detection.track_id,
-            # Add any additional enhancements
             "category": self._get_category(detection.label),
             "is_moving": detection.track_id is not None
         }
         
     def _get_category(self, label: str) -> str:
-        """Map detection label to category."""
         categories = {
-            "person": "human",
-            "car": "vehicle",
-            "truck": "vehicle",
-            "bus": "vehicle",
-            "chair": "furniture",
-            "table": "furniture",
-            "dog": "animal",
-            "cat": "animal"
+            "person": "human", "car": "vehicle", "truck": "vehicle", "bus": "vehicle",
+            "chair": "furniture", "table": "furniture", "dog": "animal", "cat": "animal"
         }
         return categories.get(label.lower(), "object")
         
-    def _generate_description(self, detections: List[Detection]) -> str:
-        """Generate basic description from detections."""
-        if not detections:
-            return "No objects detected"
-            
-        # Count objects by category
-        categories: Dict[str, int] = {}
-        for det in detections:
-            cat = self._get_category(det.label)
-            categories[cat] = categories.get(cat, 0) + 1
-            
-        # Generate description
-        parts = []
-        for cat, count in categories.items():
-            parts.append(f"{count} {cat}{'s' if count > 1 else ''}")
-            
-        return "Scene contains " + ", ".join(parts)
-        
     def get_stats(self) -> Dict[str, Any]:
-        """Get processing statistics."""
         return {
             "frames_processed": self.stats["frames_processed"],
             "total_detections": self.stats["total_detections"],
@@ -146,11 +122,9 @@ class VisionProcessor:
         }
         
     def is_healthy(self) -> bool:
-        """Check if processor is healthy."""
         return self.model_manager.is_healthy()
         
     async def cleanup(self) -> None:
-        """Cleanup processor resources."""
         self.stats = {
             "frames_processed": 0,
             "total_detections": 0,

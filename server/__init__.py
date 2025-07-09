@@ -23,12 +23,12 @@ from .models import (
     AnalysisResult,
     SystemStatus,
     HealthCheck,
-    ContextEntry
+    ContextEntry,
+    PacketEvent
 )
 
 from .services import (
     WebSocketManager,
-    VisionProcessor,
     LLMProcessor,
     ContextMemory,
     ModelManager
@@ -54,7 +54,6 @@ __all__ = [
     
     # Services
     'WebSocketManager',
-    'VisionProcessor',
     'LLMProcessor',
     'ContextMemory',
     'ModelManager',

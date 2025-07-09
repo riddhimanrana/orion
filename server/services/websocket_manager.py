@@ -1,8 +1,10 @@
 """WebSocket manager for iOS client communication."""
 import json
+import time
 from typing import Dict, Any, Optional
 import logging
 from fastapi import WebSocket, WebSocketDisconnect
+import copy
 
 from utils.logger import get_logger
 
@@ -75,10 +77,14 @@ class WebSocketManager:
         """
         if client_id in self.dashboard_clients:
             try:
-                # May not need to explicitly close if client initiated disconnect
-                await self.dashboard_clients[client_id].close()
-            except Exception: # Broad catch for already closed sockets
-                pass
+                # Check if connection is still open before trying to close
+                websocket = self.dashboard_clients[client_id]
+                if websocket.client_state.name != 'DISCONNECTED':
+                    await websocket.close()
+            except Exception as e:
+                # Log but don't raise - connection might already be closed
+                logger.debug(f"Error closing dashboard client {client_id}: {e}")
+            
             del self.dashboard_clients[client_id]
             if self.stats["active_dashboard_clients"] > 0:
                 self.stats["active_dashboard_clients"] -= 1
@@ -189,12 +195,30 @@ class WebSocketManager:
         for client_id, websocket in self.dashboard_clients.items():
             try:
                 await websocket.send_json(message)
+            except WebSocketDisconnect:
+                logger.info(f"Dashboard client {client_id} disconnected normally")
+                disconnected_dashboards.append(client_id)
             except Exception as e:
                 logger.error(f"Error sending to dashboard client {client_id}: {e}")
                 disconnected_dashboards.append(client_id)
         
+        # Clean up disconnected clients
         for client_id in disconnected_dashboards:
-            await self.remove_dashboard_client(client_id) # Use the correct remove method
+            await self.remove_dashboard_client(client_id)
+
+    async def broadcast_event_to_dashboards(self, event_type: str, data: Dict[str, Any]) -> None:
+        """
+        Broadcast a specific event to all connected dashboard clients.
+        """
+        # Create a deep copy of the data to prevent modification issues during iteration
+        data_copy = copy.deepcopy(data)
+        message = {
+            "type": "live_update",
+            "event": event_type,
+            "timestamp": time.time(),
+            "data": data_copy
+        }
+        await self.broadcast_to_dashboards(message)
             
     async def shutdown(self) -> None:
         """Clean up all connections."""

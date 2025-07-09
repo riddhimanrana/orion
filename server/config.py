@@ -19,8 +19,10 @@ class Settings(BaseModel):
     
     # MLX model settings
     WEIGHTS_DIR: Path = ROOT_DIR / "weights"
-    VISION_MODEL_PATH: str = str(ROOT_DIR / "weights/fastvlm-1.5/fastvithd.mlpackage")
-    LLM_MODEL_PATH: str = str(ROOT_DIR / "weights/gemma-3b-it-4bit-mlx/")
+    LLM_MODEL_PATH: str = str(ROOT_DIR / "weights/gemma-3-1b-it-4bit/")
+    YOLO_MODEL_PATH: str = str(ROOT_DIR / "weights/yolov11n/yolo11n.mlpackage")
+    FASTVLM_MODEL_PATH: str = str(ROOT_DIR / "weights/fastvlm-0.5b/")
+    PROCESSING_MODE: str = "split"  # "split" (VLM on device, LLM on server) or "full" (VLM+LLM on server)
     
     # Memory settings
     MAX_MEMORY_FRAMES: int = 1000
@@ -28,7 +30,7 @@ class Settings(BaseModel):
     
     # Processing settings
     IMAGE_SIZE: int = 1024 # Changed from 224 to match FastVLM CoreML requirement
-    MAX_TEXT_LENGTH: int = 512
+    MAX_TEXT_LENGTH: int = 100
     
     def __init__(self, **data: Dict[str, Any]):
         super().__init__(**data)
