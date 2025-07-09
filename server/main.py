@@ -219,26 +219,30 @@ async def ios_websocket(websocket: WebSocket):
 
                 if message_type == "frame_data":
                     frame_data_message = FrameDataMessage.model_validate(message_json)
-                    # Put frame into the queue instead of processing directly
-                    await frame_queue.put((client_id, frame_data_message))
-                    
-                    # Notify dashboard about the new item in queue
-                    if websocket_manager and frame_queue:
-                        # Get current queue contents without removing them
-                        queue_contents = []
-                        for item in list(frame_queue._queue):
-                            client_id_in_queue, frame_in_queue = item
-                            queue_contents.append({
-                                "frame_id": frame_in_queue.frame_id,
-                                "timestamp": frame_in_queue.timestamp,
-                                "device_id": frame_in_queue.device_id,
-                                "status": "enqueued" # Indicate status in queue
-                            })
+                    if settings.PROCESSING_MODE == "full":
+                        # In full mode, process the frame directly and bypass the queue
+                        await process_frame(client_id, frame_data_message)
+                    else:
+                        # In split mode, use the queue
+                        await frame_queue.put((client_id, frame_data_message))
+                        
+                        # Notify dashboard about the new item in queue
+                        if websocket_manager and frame_queue:
+                            # Get current queue contents without removing them
+                            queue_contents = []
+                            for item in list(frame_queue._queue):
+                                client_id_in_queue, frame_in_queue = item
+                                queue_contents.append({
+                                    "frame_id": frame_in_queue.frame_id,
+                                    "timestamp": frame_in_queue.timestamp,
+                                    "device_id": frame_in_queue.device_id,
+                                    "status": "enqueued" # Indicate status in queue
+                                })
 
-                        await websocket_manager.broadcast_event_to_dashboards(
-                            "frame_enqueued",
-                            {"queue_size": frame_queue.qsize(), "frame_id": frame_data_message.frame_id, "queue_contents": queue_contents}
-                        )
+                            await websocket_manager.broadcast_event_to_dashboards(
+                                "frame_enqueued",
+                                {"queue_size": frame_queue.qsize(), "frame_id": frame_data_message.frame_id, "queue_contents": queue_contents}
+                            )
                 elif message_type == "user_prompt":
                     user_prompt_message = UserPromptMessage.model_validate(message_json)
                     await process_user_prompt(client_id, user_prompt_message)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Server, Globe, ArrowRight } from 'lucide-react';
+import { Phone, Server, Globe, ArrowRight, Hourglass } from 'lucide-react';
 
 interface LLMProcessingStats {
   scenes_analyzed: number;
@@ -15,11 +15,11 @@ interface VisionProcessingStats {
 }
 
 interface NetworkFlowVisualizerProps {
-  lastEvent: string | null; // e.g., 'ios_frame_received', 'vlm_analysis_complete', etc.
+  lastEvent: string | null;
   processingMode: string;
   llmProcessingStats: LLMProcessingStats | null;
   visionProcessingStats: VisionProcessingStats | null;
-  queueSize: number; // Add queueSize prop
+  queueSize: number;
 }
 
 const NetworkFlowVisualizer: React.FC<NetworkFlowVisualizerProps> = ({
@@ -30,48 +30,42 @@ const NetworkFlowVisualizer: React.FC<NetworkFlowVisualizerProps> = ({
   queueSize,
 }) => {
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
-  const [currentProcessingStage, setCurrentProcessingStage] = useState<string | null>(null);
+  const [isWaiting, setIsWaiting] = useState(false);
 
   useEffect(() => {
-    if (lastEvent) {
-      let segment = null;
-      let stage = null;
-      switch (lastEvent) {
-        case 'ios_frame_received':
-          segment = 'mobile-to-server';
-          stage = 'Frame Received';
-          break;
-        case 'yolo_analysis_complete':
-          segment = 'server-processing';
-          stage = 'YOLO Analysis';
-          break;
-        case 'vlm_analysis_complete':
-          segment = 'server-processing';
-          stage = 'VLM Analysis';
-          break;
-        case 'llm_reasoning_complete':
-          segment = 'server-processing';
-          stage = 'LLM Reasoning';
-          break;
-        case 'response_sent_to_ios':
-          segment = 'server-to-dashboard';
-          stage = 'Response Sent';
-          break;
-        case 'live_update':
-          segment = 'server-to-dashboard';
-          stage = 'Dashboard Update';
-          break;
-        default:
-          segment = null;
-          stage = null;
-      }
-      setActiveSegment(segment);
-      setCurrentProcessingStage(stage);
+    let segment: string | null = null;
+    let waiting = false;
 
+    switch (lastEvent) {
+      case 'ios_frame_received':
+        segment = 'mobile-to-server';
+        if (processingMode === 'full') waiting = true;
+        break;
+      case 'frame_enqueued':
+        segment = 'server-queue';
+        break;
+      case 'frame_processing_started':
+        segment = 'server-processing';
+        break;
+      case 'response_sent_to_ios':
+        segment = 'server-to-mobile';
+        waiting = false;
+        break;
+      case 'live_update':
+        segment = 'server-to-dashboard';
+        break;
+      default:
+        break;
+    }
+
+    setActiveSegment(segment);
+    setIsWaiting(waiting);
+
+    if (segment) {
       const timer = setTimeout(() => setActiveSegment(null), 1000);
       return () => clearTimeout(timer);
     }
-  }, [lastEvent]);
+  }, [lastEvent, processingMode]);
 
   const getSegmentClasses = (segmentName: string) => {
     return `transition-all duration-500 ${activeSegment === segmentName ? 'text-green-400 scale-110' : 'text-muted-foreground'}`;
@@ -80,59 +74,56 @@ const NetworkFlowVisualizer: React.FC<NetworkFlowVisualizerProps> = ({
   return (
     <div className="w-full p-4 border rounded-md bg-card flex flex-col items-center justify-center gap-4">
       <h2 className="text-lg font-semibold">Network Flow Overview</h2>
-      <div className="flex items-center justify-around w-full max-w-2xl">
-        {/* Mobile Icon */}
+      <div className="flex items-center justify-around w-full max-w-3xl">
         <div className={`flex flex-col items-center p-2 rounded-lg ${getSegmentClasses('mobile-to-server')}`}>
           <Phone className="h-10 w-10" />
           <span className="text-sm mt-1">Mobile</span>
         </div>
 
-        {/* Arrow to Server */}
-        <div className={`flex flex-col items-center ${getSegmentClasses('mobile-to-server')}`}>
-          <ArrowRight className="h-8 w-8" />
-          <span className="text-xs">Data Stream</span>
+        <ArrowRight className={`h-8 w-8 ${getSegmentClasses('mobile-to-server')}`} />
+
+        <div className={`flex flex-col items-center p-2 rounded-lg ${getSegmentClasses('server-queue')}`}>
+          <div className="relative">
+            <Server className="h-10 w-10" />
+            {processingMode === 'split' && (
+              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full px-2 py-1 text-xs font-bold">
+                {queueSize}
+              </span>
+            )}
+          </div>
+          <span className="text-sm mt-1">Server Queue</span>
         </div>
 
-        {/* Server Icon */}
+        {isWaiting && (
+            <div className={`flex flex-col items-center p-2 rounded-lg text-amber-400`}>
+                <Hourglass className="h-8 w-8 animate-spin" />
+                <span className="text-xs mt-1">Waiting...</span>
+            </div>
+        )}
+
+        <ArrowRight className={`h-8 w-8 ${getSegmentClasses('server-processing')}`} />
+
         <div className={`flex flex-col items-center p-2 rounded-lg ${getSegmentClasses('server-processing')}`}>
           <Server className="h-10 w-10" />
-          <span className="text-sm mt-1">Server</span>
+          <span className="text-sm mt-1">Processing</span>
         </div>
 
-        {/* Arrow to Web (Dashboard) */}
-        <div className={`flex flex-col items-center ${getSegmentClasses('server-to-dashboard')}`}>
-          <ArrowRight className="h-8 w-8" />
-          <span className="text-xs">Live Updates</span>
-        </div>
+        <ArrowRight className={`h-8 w-8 ${getSegmentClasses('server-to-dashboard')}`} />
 
-        {/* Web Icon */}
         <div className={`flex flex-col items-center p-2 rounded-lg ${getSegmentClasses('server-to-dashboard')}`}>
           <Globe className="h-10 w-10" />
           <span className="text-sm mt-1">Dashboard</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4 w-full max-w-2xl text-sm text-muted-foreground mt-2">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 w-full max-w-2xl text-sm text-muted-foreground mt-2">
         <p><strong>Mode:</strong> {processingMode.toUpperCase()}</p>
-          <p><strong>Queue Size:</strong> {queueSize}</p>
-        <p><strong>Current Stage:</strong> {currentProcessingStage || 'Awaiting data...'}</p>
         {llmProcessingStats && (
-          <>
-            <p><strong>LLM Scenes:</strong> {llmProcessingStats.scenes_analyzed}</p>
-            <p><strong>LLM Avg Conf:</strong> {(llmProcessingStats.average_confidence * 100).toFixed(1)}%</p>
-            <p><strong>LLM Q&A:</strong> {llmProcessingStats.questions_answered}</p>
-          </>
+          <p><strong>LLM Scenes:</strong> {llmProcessingStats.scenes_analyzed}</p>
         )}
         {visionProcessingStats && (
-          <>
-            <p><strong>Vision Frames:</strong> {visionProcessingStats.frames_processed}</p>
-            <p><strong>Vision Detections:</strong> {visionProcessingStats.total_detections}</p>
-            <p><strong>Vision Avg Conf:</strong> {(visionProcessingStats.average_confidence * 100).toFixed(1)}%</p>
-          </>
+          <p><strong>Vision Frames:</strong> {visionProcessingStats.frames_processed}</p>
         )}
       </div>
-      <p className="text-sm text-muted-foreground text-center mt-2">
-        {lastEvent ? `Last Event: ${lastEvent.replace(/_/g, ' ')}` : 'Awaiting data...'}
-      </p>
     </div>
   );
 };
