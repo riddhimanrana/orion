@@ -23,6 +23,8 @@ MANIFEST
 
 # mobile(moved to riddhimanrana/orion-mobile)
 # mobile/
+mobile/fastvlm_example_app
+mobile/Orion/yolo11n.mlpackage
 
 # Virtual Environment
 venv/
@@ -273,5 +275,3 @@ iOSInjectionProject/
 !*.xcworkspace/contents.xcworkspacedata
 /*.gcno
 **/xcshareddata/WorkspaceSettings.xcsettings
-
-/mobile/
