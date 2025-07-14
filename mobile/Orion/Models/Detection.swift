@@ -166,3 +166,37 @@ enum DetectionDefaults {
         "refrigerator": "appliance"
     ]
 }
+
+// MARK: - Server-Side Analysis Models
+
+/// Scene analysis from server
+public struct SceneAnalysis: Codable {
+    public let sceneDescription: String
+    public let contextualInsights: [String]
+    public let enhancedDetections: [EnhancedDetection]
+    
+    public enum CodingKeys: String, CodingKey {
+        case sceneDescription = "scene_description"
+        case contextualInsights = "contextual_insights"
+        case enhancedDetections = "enhanced_detections"
+    }
+}
+
+/// Enhanced detection from server
+public struct EnhancedDetection: Codable {
+    public let label: String
+    public let confidence: Float
+    public let bbox: [Float]
+    public let trackId: Int?
+    public let category: String
+    public let isMoving: Bool
+    
+    public enum CodingKeys: String, CodingKey {
+        case label
+        case confidence
+        case bbox
+        case trackId = "track_id"
+        case category
+        case isMoving = "is_moving"
+    }
+}

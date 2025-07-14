@@ -351,23 +351,3 @@ struct MetricLabel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-
-// MARK: - Preview
-
-struct SettingsView_Previews: PreviewProvider {
-    static var previews: some View {
-        let appState = AppStateManager()
-        let wsManager = WebSocketManager()
-        
-        appState.performanceMetrics = PerformanceMetrics(
-            fps: 29.5,
-            memoryUsage: 180.3,
-            batteryLevel: 0.75,
-            temperature: 0
-        )
-        
-        return SettingsView()
-            .environmentObject(wsManager)
-            .environmentObject(appState)
-    }
-}

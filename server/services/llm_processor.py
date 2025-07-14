@@ -23,7 +23,6 @@ class LLMProcessor:
         self.model_manager = model_manager
         self.stats = {
             "scenes_analyzed": 0,
-            "average_confidence": 0.0,
             "questions_answered": 0
         }
         logger.info("LLMProcessor initialized")
@@ -58,28 +57,27 @@ class LLMProcessor:
             
             # Update stats
             self.stats["scenes_analyzed"] += 1
-            self.stats["average_confidence"] = (
-                (self.stats["average_confidence"] * (self.stats["scenes_analyzed"] - 1) +
-                llm_result["confidence"]) / self.stats["scenes_analyzed"]
-            )
             
             # Return enhanced analysis
+            final_scene_description = self._enhance_description(
+                ios_detections=frame.detections,
+                vlm_description=vision_analysis.get("description", ""),
+                llm_response=llm_result.get("response", "")
+            )
+            final_contextual_insights = self._extract_insights(
+                llm_result.get("response", ""),
+                context
+            )
+            final_enhanced_detections = self._enhance_detections(
+                frame.detections,
+                vision_analysis,
+                llm_result
+            )
+            logger.info(f"LLMProcessor returning scene_description: {final_scene_description[:100]}...")
             return {
-                "scene_description": self._enhance_description(
-                    ios_detections=frame.detections,
-                    vlm_description=vision_analysis.get("description", ""),
-                    llm_response=llm_result.get("response", "")
-                ),
-                "contextual_insights": self._extract_insights(
-                    llm_result.get("response", ""),
-                    context
-                ),
-                "enhanced_detections": self._enhance_detections(
-                    frame.detections,
-                    vision_analysis,
-                    llm_result
-                ),
-                "confidence": llm_result.get("confidence", 0.0)
+                "scene_description": final_scene_description,
+                "contextual_insights": final_contextual_insights,
+                "enhanced_detections": final_enhanced_detections
             }
             
         except Exception as e:
@@ -87,8 +85,7 @@ class LLMProcessor:
             return {
                 "scene_description": "Error analyzing scene",
                 "contextual_insights": [],
-                "enhanced_detections": [],
-                "confidence": 0.0
+                "enhanced_detections": []
             }
             
     async def answer_question(
@@ -240,7 +237,6 @@ class LLMProcessor:
         """Get processing statistics."""
         return {
             "scenes_analyzed": self.stats["scenes_analyzed"],
-            "average_confidence": self.stats["average_confidence"],
             "questions_answered": self.stats["questions_answered"]
         }
         
@@ -252,7 +248,6 @@ class LLMProcessor:
         """Cleanup processor resources."""
         self.stats = {
             "scenes_analyzed": 0,
-            "average_confidence": 0.0,
             "questions_answered": 0
         }
         logger.info("LLM processor cleaned up")

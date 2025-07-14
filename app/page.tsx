@@ -7,7 +7,8 @@ import VisionContextGraph from "@/components/VisionContextGraph";
 import LLMReasoningTree from "@/components/LLMReasoningTree";
 import LogViewer from "@/components/LogViewer";
 import IncomingDataViewer from "@/components/IncomingDataViewer";
-import QueueViewer from "@/components/QueueViewer";
+import QueueViewer from '@/components/QueueViewer';
+import QueueItemDetailModal from '@/components/QueueItemDetailModal';
 import LLMResponseViewer from "@/components/LLMResponseViewer";
 import PacketTimeline from "@/components/PacketTimeline";
 import RawPacketViewer from "@/components/RawPacketViewer";
@@ -96,6 +97,8 @@ export default function Home() {
   const [llmSceneDescription, setLlmSceneDescription] = useState<string | null>(
     null,
   );
+  const [isQueueModalOpen, setIsQueueModalOpen] = useState(false);
+  const [selectedQueueItem, setSelectedQueueItem] = useState<any>(null);
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -216,15 +219,11 @@ export default function Home() {
             ]);
 
             // Video Frame - now sending image_data if available
-            if (
-              data.vlm_analysis &&
-              data.vlm_analysis.ios_frame_summary &&
-              data.vlm_analysis.ios_frame_summary.image_data
-            ) {
-              setVideoFrame(data.vlm_analysis.ios_frame_summary.image_data);
+            if (data.image_data) {
+              setVideoFrame(data.image_data);
               console.log(
                 "Received image data:",
-                data.vlm_analysis.ios_frame_summary.image_data
+                data.image_data
                   ? "Present"
                   : "Not Present",
               );
@@ -233,12 +232,10 @@ export default function Home() {
               console.log("No image data received for this frame.");
             }
 
-            // Detections - using vlm_analysis.detections
-            if (data.vlm_analysis && data.vlm_analysis.detections) {
-              // Ensure the structure matches RawDetection: { label, confidence, bbox, track_id? }
-              // The `vlm_analysis.detections` from VisionProcessor._enhance_detection matches this.
-              setDetections(data.vlm_analysis.detections as RawDetection[]);
-              console.log("Received detections:", data.vlm_analysis.detections);
+            // Detections
+            if (data.detections) {
+              setDetections(data.detections as RawDetection[]);
+              console.log("Received detections:", data.detections);
             } else {
               setDetections([]); // Clear if no detections
               console.log("No detections received for this frame.");
@@ -267,6 +264,7 @@ export default function Home() {
             // LLM Reasoning Tree
             if (data.llm_reasoning) {
               const llmData = data.llm_reasoning;
+              console.log("Raw LLM Data received:", llmData); // Add this line
               // Set the clean LLM scene description for the dedicated viewer
               setLlmSceneDescription(llmData.scene_description || null);
 
@@ -290,7 +288,7 @@ export default function Home() {
                 ],
               };
               setLlmReasoning(reasoningRoot);
-              console.log("Received LLM reasoning:", data.llm_reasoning);
+              console.log("Processed LLM reasoning for tree:", reasoningRoot); // Add this line
             } else {
               setLlmReasoning(null);
               setLlmSceneDescription(null);
@@ -482,7 +480,7 @@ export default function Home() {
             />
           </div>
           <div className="flex-1 min-h-[300px]">
-            {processingMode === 'split' && <QueueViewer queueSize={queueSize} queueContents={queueContents} />}
+            {processingMode === 'split' && <QueueViewer queueSize={queueSize} queueContents={queueContents} onSelectQueueItem={(item) => { setSelectedQueueItem(item); setIsQueueModalOpen(true); }} />}
           </div>
           <div className="flex-1 min-h-[300px]">
             <LogViewer logs={systemLogs} />
@@ -494,6 +492,7 @@ export default function Home() {
       {/* <footer className="h-10 bg-card border-t p-2 flex items-center justify-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} Vision Dashboard</p>
       </footer> */}
+      <QueueItemDetailModal isOpen={isQueueModalOpen} onClose={() => setIsQueueModalOpen(false)} itemData={selectedQueueItem} />
     </main>
   );
 }

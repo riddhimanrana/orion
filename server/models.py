@@ -38,7 +38,6 @@ class DetectionFrame(BaseModel):
     detections: List[Detection] = []
     device_id: Optional[str] = None # Added to match iOS FrameData
     vlm_description: Optional[str] = None # On-device VLM description
-    vlm_confidence: Optional[float] = None # On-device VLM confidence
 
 class PromptResponse(BaseModel):
     """Response to a user prompt."""
@@ -61,7 +60,6 @@ class FrameDataMessage(WebSocketMessage):
     detections: Optional[List[Detection]] = None
     device_id: Optional[str] = None
     vlm_description: Optional[str] = None # On-device VLM description (optional, for split mode)
-    vlm_confidence: Optional[float] = None # On-device VLM confidence (optional, for split mode)
 
 class UserPromptMessage(WebSocketMessage):
     """WebSocket message containing a user prompt/question."""
@@ -76,15 +74,6 @@ class AnalysisResult(BaseModel):
     scene_description: str
     contextual_insights: List[str] = []
     enhanced_detections: List[Dict[str, Any]] = []
-    confidence: float
-    
-    @field_validator('confidence')
-    @classmethod
-    def validate_confidence(cls, v: float) -> float:
-        """Validate confidence score."""
-        if not 0.0 <= v <= 1.0:
-            raise ValueError("confidence must be between 0 and 1")
-        return v
 
 class ServerResponse(BaseModel):
     """Server response message."""

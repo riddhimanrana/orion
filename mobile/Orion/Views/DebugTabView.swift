@@ -1,46 +1,12 @@
 import SwiftUI
 import Combine
-
-// MARK: - Data Models & Enums (Defined at top level to avoid ambiguity)
+import Orion
 
 enum LogCategory: String, CaseIterable {
     case all = "All"
     case sent = "Sent"
     case received = "Received"
     case error = "Error"
-}
-
-enum NetworkLogType {
-    case sent
-    case received
-    case error
-}
-
-struct NetworkLogEntry: Identifiable {
-    let id = UUID()
-    let type: NetworkLogType
-    let message: String
-    let timestamp: Date
-
-    var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss.SSS"
-        return formatter.string(from: timestamp)
-    }
-}
-
-struct DetectionLogEntry: Identifiable {
-    let id = UUID()
-    let detectionsCount: Int
-    let averageConfidence: Float
-    let processingTime: Double
-    let timestamp: Date
-
-    var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: timestamp)
-    }
 }
 
 // MARK: - Main Debug View
@@ -170,10 +136,11 @@ struct DebugTabView: View {
 
     private var onDeviceAnalysisSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            MetricRow(label: "Objects Detected", value: cameraManager.lastDetections.map { $0.label }.joined(separator: ", ").isEmpty ? "None" : cameraManager.lastDetections.map { $0.label }.joined(separator: ", "), target: "")
-            MetricRow(label: "VLM Description", value: cameraManager.lastVLMDescription ?? "N/A", target: "")
-            MetricRow(label: "VLM Confidence", value: String(format: "%.2f", cameraManager.lastVLMConfidence ?? 0.0), target: "> 0.5")
-        }
+                    let detectedObjectsString = cameraManager.lastDetections.map { $0.label }.joined(separator: ", ").isEmpty ? "None" : cameraManager.lastDetections.map { $0.label }.joined(separator: ", ")
+                    let vlmDescriptionString = cameraManager.lastVLMDescription ?? "N/A"
+                    MetricRow(label: "Objects Detected", value: detectedObjectsString, target: "")
+                    MetricRow(label: "VLM Description", value: vlmDescriptionString, target: "")
+                }
     }
 
     private var webSocketStatusSection: some View {
@@ -187,8 +154,7 @@ struct DebugTabView: View {
 
     private var processingMetricsSection: some View {
         VStack(spacing: 8) {
-            MetricRow(label: "Avg Sent Packet Time", value: String(format: "%.1f ms", avgSentPacketTime), target: "< 100 ms")
-            MetricRow(label: "Avg Response Time", value: String(format: "%.1f ms", avgResponseTime), target: "< 500 ms")
+            MetricRow(label: "Avg Response Time", value: wsManager.lastRoundTripTime != nil ? String(format: "%.1f ms", wsManager.lastRoundTripTime! * 1000) : "N/A", target: "< 500 ms")
             MetricRow(label: "Keyframes/s", value: String(format: "%.1f", keyframesPerSecond), target: "> 10")
         }
     }
@@ -328,10 +294,10 @@ struct MetricRow: View {
 struct NetworkLogRow: View {
     let log: NetworkLogEntry
     private var typeColor: Color {
-        switch log.type { case .sent: .blue; case .received: .green; case .error: .red }
+        switch log.type { case .sent: .blue; case .received: .green; case .error: .red; case .status: .gray }
     }
     private var typeIcon: String {
-        switch log.type { case .sent: "arrow.up.circle.fill"; case .received: "arrow.down.circle.fill"; case .error: "exclamationmark.triangle.fill" }
+        switch log.type { case .sent: "arrow.up.circle.fill"; case .received: "arrow.down.circle.fill"; case .error: "exclamationmark.triangle.fill"; case .status: "info.circle.fill" }
     }
 
     var body: some View {
@@ -353,7 +319,7 @@ struct DetectionLogRow: View {
             Image(systemName: "viewfinder").foregroundColor(.blue).frame(width: 16)
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(log.detectionsCount) objects detected").font(.caption)
-                Text("Avg confidence: \(log.averageConfidence, specifier: "%.2f") • \(log.processingTime, specifier: "%.1f")ms").font(.caption2).foregroundColor(.secondary)
+                Text("Processing time: \(log.processingTime, specifier: "%.1f")ms").font(.caption2).foregroundColor(.secondary)
             }
             Spacer()
             Text(log.formattedTimestamp).font(.caption2).foregroundColor(.secondary)

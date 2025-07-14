@@ -19,31 +19,18 @@ struct ContentView: View {
                 latestAnalysis: $latestAnalysis,
                 analysisTimestamp: $analysisTimestamp
             )
-            .environmentObject(cameraManager)
-            .environmentObject(appState)
-            .tabItem {
-                Image(systemName: "camera.fill")
-                Text("Camera")
-            }
-
-            // Tab 2: Debug
-            DebugTabView()
-                .environmentObject(wsManager)
-                .environmentObject(appState)
-                .environmentObject(cameraManager)
                 .tabItem {
-                    Image(systemName: "ladybug.fill")
-                    Text("Debug")
+                    Label("Camera", systemImage: "camera.fill")
                 }
 
-            // Tab 3: Settings
-            SettingsTabView()
-                .environmentObject(appState)
-                .environmentObject(wsManager)
-                .environmentObject(cameraManager) // Pass cameraManager here
+            DebugTabView()
                 .tabItem {
-                    Image(systemName: "gear")
-                    Text("Settings")
+                    Label("Debug", systemImage: "ladybug.fill")
+                }
+            
+            SettingsTabView()
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
                 }
         }
         .onAppear {
@@ -66,11 +53,29 @@ struct ContentView: View {
     private func setupManagers() {
         wsManager.onError = { wsError in
             DispatchQueue.main.async {
-                if !self.showErrorAlert || !self.alertMessage.starts(with: "Camera Error:") {
-                    self.alertMessage = "WebSocket Error: \(wsError.localizedDescription)"
+                // Only show alerts for critical, non-repetitive errors.
+                switch wsError {
+                case .connectionFailed:
+                    // Only show alert if we were previously connected or if it's a persistent failure
+                    // and not just a transient initial connection attempt.
+                    if self.wsManager.status == .connected {
+                        self.alertMessage = "Connection Lost: \(wsError.localizedDescription). Attempting to reconnect."
+                        self.showErrorAlert = true
+                    } else {
+                        // For initial connection failures, log but don't alert immediately.
+                        // The UI status will show "Connecting" or "Disconnected".
+                        Logger.shared.log("Initial connection failed or transient error: \(wsError.localizedDescription)", level: .warning, category: .network)
+                    }
+                case .invalidURL:
+                    self.alertMessage = "Configuration Error: Invalid server URL. Please check settings."
                     self.showErrorAlert = true
+                case .serverError(let msg):
+                    self.alertMessage = "Server Error: \(msg)"
+                    self.showErrorAlert = true
+                case .sendFailed, .invalidData:
+                    // Log these but don't show an alert to the user as they might be transient.
+                    Logger.shared.log("Non-critical WebSocket issue: \(wsError.localizedDescription)", level: .warning, category: .network)
                 }
-                Logger.shared.log("WebSocketManager reported error: \(wsError.localizedDescription)", level: .error, category: .network)
             }
         }
         
@@ -98,8 +103,7 @@ struct ContentView: View {
                     imageData: imageData?.base64EncodedString(),
                     detections: nil,
                     deviceId: UIDevice.current.identifierForVendor?.uuidString,
-                    vlmDescription: nil,
-                    vlmConfidence: nil
+                    vlmDescription: nil, vlmConfidence: vlmConfidence
                 )
             } else { // "split" mode
                 // In split mode, send on-device detections and VLM, no image data

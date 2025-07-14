@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct SettingsTabView: View {
     @StateObject private var settings = SettingsManager.shared
@@ -121,15 +122,5 @@ struct SettingsTabView_Previews: PreviewProvider {
             .environmentObject(AppStateManager())
             .environmentObject(WebSocketManager())
             .environmentObject(CameraManager())
-    }
-}
-
-extension ConnectionStatus {
-    var description: String {
-        switch self {
-        case .connected: return "Connected"
-        case .connecting: return "Connecting..."
-        case .disconnected: return "Disconnected"
-        }
     }
 }

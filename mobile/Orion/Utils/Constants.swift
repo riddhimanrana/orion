@@ -158,10 +158,11 @@ extension Notification.Name {
 enum UserDefaultsKeys {
     static let serverHost = "serverHost"
     static let serverPort = "serverPort"
-    static let confidenceThreshold = "confidenceThreshold"
-    static let showLabels = "showLabels"
-    static let sendImages = "sendImages"
-    static let maxFPS = "maxFPS"
     static let processingMode = "processingMode"
+    static let confidenceThreshold = "confidenceThreshold"
+    static let maxFPS = "maxFPS"
+    static let sendImages = "sendImages"
+    static let showLabels = "showLabels"
+    static let showDetectionBoxes = "showDetectionBoxes"
+    static let showDetectionLabels = "showDetectionLabels"
 }
-

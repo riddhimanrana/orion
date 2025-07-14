@@ -2,11 +2,20 @@ import Foundation
 import Network
 import Combine
 
+
 // WebSocket connection status
 enum ConnectionStatus {
     case disconnected
     case connecting
     case connected
+    
+    var description: String {
+        switch self {
+        case .disconnected: return "Disconnected"
+        case .connecting: return "Connecting"
+        case .connected: return "Connected"
+        }
+    }
 }
 
 // WebSocket manager errors
@@ -56,56 +65,7 @@ struct ServerResponse: ServerToClientMessage {
     }
 }
 
-// Scene analysis from server
-struct SceneAnalysis: Codable {
-    let sceneDescription: String
-    let contextualInsights: [String]
-    let enhancedDetections: [EnhancedDetection]
-    let confidence: Float
-    
-    enum CodingKeys: String, CodingKey {
-        case sceneDescription = "scene_description"
-        case contextualInsights = "contextual_insights"
-        case enhancedDetections = "enhanced_detections"
-        case confidence
-    }
-}
 
-// Enhanced detection from server
-struct EnhancedDetection: Codable {
-    let label: String
-    let confidence: Float
-    let bbox: [Float]
-    let trackId: Int?
-    let category: String
-    let isMoving: Bool
-    
-    enum CodingKeys: String, CodingKey {
-        case label
-        case confidence
-        case bbox
-        case trackId = "track_id"
-        case category
-        case isMoving = "is_moving"
-    }
-}
-
-// Detection structure for sending to server
-struct NetworkDetection: Codable {
-    let label: String
-    let confidence: Float
-    let bbox: [Float]
-    let trackId: Int?
-    var contextualLabel: String? // e.g., "person (center)"
-    
-    enum CodingKeys: String, CodingKey {
-        case label
-        case confidence
-        case bbox
-        case trackId = "track_id"
-        case contextualLabel = "contextual_label"
-    }
-}
 
 // Frame data message for sending to server
 struct FrameDataMessage: ClientToServerMessage {

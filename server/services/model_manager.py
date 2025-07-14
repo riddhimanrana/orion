@@ -144,8 +144,7 @@ class ModelManager:
             confidence_placeholder = 0.8
 
             return {
-                "response": generated_text,
-                "confidence": confidence_placeholder
+                "response": generated_text
             }
             
         except Exception as e:
@@ -260,11 +259,11 @@ class ModelManager:
             # This requires a more complex integration than just a single CoreML model call.
             
             logger.warning("FastVLM CoreML model outputs features, not direct description. LLM integration needed.")
-            return {"description": "FastVLM features processed. LLM integration pending.", "confidence": 0.75}
+            return {"description": "FastVLM features processed. LLM integration pending."}
 
         except Exception as e:
             logger.error(f"Error during VLM processing: {e}")
-            return {"description": "Error during VLM processing", "confidence": 0.0}
+            return {"description": "Error during VLM processing"}
             
     def get_model_health(self) -> Dict[str, bool]:
         """Returns the health status of loaded models."""

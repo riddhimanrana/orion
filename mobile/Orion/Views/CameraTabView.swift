@@ -21,6 +21,7 @@ struct CameraTabView: View {
     @State private var showingSettingsSheet = false
     @State private var showingCameraSwitcher = false
     @State private var isDisconnecting = false
+    // @State private var showSceneAnalysis = false // Temporarily disabled
     
     // Namespace for smooth camera switcher animation
     @Namespace private var cameraAnimation

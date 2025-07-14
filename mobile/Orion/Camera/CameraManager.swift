@@ -63,7 +63,6 @@ class CameraManager: NSObject, ObservableObject {
         case idle
         case processing
         case sent
-        case waitingForServer
     }
     @Published private(set) var processingState: ProcessingState = .idle
     
@@ -177,6 +176,13 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
     }
+    
+    func serverDidAcknowledgeFrame() {
+        // Allow processing of next frame in full mode
+        if processingState == .sent {
+            processingState = .idle
+        }
+    }
 
     func switchCamera(to option: CameraOption) {
         guard option.id != currentCameraOption?.id else {
@@ -200,13 +206,6 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
-    func serverDidAcknowledgeFrame() {
-        if self.processingState == .waitingForServer {
-            logCM("Server acknowledged frame. Ready for next frame.")
-            self.processingState = .idle
-        }
-    }
-
     private func setupSession(with device: AVCaptureDevice) {
         logCM("Setting up session for device: \(device.localizedName)...")
         session.beginConfiguration()
@@ -364,11 +363,11 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
             DispatchQueue.main.async {
                 self.lastFrameImageData = imageData
             }
-            // In full mode, immediately call the callback with the image data and wait for server ack.
+            // In full mode, immediately call the callback with the image data.
             if SettingsManager.shared.processingMode == "full" {
                 self.detectionCallback?(imageData, [], nil, nil)
-                processingState = .waitingForServer
-                logCM("Frame sent in full mode. Waiting for server acknowledgment...")
+                processingState = .sent
+                processingState = .idle // Immediately ready for next frame
                 return
             }
         } else {
@@ -409,78 +408,110 @@ extension CameraManager {
         request: VNRequest,
         error: Error?
     ) {
-        let startTime = Date()
-        let imageDataToUse = self.lastFrameImageData
+        autoreleasepool {
+            let startTime = Date()
+            let imageDataToUse = self.lastFrameImageData
 
-        if let visionError = error {
-            logCM("Detection error from Vision request: \(visionError.localizedDescription)")
-            DispatchQueue.main.async {
-                self.error = "Vision detection error: \(visionError.localizedDescription)"
-                self.lastDetections = []
-            }
-            self.detectionCallback?(imageDataToUse, [], nil, nil)
-            return
-        }
-        
-        guard let results = request.results else {
-            logCM("Vision request returned no results.")
-            DispatchQueue.main.async {
-                self.lastDetections = []
-            }
-            self.detectionCallback?(imageDataToUse, [], nil, nil)
-            return
-        }
-        
-        let detections: [NetworkDetection] = results
-            .compactMap { result -> NetworkDetection? in
-                guard let observation = result as? VNRecognizedObjectObservation else {
-                    return nil
+            if let visionError = error {
+                logCM("Detection error from Vision request: \(visionError.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.error = "Vision detection error: \(visionError.localizedDescription)"
+                    self.lastDetections = []
                 }
-                guard let label = observation.labels.first else {
-                    return nil
-                }
-                
-                let boundingBox = observation.boundingBox
-                let bboxArray = [
-                    Float(boundingBox.minX),
-                    Float(boundingBox.minY),
-                    Float(boundingBox.maxX),
-                    Float(boundingBox.maxY)
-                ]
-                
-                var detection = NetworkDetection(
-                    label: label.identifier,
-                    confidence: label.confidence,
-                    bbox: bboxArray,
-                    trackId: observation.uuid.hashValue
-                )
-                detection.contextualLabel = getSpatialLabel(from: bboxArray)
-                return detection
-            }
-        
-        let processingTime = Date().timeIntervalSince(startTime)
-        let avgConfidence = detections.map(\.confidence).reduce(0, +) / Float(detections.count)
-        let logEntry = DetectionLogEntry(detectionsCount: detections.count, averageConfidence: avgConfidence, processingTime: processingTime, timestamp: Date())
-        detectionLogPublisher.send(logEntry)
-
-        DispatchQueue.main.async {
-            self.lastDetections = detections
-        }
-        
-        // Simulate FastVLM processing with a 2-second delay
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            guard let self = self else { return }
-            let simulatedVLMDescription = "FastVLM model not implemented yet. Detected: \(detections.map { $0.label }.joined(separator: ", "))"
-            let simulatedVLMConfidence: Float = 0.5 // Placeholder confidence
-            
-            DispatchQueue.main.async {
-                self.lastVLMDescription = simulatedVLMDescription
-                self.lastVLMConfidence = simulatedVLMConfidence
+                self.detectionCallback?(imageDataToUse, [], nil, nil)
+                return
             }
             
-            self.detectionCallback?(imageDataToUse, detections, simulatedVLMDescription, simulatedVLMConfidence)
-            self.processingState = .sent
-            self.processingState = .idle // Immediately ready for next frame
+            guard let results = request.results else {
+                logCM("Vision request returned no results.")
+                DispatchQueue.main.async {
+                    self.lastDetections = []
+                }
+                self.detectionCallback?(imageDataToUse, [], nil, nil)
+                return
+            }
+            
+            let detections: [NetworkDetection] = results
+                .compactMap { result -> NetworkDetection? in
+                    guard let observation = result as? VNRecognizedObjectObservation else {
+                        return nil
+                    }
+                    guard let label = observation.labels.first else {
+                        return nil
+                    }
+                    
+                    let boundingBox = observation.boundingBox
+                    let bboxArray = [
+                        Float(boundingBox.minX),
+                        Float(boundingBox.minY),
+                        Float(boundingBox.maxX),
+                        Float(boundingBox.maxY)
+                    ]
+                    
+                    var detection = NetworkDetection(
+                        label: label.identifier,
+                        confidence: label.confidence,
+                        bbox: bboxArray,
+                        trackId: observation.uuid.hashValue
+                    )
+                    detection.contextualLabel = getSpatialLabel(from: bboxArray)
+                    return detection
+                }
+            
+            let processingTime = Date().timeIntervalSince(startTime)
+            let avgConfidence = detections.map(\.confidence).reduce(0, +) / Float(detections.count)
+            let logEntry = DetectionLogEntry(detectionsCount: detections.count, averageConfidence: avgConfidence, processingTime: processingTime, timestamp: Date())
+            detectionLogPublisher.send(logEntry)
+
+            DispatchQueue.main.async {
+                self.lastDetections = detections
+            }
+            
+            // Simulate FastVLM processing with a 2-second delay
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                autoreleasepool {
+                    let simulatedVLMDescription = "FastVLM model not implemented yet. Detected: \(detections.map { $0.label }.joined(separator: ", "))"
+                    DispatchQueue.main.async {
+                        self.lastVLMDescription = simulatedVLMDescription
+                    }
+                    
+                    self.detectionCallback?(imageDataToUse, detections, simulatedVLMDescription, nil)
+                    self.processingState = .sent
+                    self.processingState = .idle // Immediately ready for next frame
+                }
+            }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 2.0, execute: workItem)
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Generate spatial/contextual labels based on bounding box position
+    private func getSpatialLabel(from bbox: [Float]) -> String? {
+        guard bbox.count >= 4 else { return nil }
+        
+        let centerX = (bbox[0] + bbox[2]) / 2.0
+        let centerY = (bbox[1] + bbox[3]) / 2.0
+        
+        let horizontalPosition: String
+        if centerX < 0.33 {
+            horizontalPosition = "left"
+        } else if centerX > 0.67 {
+            horizontalPosition = "right"
+        } else {
+            horizontalPosition = "center"
+        }
+        
+        let verticalPosition: String
+        if centerY < 0.33 {
+            verticalPosition = "bottom"
+        } else if centerY > 0.67 {
+            verticalPosition = "top"
+        } else {
+            verticalPosition = "middle"
+        }
+        
+        return "\(horizontalPosition) \(verticalPosition)"
     }
 }

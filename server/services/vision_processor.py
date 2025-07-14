@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Any, List, Optional
 
 from models import Detection, FrameDataMessage
@@ -14,10 +15,8 @@ class VisionProcessor:
         self.model_manager = model_manager
         self.stats = {
             "frames_processed": 0,
-            "total_detections": 0,
-            "average_confidence": 0.0
+            "total_detections": 0
         }
-        logger.info("VisionProcessor initialized")
         
     async def initialize(self) -> None:
         logger.info("Vision processor ready")
@@ -32,14 +31,19 @@ class VisionProcessor:
                 if not frame.image_data:
                     raise ValueError("Image data is required for full processing mode.")
                 
+                # Simulate YOLO processing delay
+                await asyncio.sleep(0.1)
                 yolo_results = await self.model_manager.process_image_for_yolo(frame.image_data)
                 detections = [Detection(**d) for d in yolo_results]
 
                 # The prompt for VLM is now dynamic and based on the YOLO detections
                 vlm_prompt = self._build_vlm_prompt(detections)
+                
+                # Simulate VLM processing delay
+                await asyncio.sleep(1.0)
                 vlm_results = await self.model_manager.process_image_for_vlm(frame.image_data, vlm_prompt)
                 vlm_description = vlm_results.get("description")
-                vlm_confidence = vlm_results.get("confidence")
+                
 
                 logger.info(f"Server-side YOLO Detections Count: {len(detections)}")
                 logger.info(f"Server-side VLM Description: {vlm_description}")
@@ -47,7 +51,7 @@ class VisionProcessor:
             else: # split mode
                 detections = frame.detections or []
                 vlm_description = frame.vlm_description or ""
-                vlm_confidence = frame.vlm_confidence or 0.0
+                
                 logger.info(f"Received iOS YOLO Detections Count: {len(detections)}")
                 logger.info(f"Received iOS VLM Description: {vlm_description}")
             
@@ -56,7 +60,6 @@ class VisionProcessor:
             
             analysis = {
                 "description": vlm_description,
-                "confidence": vlm_confidence,
                 "detections": [self._enhance_detection(d) for d in detections],
                 "scene_features": [],
                 "ios_frame_summary": {
@@ -68,18 +71,14 @@ class VisionProcessor:
             self.stats["frames_processed"] += 1
             if detections:
                 self.stats["total_detections"] += len(detections)
-                self.stats["average_confidence"] = (
-                    (self.stats["average_confidence"] * (self.stats["frames_processed"] - 1) + 
-                    (vlm_confidence or 0.0)) / self.stats["frames_processed"]
-                )
                 
+            logger.info(f"Vision analysis complete for frame {frame.frame_id}. Detections count: {len(detections)}. VLM Description: {vlm_description}")
             return analysis
             
         except Exception as e:
             logger.error(f"Error analyzing frame {frame.frame_id}: {e}")
             return {
                 "description": "Error processing frame",
-                "confidence": 0.0,
                 "detections": [],
                 "scene_features": [],
                 "error": str(e)
@@ -114,7 +113,6 @@ class VisionProcessor:
         return {
             "frames_processed": self.stats["frames_processed"],
             "total_detections": self.stats["total_detections"],
-            "average_confidence": self.stats["average_confidence"],
             "average_detections_per_frame": (
                 self.stats["total_detections"] / self.stats["frames_processed"]
                 if self.stats["frames_processed"] > 0 else 0
@@ -127,7 +125,5 @@ class VisionProcessor:
     async def cleanup(self) -> None:
         self.stats = {
             "frames_processed": 0,
-            "total_detections": 0,
-            "average_confidence": 0.0
+            "total_detections": 0
         }
-        logger.info("Vision processor cleaned up")

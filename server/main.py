@@ -360,7 +360,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
     processing_start_time = time.time()
 
     try:
-        logger.info(f"Received frame {frame.frame_id} from {client_id} (Device: {frame.device_id}, Timestamp: {frame.timestamp})")
+        logger.info(f"Received frame {frame.frame_id} from {client_id} (Device: {frame.device_id}, Timestamp: {frame.timestamp}). Image data present: {frame.image_data is not None}. Detections count: {len(frame.detections) if frame.detections else 0}")
 
         # Event: iOS Frame Received
         packet_events.append(PacketEvent(
@@ -453,6 +453,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             vision_analysis,
             context
         )
+        logger.info(f"LLM analysis result for frame {frame.frame_id}: {llm_result.get('scene_description', 'N/A')}")
         llm_reasoning_duration = time.time() - llm_reasoning_start_time
 
         packet_events.append(PacketEvent(
@@ -464,7 +465,6 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             payload={
                 "frame_id": frame.frame_id,
                 "scene_description": llm_result.get("scene_description"),
-                "confidence": llm_result.get("confidence"),
                 "duration": llm_reasoning_duration
             }
         ).model_dump())
@@ -511,7 +511,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             "llm_reasoning": llm_result, # Include LLM reasoning
             "vlm_analysis": vision_analysis, # Include VLM analysis (contains detections)
             "packet_events": packet_events_copy, # Use the copy
-            "final_ios_response_summary": {"error": response.error}, # Include error if any
+            "final_ios_response_summary": {"error": response.error},
             "server_status": {
                 "processing_mode": settings.PROCESSING_MODE,
                 "model_health": model_manager.get_model_health(),
@@ -519,7 +519,9 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
                 "llm_processing_stats": llm_processor.get_stats(),
                 "vision_processing_stats": vision_processor.get_stats()
             },
-            "context": context
+            "context": context,
+            "image_data": frame.image_data, # Include image data for dashboard
+            "detections": frame.detections # Include detections for dashboard
         })
 
         # Broadcast a separate event for successful frame processing, including updated queue size
