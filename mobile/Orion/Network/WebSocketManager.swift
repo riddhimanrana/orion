@@ -260,6 +260,7 @@ class WebSocketManager: ObservableObject {
         
         do {
             let data = try JSONEncoder().encode(message)
+            log("Sending message of type \(message.type) with size \(data.count) bytes.")
             guard let jsonString = String(data: data, encoding: .utf8) else {
                 log("Send error: Could not convert data to UTF8 string.")
                 onError?(.invalidData)
@@ -294,9 +295,9 @@ class WebSocketManager: ObservableObject {
                 
             case .failure(let error):
                 let nsError = error as NSError
-                if !(nsError.domain == NSPOSIXErrorDomain && (nsError.code == Int(ECONNABORTED) || nsError.code == Int(EPIPE))) {
-                    self.log("Receive error: \(error.localizedDescription)")
-                }
+                let closeCode = (error as? WSError) == .connectionFailed ? nil : nsError.code
+                let reason = (error as? WSError) == .connectionFailed ? nil : nsError.localizedFailureReason
+                self.log("Receive error: \(error.localizedDescription), domain: \(nsError.domain), code: \(closeCode ?? 0), reason: \(reason ?? "N/A")")
                 if self.status != .disconnected {
                     DispatchQueue.main.async { self.status = .disconnected }
                     self.onError?(.connectionFailed)

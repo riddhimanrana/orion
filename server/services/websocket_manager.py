@@ -108,7 +108,7 @@ class WebSocketManager:
                 await self.ios_clients[client_id].send_json(message)
                 self.stats["total_messages"] += 1
             except Exception as e:
-                logger.error(f"Error sending to iOS client {client_id}: {e}")
+                logger.error(f"Error sending to iOS client {client_id}: {e}", exc_info=True)
                 await self.remove_ios_client(client_id)
                 
     async def send_processing_status(
