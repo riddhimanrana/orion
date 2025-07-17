@@ -7,20 +7,102 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		84080BC12E28474600F965A1 /* FastVLM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 84080BB92E28474600F965A1 /* FastVLM.framework */; };
+		84080BC32E28474600F965A1 /* FastVLM.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 84080BB92E28474600F965A1 /* FastVLM.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		84080BF42E2847DC00F965A1 /* Transformers in Frameworks */ = {isa = PBXBuildFile; productRef = 84080BF32E2847DC00F965A1 /* Transformers */; };
+		84080BF62E2847E200F965A1 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 84080BF52E2847E200F965A1 /* MLX */; };
+		84080BF82E2847E600F965A1 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 84080BF72E2847E600F965A1 /* MLXVLM */; };
+		84080BFA2E2847F000F965A1 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 84080BF92E2847F000F965A1 /* MLXNN */; };
+		84080BFC2E2847F500F965A1 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 84080BFB2E2847F500F965A1 /* MLXFast */; };
+		84080BFE2E28481800F965A1 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 84080BFD2E28481800F965A1 /* MLXLMCommon */; };
+		8423D9072E0A696E00463407 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9062E0A696E00463407 /* MLX */; };
+		8423D90D2E0A696E00463407 /* MLXRandom in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D90C2E0A696E00463407 /* MLXRandom */; };
+		8423D9102E0A69A300463407 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D90F2E0A69A300463407 /* MLXLMCommon */; };
+		8423D9122E0A69A300463407 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = 8423D9112E0A69A300463407 /* MLXVLM */; };
 		844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 844535F22DFAB1CC00F0BC04 /* Starscream */; };
 		84FEC2302E00E4E400362F8A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC22F2E00E4E400362F8A /* .gitignore */; };
-		84FEC2332E00E55000362F8A /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 84FEC2312E00E54D00362F8A /* README.md */; };
 		84FEC2352E00E56C00362F8A /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC2342E00E56900362F8A /* LICENSE */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		84080BBF2E28474600F965A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 84270E512DFAAB5D00AF2664 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84080BB82E28474600F965A1;
+			remoteInfo = FastVLM;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		84080BC22E28474600F965A1 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				84080BC32E28474600F965A1 /* FastVLM.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		84080BB92E28474600F965A1 /* FastVLM.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FastVLM.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		84270E592DFAAB5D00AF2664 /* Orion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Orion.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8440DA062E0CC6CC0012B849 /* Orion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Orion.entitlements; sourceTree = "<group>"; };
+		845415072E0E6CC500349C72 /* Orion-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Orion-Info.plist"; sourceTree = "<group>"; };
 		84FEC22F2E00E4E400362F8A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		84FEC2312E00E54D00362F8A /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		84FEC2342E00E56900362F8A /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		84080C202E285D7500F965A1 /* Exceptions for "FastVLM" folder in "FastVLM" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FastVLM.h,
+				FastVLM.swift,
+				MediaProcessingExtensions.swift,
+				model/added_tokens.json,
+				model/config.json,
+				model/fastvithd.mlpackage,
+				model/merges.txt,
+				model/model.safetensors,
+				model/model.safetensors.index.json,
+				model/preprocessor_config.json,
+				model/processor_config.json,
+				model/special_tokens_map.json,
+				model/tokenizer_config.json,
+				model/tokenizer.json,
+				model/vocab.json,
+			);
+			publicHeaders = (
+				FastVLM.h,
+			);
+			target = 84080BB82E28474600F965A1 /* FastVLM */;
+		};
+		84080C302E285DA500F965A1 /* Exceptions for "FastVLM" folder in "Orion" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				FastVLM.swift,
+				MediaProcessingExtensions.swift,
+			);
+			target = 84270E582DFAAB5D00AF2664 /* Orion */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		84080BA12E28467600F965A1 /* FastVLM */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				84080C302E285DA500F965A1 /* Exceptions for "FastVLM" folder in "Orion" target */,
+				84080C202E285D7500F965A1 /* Exceptions for "FastVLM" folder in "FastVLM" target */,
+			);
+			path = FastVLM;
+			sourceTree = "<group>";
+		};
 		84270E5B2DFAAB5D00AF2664 /* Orion */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Orion;
@@ -29,10 +111,28 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		84080BB62E28474600F965A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				84080BF62E2847E200F965A1 /* MLX in Frameworks */,
+				84080BF42E2847DC00F965A1 /* Transformers in Frameworks */,
+				84080BFA2E2847F000F965A1 /* MLXNN in Frameworks */,
+				84080BFC2E2847F500F965A1 /* MLXFast in Frameworks */,
+				84080BFE2E28481800F965A1 /* MLXLMCommon in Frameworks */,
+				84080BF82E2847E600F965A1 /* MLXVLM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84270E562DFAAB5D00AF2664 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8423D9072E0A696E00463407 /* MLX in Frameworks */,
+				8423D9122E0A69A300463407 /* MLXVLM in Frameworks */,
+				8423D90D2E0A696E00463407 /* MLXRandom in Frameworks */,
+				8423D9102E0A69A300463407 /* MLXLMCommon in Frameworks */,
+				84080BC12E28474600F965A1 /* FastVLM.framework in Frameworks */,
 				844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -40,14 +140,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		84080BF22E2847DC00F965A1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		84270E502DFAAB5D00AF2664 = {
 			isa = PBXGroup;
 			children = (
 				84FEC2312E00E54D00362F8A /* README.md */,
 				84FEC2342E00E56900362F8A /* LICENSE */,
+				8440DA062E0CC6CC0012B849 /* Orion.entitlements */,
 				84FEC22F2E00E4E400362F8A /* .gitignore */,
+				84080BA12E28467600F965A1 /* FastVLM */,
 				84270E5B2DFAAB5D00AF2664 /* Orion */,
 				84270E5A2DFAAB5D00AF2664 /* Products */,
+				845415072E0E6CC500349C72 /* Orion-Info.plist */,
+				84080BF22E2847DC00F965A1 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -55,13 +166,50 @@
 			isa = PBXGroup;
 			children = (
 				84270E592DFAAB5D00AF2664 /* Orion.app */,
+				84080BB92E28474600F965A1 /* FastVLM.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
+/* Begin PBXHeadersBuildPhase section */
+		84080BB42E28474600F965A1 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXNativeTarget section */
+		84080BB82E28474600F965A1 /* FastVLM */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84080BC42E28474600F965A1 /* Build configuration list for PBXNativeTarget "FastVLM" */;
+			buildPhases = (
+				84080BB42E28474600F965A1 /* Headers */,
+				84080BB52E28474600F965A1 /* Sources */,
+				84080BB62E28474600F965A1 /* Frameworks */,
+				84080BB72E28474600F965A1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FastVLM;
+			packageProductDependencies = (
+				84080BF32E2847DC00F965A1 /* Transformers */,
+				84080BF52E2847E200F965A1 /* MLX */,
+				84080BF72E2847E600F965A1 /* MLXVLM */,
+				84080BF92E2847F000F965A1 /* MLXNN */,
+				84080BFB2E2847F500F965A1 /* MLXFast */,
+				84080BFD2E28481800F965A1 /* MLXLMCommon */,
+			);
+			productName = FastVLM;
+			productReference = 84080BB92E28474600F965A1 /* FastVLM.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		84270E582DFAAB5D00AF2664 /* Orion */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 84270E7A2DFAAB5F00AF2664 /* Build configuration list for PBXNativeTarget "Orion" */;
@@ -69,17 +217,24 @@
 				84270E552DFAAB5D00AF2664 /* Sources */,
 				84270E562DFAAB5D00AF2664 /* Frameworks */,
 				84270E572DFAAB5D00AF2664 /* Resources */,
+				84080BC22E28474600F965A1 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				84080BC02E28474600F965A1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				84080BA12E28467600F965A1 /* FastVLM */,
 				84270E5B2DFAAB5D00AF2664 /* Orion */,
 			);
 			name = Orion;
 			packageProductDependencies = (
 				844535F22DFAB1CC00F0BC04 /* Starscream */,
+				8423D9062E0A696E00463407 /* MLX */,
+				8423D90C2E0A696E00463407 /* MLXRandom */,
+				8423D90F2E0A69A300463407 /* MLXLMCommon */,
+				8423D9112E0A69A300463407 /* MLXVLM */,
 			);
 			productName = Orion;
 			productReference = 84270E592DFAAB5D00AF2664 /* Orion.app */;
@@ -92,9 +247,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2600;
+				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					84080BB82E28474600F965A1 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					84270E582DFAAB5D00AF2664 = {
 						CreatedOnToolsVersion = 26.0;
 					};
@@ -111,6 +269,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				844535F02DFAB12700F0BC04 /* XCRemoteSwiftPackageReference "Starscream" */,
+				8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */,
+				8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 84270E5A2DFAAB5D00AF2664 /* Products */;
@@ -118,11 +279,19 @@
 			projectRoot = "";
 			targets = (
 				84270E582DFAAB5D00AF2664 /* Orion */,
+				84080BB82E28474600F965A1 /* FastVLM */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		84080BB72E28474600F965A1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84270E572DFAAB5D00AF2664 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -135,17 +304,103 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		84080BB52E28474600F965A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		84270E552DFAAB5D00AF2664 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				84FEC2332E00E55000362F8A /* README.md in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		84080BC02E28474600F965A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 84080BB82E28474600F965A1 /* FastVLM */;
+			targetProxy = 84080BBF2E28474600F965A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		84080BC52E28474600F965A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TB6CA879K5;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = "Riddhiman-Rana.FastVLM";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		84080BC62E28474600F965A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TB6CA879K5;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = "Riddhiman-Rana.FastVLM";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
 		84270E782DFAAB5F00AF2664 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -270,17 +525,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Orion.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 0.1.0;
 				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Orion-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Orion;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Orion needs access to your camera to provide real-time object detection and scene analysis.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -302,17 +563,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Orion.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 0.1.0;
 				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Orion-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Orion;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Orion needs access to your camera to provide real-time object detection and scene analysis.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UIStatusBarHidden = NO;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -332,6 +599,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		84080BC42E28474600F965A1 /* Build configuration list for PBXNativeTarget "FastVLM" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84080BC52E28474600F965A1 /* Debug */,
+				84080BC62E28474600F965A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		84270E542DFAAB5D00AF2664 /* Build configuration list for PBXProject "Orion" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -353,6 +629,30 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.21.2;
+			};
+		};
+		8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples";
+			requirement = {
+				kind = exactVersion;
+				version = 2.21.2;
+			};
+		};
+		8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = exactVersion;
+				version = 0.1.18;
+			};
+		};
 		844535F02DFAB12700F0BC04 /* XCRemoteSwiftPackageReference "Starscream" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/daltoniam/Starscream";
@@ -364,6 +664,56 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		84080BF32E2847DC00F965A1 /* Transformers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Transformers;
+		};
+		84080BF52E2847E200F965A1 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		84080BF72E2847E600F965A1 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXVLM;
+		};
+		84080BF92E2847F000F965A1 /* MLXNN */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXNN;
+		};
+		84080BFB2E2847F500F965A1 /* MLXFast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXFast;
+		};
+		84080BFD2E28481800F965A1 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLMCommon;
+		};
+		8423D9062E0A696E00463407 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		8423D90C2E0A696E00463407 /* MLXRandom */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D9052E0A696E00463407 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLXRandom;
+		};
+		8423D90F2E0A69A300463407 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXLMCommon;
+		};
+		8423D9112E0A69A300463407 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8423D90E2E0A69A300463407 /* XCRemoteSwiftPackageReference "mlx-swift-examples" */;
+			productName = MLXVLM;
+		};
 		844535F22DFAB1CC00F0BC04 /* Starscream */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 844535F02DFAB12700F0BC04 /* XCRemoteSwiftPackageReference "Starscream" */;

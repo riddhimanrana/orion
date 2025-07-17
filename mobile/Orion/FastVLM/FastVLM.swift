@@ -1,3 +1,8 @@
+//
+// For licensing see accompanying LICENSE file.
+// Copyright (C) 2025 Apple Inc. All Rights Reserved.
+//
+
 import CoreImage
 import CoreML
 import Foundation
@@ -34,7 +39,7 @@ private enum Language {
 
         cos =
             concatenated(
-                // [m[i % 3] for i, m in enumerate(mx.split(cos, mrope_section, axis:-1))]
+                // [m[i % 3] for i, m in enumerate(mx.split(cos, mrope_section, axis=-1))]
                 split(cos, indices: mropeSection, axis: -1).enumerated().map { i, m in m[i % 3] },
                 axis: -1
             )[0..., .newAxis, 0..., 0...]
@@ -453,13 +458,13 @@ public class FastVLM: Module, VLMModel, KVCacheDimensionProvider {
 
     static public var modelConfiguration: ModelConfiguration {
         let bundle = Bundle(for: FastVLM.self)
-        let url = bundle.url(forResource: "config", withExtension: "json", subdirectory: "model")!
+        let url = bundle.url(forResource: "config", withExtension: "json")!
             .resolvingSymlinksInPath()
             .deletingLastPathComponent()
         return ModelConfiguration(directory: url)
     }
 
-    public static func register(modelFactory: VLMModelFactory) {
+    static public func register(modelFactory: VLMModelFactory) {
         modelFactory.typeRegistry.registerModelType("llava_qwen2") { url in
             let configuration = try JSONDecoder().decode(
                 FastVLMConfiguration.self, from: Data(contentsOf: url))
