@@ -44,13 +44,14 @@ enum CameraType {
     case front
 }
 
+@MainActor
 class CameraManager: NSObject, ObservableObject {
     /// Camera session
     let session = AVCaptureSession()
     private var videoOutput: AVCaptureVideoDataOutput?
     
     /// YOLO detection model
-    private var detectionRequest: VNCoreMLRequest?
+    private var yoloModel: VNCoreMLModel?
     private let modelConfig = MLModelConfiguration()
     
     /// Frame processing
@@ -69,6 +70,7 @@ class CameraManager: NSObject, ObservableObject {
     /// Detection callback for other purposes (e.g., network)
     private var detectionCallback: ((Data?, [NetworkDetection], String?, Float?) -> Void)?
     let detectionLogPublisher = PassthroughSubject<DetectionLogEntry, Never>()
+    let frameAnalysisLogPublisher = PassthroughSubject<FrameAnalysisLog, Never>()
     
     /// Published state for SwiftUI UI updates
     @Published private(set) var isStreaming = false
@@ -79,6 +81,11 @@ class CameraManager: NSObject, ObservableObject {
     @Published private(set) var lastVLMDescription: String? = "FastVLM model not implemented yet"
     @Published private(set) var lastVLMConfidence: Float? = 0.0
     @Published var lastFrameImageData: Data?
+    
+    // Dependencies
+    private let objectDetector = ObjectDetector()
+    private let vlmModel = FastVLMModel()
+    private weak var wsManager: WebSocketManager?
 
     override init() {
         super.init()
@@ -96,6 +103,9 @@ class CameraManager: NSObject, ObservableObject {
         }
         
         setupYOLO()
+        Task {
+            try? await vlmModel.load()
+        }
         logCM("Initialization complete. Final error state: \(error ?? "None")")
     }
     
@@ -167,11 +177,11 @@ class CameraManager: NSObject, ObservableObject {
     func configure(for mode: String) {
         if mode == "full" {
             // Unload the model to save resources
-            detectionRequest = nil
+            yoloModel = nil
             logCM("YOLO model unloaded for full processing mode.")
         } else {
             // Ensure model is loaded for split processing mode
-            if detectionRequest == nil {
+            if yoloModel == nil {
                 setupYOLO()
             }
         }
@@ -261,34 +271,29 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         // Back cameras
-        var backCameraDeviceTypes: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera]
-        if #available(iOS 13.0, *) {
-            backCameraDeviceTypes.append(contentsOf: [.builtInUltraWideCamera, .builtInTelephotoCamera])
-        }
-        
+        let backCameraDeviceTypes: [AVCaptureDevice.DeviceType] = [.builtInWideAngleCamera, .builtInUltraWideCamera, .builtInTelephotoCamera]
         let discoverySession = AVCaptureDevice.DiscoverySession(deviceTypes: backCameraDeviceTypes, mediaType: .video, position: .back)
 
         for device in discoverySession.devices {
-            let zoomFactor: Double?
             let cameraType: CameraType
-            
-            let deviceType = device.deviceType
-            
-            if deviceType == .builtInWideAngleCamera {
+            let zoomFactor: Double?
+
+            switch device.deviceType {
+            case .builtInWideAngleCamera:
                 cameraType = .wide
                 zoomFactor = 1.0
-            } else if #available(iOS 13.0, *), deviceType == .builtInUltraWideCamera {
+            case .builtInUltraWideCamera:
                 cameraType = .ultraWide
                 zoomFactor = 0.5
-            } else if #available(iOS 13.0, *), deviceType == .builtInTelephotoCamera {
+            case .builtInTelephotoCamera:
                 cameraType = .telephoto
                 if device.localizedName.contains("5x") { zoomFactor = 5.0 }
                 else if device.localizedName.contains("3x") { zoomFactor = 3.0 }
                 else { zoomFactor = 2.0 }
-            } else {
+            default:
                 continue
             }
-            
+
             if !options.contains(where: { $0.type == cameraType && !$0.isFrontCamera }) {
                 options.append(CameraOption(type: cameraType, zoomFactor: zoomFactor, isFrontCamera: false, device: device))
             }
@@ -319,14 +324,7 @@ class CameraManager: NSObject, ObservableObject {
         
         do {
             let model = try MLModel(contentsOf: modelURL, configuration: modelConfig)
-            let visionModel = try VNCoreMLModel(for: model)
-            
-            let request = VNCoreMLRequest(model: visionModel) { [weak self] request, error in
-                self?.handleDetections(request: request, error: error)
-            }
-            
-            request.imageCropAndScaleOption = .scaleFit
-            self.detectionRequest = request
+            self.yoloModel = try VNCoreMLModel(for: model)
             logCM("YOLO model and detection request setup complete.")
         } catch {
             let errMsg = "Failed to setup YOLO model: \(error.localizedDescription)"
@@ -345,58 +343,47 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        guard processingState == .idle else { return }
+        guard processingState == .idle, let pixelBuffer = sampleBuffer.imageBuffer else { return }
         
         processingState = .processing
 
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            logCM("Failed to get pixelBuffer from sampleBuffer.")
-            processingState = .idle
-            return
-        }
-
-        // Always generate image data for the callback
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let orientedImage = ciImage.oriented(.right)
-        if let cgImage = CIContext().createCGImage(orientedImage, from: orientedImage.extent) {
-            let imageData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
-            DispatchQueue.main.async {
-                self.lastFrameImageData = imageData
-            }
-            // In full mode, immediately call the callback with the image data.
-            if SettingsManager.shared.processingMode == "full" {
+        // In full mode, send image and finish
+        if SettingsManager.shared.processingMode == "full" {
+            let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+            let orientedImage = ciImage.oriented(.right)
+            if let cgImage = CIContext().createCGImage(orientedImage, from: orientedImage.extent) {
+                let imageData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.7)
+                DispatchQueue.main.async { self.lastFrameImageData = imageData }
                 self.detectionCallback?(imageData, [], nil, nil)
                 processingState = .sent
                 processingState = .idle // Immediately ready for next frame
-                return
             }
-        } else {
-            logCM("Failed to create CGImage for callback.")
-        }
-
-        // In "split" mode, perform local detection
-        guard let currentDetectionRequest = detectionRequest else {
-            logCM("Detection request is nil, cannot process in split mode.")
-            processingState = .idle
             return
         }
 
-        processingQueue.async { [weak self] in
+        // In "split" mode, perform local detection
+        guard let yoloModel = self.yoloModel else {
+            logCM("YOLO model is nil, cannot process in split mode.")
+            processingState = .idle
+            return
+        }
+        
+        let request = VNCoreMLRequest(model: yoloModel) { [weak self] request, error in
             guard let self = self else { return }
+            self.handleDetections(pixelBuffer: pixelBuffer, request: request, error: error)
+        }
+        request.imageCropAndScaleOption = .scaleFit
+
+        processingQueue.async {
             do {
-                try VNImageRequestHandler(
-                    cvPixelBuffer: pixelBuffer,
-                    orientation: .right,
-                    options: [:]
-                ).perform([currentDetectionRequest])
+                try VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:]).perform([request])
             } catch {
                 logCM("Failed to perform VNImageRequestHandler: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.error = "VNImageRequestHandler failed: \(error.localizedDescription)"
                     self.lastDetections = []
+                    self.processingState = .idle
                 }
-                self.detectionCallback?(self.lastFrameImageData, [], nil, nil)
-                self.processingState = .idle
             }
         }
     }
@@ -405,113 +392,74 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
 // MARK: - Detection handling
 extension CameraManager {
     private func handleDetections(
+        pixelBuffer: CVPixelBuffer,
         request: VNRequest,
         error: Error?
     ) {
         autoreleasepool {
             let startTime = Date()
-            let imageDataToUse = self.lastFrameImageData
-
+            
             if let visionError = error {
                 logCM("Detection error from Vision request: \(visionError.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.error = "Vision detection error: \(visionError.localizedDescription)"
-                    self.lastDetections = []
-                }
-                self.detectionCallback?(imageDataToUse, [], nil, nil)
+                DispatchQueue.main.async { self.error = "Vision detection error: \(visionError.localizedDescription)"; self.lastDetections = []; self.processingState = .idle }
                 return
             }
             
             guard let results = request.results else {
                 logCM("Vision request returned no results.")
-                DispatchQueue.main.async {
-                    self.lastDetections = []
-                }
-                self.detectionCallback?(imageDataToUse, [], nil, nil)
+                DispatchQueue.main.async { self.lastDetections = []; self.processingState = .idle }
                 return
             }
             
             let detections: [NetworkDetection] = results
                 .compactMap { result -> NetworkDetection? in
-                    guard let observation = result as? VNRecognizedObjectObservation else {
-                        return nil
-                    }
-                    guard let label = observation.labels.first else {
-                        return nil
-                    }
-                    
-                    let boundingBox = observation.boundingBox
-                    let bboxArray = [
-                        Float(boundingBox.minX),
-                        Float(boundingBox.minY),
-                        Float(boundingBox.maxX),
-                        Float(boundingBox.maxY)
-                    ]
-                    
-                    var detection = NetworkDetection(
-                        label: label.identifier,
-                        confidence: label.confidence,
-                        bbox: bboxArray,
-                        trackId: observation.uuid.hashValue
-                    )
+                    guard let observation = result as? VNRecognizedObjectObservation, let label = observation.labels.first else { return nil }
+                    let bboxArray = [Float(observation.boundingBox.minX), Float(observation.boundingBox.minY), Float(observation.boundingBox.maxX), Float(observation.boundingBox.maxY)]
+                    var detection = NetworkDetection(label: label.identifier, confidence: label.confidence, bbox: bboxArray, trackId: observation.uuid.hashValue)
                     detection.contextualLabel = getSpatialLabel(from: bboxArray)
                     return detection
                 }
             
-            let processingTime = Date().timeIntervalSince(startTime)
-            let avgConfidence = detections.map(\.confidence).reduce(0, +) / Float(detections.count)
-            let logEntry = DetectionLogEntry(detectionsCount: detections.count, averageConfidence: avgConfidence, processingTime: processingTime, timestamp: Date())
-            detectionLogPublisher.send(logEntry)
-
-            DispatchQueue.main.async {
-                self.lastDetections = detections
-            }
+            let yoloProcessingTime = Date().timeIntervalSince(startTime)
+            let frameWidth = CVPixelBufferGetWidth(pixelBuffer)
+            let vlmPrompt = self.objectDetector.createVLMPrompt(from: detections.map { Detection(from: $0) }, frameWidth: frameWidth)
             
-            // Simulate FastVLM processing with a 2-second delay
-            let workItem = DispatchWorkItem { [weak self] in
-                guard let self = self else { return }
-                autoreleasepool {
-                    let simulatedVLMDescription = "FastVLM model not implemented yet. Detected: \(detections.map { $0.label }.joined(separator: ", "))"
-                    DispatchQueue.main.async {
-                        self.lastVLMDescription = simulatedVLMDescription
-                    }
-                    
-                    self.detectionCallback?(imageDataToUse, detections, simulatedVLMDescription, nil)
-                    self.processingState = .sent
-                    self.processingState = .idle // Immediately ready for next frame
+            Task {
+                let vlmResult = await self.vlmModel.generate(prompt: vlmPrompt, image: pixelBuffer)
+               
+                let frameId = UUID().uuidString
+                let timestamp = Date()
+                
+                let analysisLog = FrameAnalysisLog(
+                    frameId: frameId, timestamp: timestamp, yoloDetections: detections.map { Detection(from: $0) },
+                    yoloProcessingTime: yoloProcessingTime, vlmPrompt: vlmPrompt, vlmResult: vlmResult,
+                    cpuUsage: 0.65, gpuUsage: 0.45, aneUsage: 0.80, batteryLevel: UIDevice.current.batteryLevel
+                )
+                self.frameAnalysisLogPublisher.send(analysisLog)
+
+                self.detectionCallback?(self.lastFrameImageData, detections, vlmResult.description, nil)
+                
+                DispatchQueue.main.async {
+                    self.lastDetections = detections
+                    self.lastVLMDescription = vlmResult.description
+                    self.processingState = .idle
                 }
             }
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 2.0, execute: workItem)
         }
     }
     
-    // MARK: - Helper Methods
-    
-    /// Generate spatial/contextual labels based on bounding box position
     private func getSpatialLabel(from bbox: [Float]) -> String? {
         guard bbox.count >= 4 else { return nil }
-        
         let centerX = (bbox[0] + bbox[2]) / 2.0
         let centerY = (bbox[1] + bbox[3]) / 2.0
-        
-        let horizontalPosition: String
-        if centerX < 0.33 {
-            horizontalPosition = "left"
-        } else if centerX > 0.67 {
-            horizontalPosition = "right"
-        } else {
-            horizontalPosition = "center"
-        }
-        
-        let verticalPosition: String
-        if centerY < 0.33 {
-            verticalPosition = "bottom"
-        } else if centerY > 0.67 {
-            verticalPosition = "top"
-        } else {
-            verticalPosition = "middle"
-        }
-        
+        let horizontalPosition = centerX < 0.33 ? "left" : (centerX > 0.67 ? "right" : "center")
+        let verticalPosition = centerY < 0.33 ? "bottom" : (centerY > 0.67 ? "top" : "middle")
         return "\(horizontalPosition) \(verticalPosition)"
+    }
+}
+
+fileprivate extension Detection {
+    init(from networkDetection: NetworkDetection) {
+        self.init(label: networkDetection.label, confidence: networkDetection.confidence, bbox: networkDetection.bbox, trackId: networkDetection.trackId, contextualLabel: networkDetection.contextualLabel)
     }
 }

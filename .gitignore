@@ -23,7 +23,7 @@ MANIFEST
 
 # mobile(moved to riddhimanrana/orion-mobile)
 # mobile/
-mobile/fastvlm_example_app
+# mobile/fastvlm_example_app
 mobile/Orion/yolo11n.mlpackage
 
 # Virtual Environment
@@ -278,3 +278,9 @@ iOSInjectionProject/
 
 #github
 .github/
+
+#kiro
+.kiro
+
+mobile/Orion/FastVLM/model
+mobile/fastvlm_example_app/FastVLM/model

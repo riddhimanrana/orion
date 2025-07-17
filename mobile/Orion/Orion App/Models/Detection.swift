@@ -1,7 +1,7 @@
 import Foundation
 
 /// YOLO detection result
-struct Detection: Codable {
+struct Detection: Codable, Hashable {
     let label: String
     let confidence: Float
     let bbox: [Float]  // [minX, minY, maxX, maxY] in normalized coordinates

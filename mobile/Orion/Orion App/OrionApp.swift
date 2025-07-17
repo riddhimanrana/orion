@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import MLXVLM
 
 @main
 struct OrionApp: App {

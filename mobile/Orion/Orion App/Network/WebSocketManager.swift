@@ -19,7 +19,7 @@ enum ConnectionStatus {
 }
 
 // WebSocket manager errors
-enum WSError: Error {
+enum WSError: Error, Equatable {
     case connectionFailed
     case sendFailed
     case invalidData
@@ -348,7 +348,9 @@ class WebSocketManager: ObservableObject {
                 DispatchQueue.main.async { self.onFrameProcessed?() }
                 // Notify CameraManager to allow next frame in full mode
                 if SettingsManager.shared.processingMode == "full" {
-                    self.cameraManager?.serverDidAcknowledgeFrame()
+                    DispatchQueue.main.async {
+                        self.cameraManager?.serverDidAcknowledgeFrame()
+                    }
                 }
             case .userPromptResponse: handleDecodable(PromptResponse.self, from: data)
             case .error: handleServerError(json)

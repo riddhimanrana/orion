@@ -169,7 +169,7 @@ class ObjectDetector: ObservableObject {
     }
     
     private func calculateIOU(_ box1: [Float], _ box2: [Float]) -> Float {
-        guard box1.count == 4 && box2.count == 4 else { return 0 }
+        guard box1.count == 4, box2.count == 4 else { return 0 }
         
         let x1 = max(box1[0], box2[0])
         let y1 = max(box1[1], box2[1])
@@ -182,6 +182,44 @@ class ObjectDetector: ObservableObject {
         let unionArea = box1Area + box2Area - interArea
         
         return unionArea > 0 ? interArea / unionArea : 0
+    }
+    
+    /// Creates a detailed text prompt for the VLM based on YOLO detections.
+    func createVLMPrompt(from detections: [Detection], frameWidth: Int) -> String {
+        guard !detections.isEmpty else { return "No objects were detected in the scene." }
+
+        let objectList = detections.map { detection -> String in
+            let contextualLabel = contextualize(bbox: detection.bbox, frameWidth: frameWidth)
+            return "• \(detection.label) (\(contextualLabel))"
+        }.joined(separator: "\n")
+
+        return """
+        The following objects were detected in the scene with bounding boxes:
+        \(objectList)
+
+        You are a vision-language model that analyzes images for context-aware reasoning. Given a visual scene, generate a rich, structured, and detailed
+        description that includes:
+
+        Main Focus – What is the primary object, person, or action in the scene?
+        Surrounding Objects & Context – List and describe notable secondary objects, people, or environment details.
+        Spatial Relationships – Describe where the objects are relative to one another.
+        Activities & Interactions – What are people or objects doing? Are there interactions or implied motions?
+        Scene Type & Time – Describe the overall type of scene (e.g. urban street, kitchen, park) and visible time of day.
+        Inferences & Intent – Based on visual cues, infer what might have just happened or what might happen next.
+        Style & Aesthetic – Describe the scene’s mood, lighting, or style (e.g. bright, moody, colorful).
+        Your goal: make your description so complete and detailed that an image generator could reconstruct the scene with full visual accuracy from your
+        output alone. Limit your response to under 256 tokens.
+        """
+    }
+
+    /// Determines the spatial location of a bounding box within the frame.
+    private func contextualize(bbox: [Float], frameWidth: Int) -> String {
+        guard bbox.count >= 4 else { return "center" } // Return a default value
+        let centerX = (bbox[0] + bbox[2]) / 2.0 * Float(frameWidth)
+        let third = Float(frameWidth) / 3.0
+        if centerX < third { return "left" }
+        if centerX < third * 2 { return "center" }
+        return "right"
     }
 }
 
