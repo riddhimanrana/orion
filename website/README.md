@@ -27,7 +27,7 @@ This is the web front-end for the Orion architecture which handles authenticatio
 
    ```bash
    git clone https://github.com/riddhimanrana/orion
-   cd orion/orion-website
+   cd orion/website
    ```
 
 2. Install dependencies  
@@ -45,3 +45,10 @@ bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Demo
+
+<div align="center">
+  ![Website Demo](./images/websitedemo.png)  
+  ![iOS Demo](./images/iosdemo.png)
+</div>

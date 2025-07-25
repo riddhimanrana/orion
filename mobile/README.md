@@ -1,4 +1,4 @@
-# Orion Live - iOS App
+# Orion Live iOS App
 
 Orion Live is the iOS app designed to work seamlessly with the Orion architecture and backend services.
 
