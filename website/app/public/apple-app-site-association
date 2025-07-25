@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [ "TEAM_ID.com.riddhimanrana.Orion" ],
+        "components": [
+          {
+            "/": "/auth/mobile-auth-callback*",
+            "comment": "Matches the mobile auth callback"
+          }
+        ]
+      }
+    ]
+  }
+}

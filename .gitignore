@@ -288,3 +288,8 @@ mobile/fastvlm_example_app/FastVLM/model
 .ropeproject
 
 archive/
+
+steering/
+
+mobile/FastVLM/model
+mobile/Orion/Detection/model
