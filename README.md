@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./demo/logo.png" alt="Orion Logo" width="180" height="180"/>
-</p>
-
 # Orion
 
 (This is a foundational prototype product; I am actively developing it and currently in Phase 2 – see [Development Timeline](https://orionlive.ai/research#timeline))
