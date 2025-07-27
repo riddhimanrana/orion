@@ -25,7 +25,7 @@ I'm currently working on a new cloud API server system and a dedicated macOS ser
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/riddhimanrana/orion.git
+   git clone https://github.com/riddhimanrana/orion
    cd orion/server
    ```
 

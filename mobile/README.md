@@ -48,8 +48,8 @@ Initial landing screen for onboarding and navigation to other app sections.
 1. Clone the repository:  
 
    ```bash
-   git clone https://github.com/your-org/orion-mobile.git
-   cd orion-mobile/Orion
+   git clone https://github.com/riddhimanrana/orion
+   cd orion/mobile
    ```
 
 2. Download the YOLO11N and custom fine-tuned FastVLM coreml models:  
