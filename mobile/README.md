@@ -15,6 +15,30 @@ Orion Live is the iOS app designed to work seamlessly with the Orion architectur
 - Combine for reactive data binding  
 - URLSession for networking  
 
+## Screenshots
+
+| AccountView | CameraView | DebugView | FrameDetailsView | SettingsView | StartView |
+|:-----------:|:----------:|:---------:|:---------------:|:------------:|:---------:|
+| ![AccountView](../demo/mobile/AccountView.png) | ![CameraView](../demo/mobile/CameraView.png) | ![DebugView](../demo/mobile/DebugView.png) | ![FrameDetailsView](../demo/mobile/FrameDetailsView.png) | ![SettingsView](../demo/mobile/SettingsView.png) | ![StartView](../demo/mobile/StartView.png) |
+
+**AccountView**  
+Manages user authentication, profile, and account-related settings.
+
+**CameraView**  
+Main interface for live camera feed, running on-device YOLO and VLM models, and streaming detections to the server.
+
+**DebugView**  
+Displays logs, diagnostics, and internal state for development and troubleshooting.
+
+**FrameDetailsView**  
+Shows detailed information for a selected detection frame, including bounding boxes and VLM descriptions.
+
+**SettingsView**  
+Allows configuration of app preferences, server URLs, and model options.
+
+**StartView**  
+Initial landing screen for onboarding and navigation to other app sections.
+
 ## Deployment Target
 
 - iPhone 12 and newer devices running iOS 18+

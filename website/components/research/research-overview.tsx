@@ -66,7 +66,7 @@ export function ResearchOverview() {
   ];
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <section id="overview" className="space-y-6 sm:space-y-8">
       {/* Abstract */}
       <Card>
         <CardHeader className="pb-3">
@@ -198,6 +198,6 @@ export function ResearchOverview() {
           </div>
         </CardContent>
       </Card> */}
-    </div>
+    </section>
   );
 }

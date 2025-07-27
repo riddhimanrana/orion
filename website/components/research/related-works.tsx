@@ -285,7 +285,7 @@ export const RelatedWorks = () => {
   const typeOrder: Reference["type"][] = ["model", "paper", "database", "dataset", "repository", "website"];
 
   return (
-    <section className="space-y-8">
+    <section id="related-works" className="space-y-8">
       <div className="text-center space-y-4">
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Related Works & References</h2>
         <p className="text-lg text-muted-foreground max-w-3xl mx-auto">

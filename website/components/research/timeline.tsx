@@ -103,7 +103,7 @@ export function Timeline() {
   };
 
   return (
-    <section className="space-y-8 sm:space-y-10">
+    <section id="timeline" className="space-y-8 sm:space-y-10">
       <div className="text-center space-y-2 sm:space-y-3">
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Development Timeline</h2>
         {/* <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">

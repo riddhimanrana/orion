@@ -19,6 +19,12 @@ This is the web front-end for the Orion architecture which handles authenticatio
 - [Vercel](https://vercel.com/) — Deployment/hosting platform for the website
 - [Cloudflare](https://cloudflare.com/) — Domain CDN and DNS management
 
+## Screenshots
+
+| Landing Page | Main Dashboard |
+|--------------|----------------|
+| ![Landing Page](../demo/website/landingpage.png) | ![Main Dashboard](../demo/website/dashboard.png) |
+
 ## Getting Started
 
 ### Installation
@@ -46,9 +52,3 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Demo
-
-<div align="center">
-  ![Website Demo](./images/websitedemo.png)  
-  ![iOS Demo](./images/iosdemo.png)
-</div>
