@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Eye, 
   Drone, 
   Bot, 
   Accessibility, 
@@ -9,10 +8,7 @@ import {
   Shield, 
   Zap, 
   Globe,
-  Car,
   Home,
-  Stethoscope,
-  ShoppingCart
 } from "lucide-react";
 
 export function ApplicationSection() {
@@ -67,12 +63,12 @@ export function ApplicationSection() {
     }
   ];
 
-  const industries = [
-    { icon: Car, label: "Automotive", use: "Driver assistance systems" },
-    { icon: Stethoscope, label: "Healthcare", use: "Medical imaging analysis" },
-    { icon: ShoppingCart, label: "Retail", use: "Customer behavior analytics" },
-    { icon: Globe, label: "Smart Cities", use: "Traffic and crowd management" }
-  ];
+  // const industries = [
+  //   { icon: Car, label: "Automotive", use: "Driver assistance systems" },
+  //   { icon: Stethoscope, label: "Healthcare", use: "Medical imaging analysis" },
+  //   { icon: ShoppingCart, label: "Retail", use: "Customer behavior analytics" },
+  //   { icon: Globe, label: "Smart Cities", use: "Traffic and crowd management" }
+  // ];
 
   return (
     <section id="application" className="space-y-8">

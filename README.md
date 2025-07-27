@@ -1,19 +1,24 @@
+<p align="center">
+  <img src="./demo/logo.png" alt="Orion Logo" width="180" height="180"/>
+</p>
+
 # Orion
 
 (This is a foundational prototype product; I am actively developing it and currently in Phase 2 – see [Development Timeline](https://orionlive.ai/research#timeline))
 
-Orion is the architecture behind Orion Live, a real-time visual intelligence platform designed around a hybrid edge-server architecture with a privacy-first approach. It is designed to be an intelligent, interactive, and deployable visual perception agent that can truly "remember" and "understand" the world as it unfolds with a focus on being open-source, real-time, and privacy-first.
+**Orion** is the architecture behind **Orion Live**, a real-time visual intelligence platform designed around a hybrid edge-server architecture with a privacy-first approach. It is designed to be an intelligent, interactive, and deployable visual perception agent that can truly "remember" and "understand" the world as it unfolds with a focus on being open-source, real-time, and privacy-first.
 
 **Check it out at [orionlive.ai](https://orionlive.ai)**
 
 ## Demo
 
 ![Orion Demo](./demo/mobiledemo.gif)
+
 *This is a demo of the iOS app running a prototype foundational version of Orion Live on an iPhone 12 w/4GB RAM and an A14 Bionic chip. Processing times, TTFT, and latency are still being optimized and are targeted to be under 1-2 seconds. Nothing is sent to the cloud in this demo, and all processing is done on-device.*
 
 ## What makes Orion different than Gemini Live/OpenAI Sora?
 
-Orion is designed from the ground up to be a real-time, visual intelligence platform that is open-source, privacy-first, and deployable on edge devices. It focuses on real-time object detection, image captioning, and reasoning capabilities without relying on cloud-based processing for every interaction. This allows for low-latency responses and a more interactive user experience. The problem with Gemini Live and OpenAI Sora(Note: As of 7/26/25, OpenAI Sora still lacks the ability to process real-time visual queries) is that they are often slow, require steady cloud processing, and are solely focused on short, user-based interactions. Orion aims to change that by providing a system architecture that can run on an entirely local architecture, split processing on edge devices, and provide real-time responses to user queries while maintaining a high quality of output, privacy, and security in various types of environments.
+The problem with tools like Gemini Live and OpenAI Sora(Note: As of 7/26/25, OpenAI Sora still lacks the ability to process real-time visual queries) is that they are often slow, require steady cloud processing, and are solely focused on short, user-based interactions. Like imagine you are a blind person who really needs assistance from a tool like this, and imagine that every aspect of your life and every moment and interaction is sent to some Google server hundreds of miles away and you have no clue with who's accessing that data and what they're doing with it. To solve that issue, and in many more applications like enterprise security and other systems, I want to create a system architecture like Orion that can bring all of this to happen on device or within your local machine's capabilities and give you the peace of mind that your data and your privacy are all in your control. With Orion, I aim to change that by providing a system architecture that can run on an entirely local architecture, split processing on edge devices, and provide real-time responses to user queries while maintaining a high quality of output, privacy, and security in various types of environments, maintaining context and memory of the world as it unfolds.
 
 ## Architecture Overview
 
@@ -37,8 +42,8 @@ Each component lives in its own folder with its own README and startup instructi
 
 ## Research & Deep Dive
 
-For full research details, system design, and related research, visit [https://orionlive.ai/research](https://orionlive.ai/research).
-A formal research paper will be published next year upon completion of development.
+For full research details, system design, and related research, visit [orionlive.ai/research](https://orionlive.ai/research).
+I will be publishing a formal research paper next year upon completion of development.
 
 ## Current Work
 
@@ -50,7 +55,7 @@ See the [Development Timeline](https://orionlive.ai/research#timeline) for more 
 
 ## Real-world Applications
 
-Orion Live can be used in various applications such as blind disability assistance systems, deployable visual perception agents in systems like drones, robots, and other autonomous systems, and also act as a general-purpose live visual intelligence agent similar to the likes of Gemini Live and OpenAI Sora but with a focus on being open-source, real-time, and privacy-first and at a higher quality of output more tailored to specific use cases. See [https://orionlive.ai/research#application](https://orionlive.ai/research#application) for more details.
+Orion Live can be used in various applications such as blind disability assistance systems, deployable visual perception agents in systems like drones, robots, and other autonomous systems, and also act as a general-purpose live visual intelligence agent similar to the likes of Gemini Live and OpenAI Sora but with a focus on being open-source, real-time, and privacy-first and at a higher quality of output more tailored to specific use cases. See [Real-World Applications](https://orionlive.ai/research#applications) for more details.
 
 ## License
 

@@ -79,7 +79,7 @@ export function HomeContent() {
           </motion.h1>
 
           <motion.p
-            className="text-lg md:text-2xl text-black/60 dark:text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed"
+            className="text-lg md:text-2xl text-black/60 dark:text-white/60 mb-6 md:mb-12 max-w-3xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}

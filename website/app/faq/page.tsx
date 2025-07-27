@@ -28,11 +28,7 @@ export default function FAQPage() {
               How is this different than Gemini Live?
             </AccordionTrigger>
             <AccordionContent>
-              Orion Live is built on the Orion architecture, which is designed
-              for extensibility, privacy, and developer control. While Gemini
-              Live is a product from Google, Orion Live offers a unique
-              experience focused on open AI, custom integrations, and a
-              transparent approach to AI interactions.
+              The problem with tools like Gemini Live and OpenAI Sora(Note: As of 7/26/25, OpenAI Sora still lacks the ability to process real-time visual queries) is that they are often slow, require steady cloud processing, and are solely focused on short, user-based interactions. Like imagine you are a blind person who really needs assistance from a tool like this, and imagine that every aspect of your life and every moment and interaction is sent to some Google server hundreds of miles away and you have no clue with who&apos;s accessing that data and what they&apos;re doing with it. To solve that issue, and in many more applications like enterprise security and other systems, I want to create a system architecture like Orion that can bring all of this to happen on device or within your local machine&apos;s capabilities and give you the peace of mind that your data and your privacy are all in your control. With Orion, I aim to change that by providing a system architecture that can run on an entirely local architecture, split processing on edge devices, and provide real-time responses to user queries while maintaining a high quality of output, privacy, and security in various types of environments, maintaining context and memory of the world as it unfolds.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="orion-vs-orion-live">
