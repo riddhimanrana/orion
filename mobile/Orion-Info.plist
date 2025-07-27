@@ -14,9 +14,9 @@
 		</dict>
 	</array>
 	<key>SUPABASE_ANON_KEY</key>
-	<string>sb_publishable_xbZg9iawNirb6uCt5mw6ZA_FI9dttqk</string>
+	<string>[your_supabase_anon_key]</string>
 	<key>SUPABASE_URL</key>
-	<string>https://svltefplctinykebecyv.supabase.co</string>
+	<string>[your_supabase_url]</string>
 	<key>UIAppFonts</key>
 	<array/>
 </dict>

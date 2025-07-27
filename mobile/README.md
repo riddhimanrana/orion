@@ -66,9 +66,9 @@ Initial landing screen for onboarding and navigation to other app sections.
 
 ## Configuration
 
-The file `Orion-Info.plist` contains my auth endpoints and keys.
+The file `Orion-Info.plist` contains auth endpoints and keys.
 
-These values are safe to share. Feel free to replace them with your own database or authentication endpoints.
+Feel free to replace them with your own database or authentication endpoints.
 
 In addition, the folder `Configuration/Build.xconfig` contains a `DISAMBIGUATOR` configuration to make it easier to build and run a sample code project. Once you set your project's development team, you'll have a unique bundle identifier.
 
