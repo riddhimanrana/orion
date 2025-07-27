@@ -25,7 +25,7 @@ import { Cover } from "@/components/ui/cover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export function HomeContent() {
+export function HomeContent() {  
   return (
     <div className="min-h-screen overflow-hidden bg-white dark:bg-black text-black dark:text-white">
       {/* Hero Section */}

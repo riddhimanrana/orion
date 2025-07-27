@@ -8,6 +8,7 @@ import { CleanFooter } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { generateMetadata, PAGE_METADATA } from "@/lib/metadata";
 import { Analytics } from "@vercel/analytics/next";
+import { GlobalScrollHandler } from "@/components/global-scroll-handler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,6 +50,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <GlobalScrollHandler />
             <UserProvider>
               <NavbarWrapper />
               {/* Spacer div to push content below the fixed navbar */}

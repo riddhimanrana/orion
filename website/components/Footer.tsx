@@ -42,7 +42,7 @@ export const CleanFooter = ({ className }: FooterProps) => {
           {/* Navigation links in grid */}
           <nav className="grid grid-cols-2 gap-x-6 gap-y-4 text-left ml-1">
             <Link
-              href="/#features"
+              href="/features"
               className="text-sm text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
             >
               Features
@@ -187,7 +187,7 @@ export const CleanFooter = ({ className }: FooterProps) => {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="/#features"
+                  href="/features"
                   className="text-black/60 dark:text-white/60 text-sm hover:text-black dark:hover:text-white transition-colors"
                 >
                   Features
@@ -199,14 +199,6 @@ export const CleanFooter = ({ className }: FooterProps) => {
                   className="text-black/60 dark:text-white/60 text-sm hover:text-black dark:hover:text-white transition-colors"
                 >
                   Pricing
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/#how-it-works"
-                  className="text-black/60 dark:text-white/60 text-sm hover:text-black dark:hover:text-white transition-colors"
-                >
-                  How it Works
                 </Link>
               </li>
               <li>

@@ -71,7 +71,7 @@ export function ApplicationSection() {
   // ];
 
   return (
-    <section id="application" className="space-y-8">
+    <section id="applications" className="space-y-8">
       <div className="text-center space-y-4">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
           Real-World Applications

@@ -10,6 +10,7 @@ import {
   NavigationMenuList,
 } from "./ui/navigation-menu";
 import { cn } from "../lib/utils";
+import { usePathname } from "next/navigation";
 
 import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
@@ -23,6 +24,14 @@ interface NavigationProps {
 export const CleanNavigation = ({ className }: NavigationProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user } = useUser();
+  const pathname = usePathname();
+
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return pathname === '/';
+    }
+    return pathname.startsWith(path);
+  };
 
   return (
     <nav
@@ -58,8 +67,29 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
               <NavigationMenuItem>
                 <NavigationMenuLink asChild>
                   <Link
+                    href="/"
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors",
+                      isActive('/') 
+                        ? "text-black dark:text-white font-semibold" 
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                    )}
+                  >
+                    Home
+                  </Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+
+              <NavigationMenuItem>
+                <NavigationMenuLink asChild>
+                  <Link
                     href="/get-started"
-                    className="px-4 py-2 text-sm font-medium text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors",
+                      isActive('/get-started') 
+                        ? "text-black dark:text-white font-semibold" 
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                    )}
                   >
                     Get Started
                   </Link>
@@ -70,7 +100,12 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                 <NavigationMenuLink asChild>
                   <Link
                     href="/features"
-                    className="px-4 py-2 text-sm font-medium text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors",
+                      isActive('/features') 
+                        ? "text-black dark:text-white font-semibold" 
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                    )}
                   >
                     Features
                   </Link>
@@ -81,7 +116,12 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                 <NavigationMenuLink asChild>
                   <Link
                     href="/pricing"
-                    className="px-4 py-2 text-sm font-medium text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors",
+                      isActive('/pricing') 
+                        ? "text-black dark:text-white font-semibold" 
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                    )}
                   >
                     Pricing
                   </Link>
@@ -92,7 +132,12 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                 <NavigationMenuLink asChild>
                   <Link
                     href="/faq"
-                    className="px-4 py-2 text-sm font-medium text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors",
+                      isActive('/faq') 
+                        ? "text-black dark:text-white font-semibold" 
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                    )}
                   >
                     FAQ
                   </Link>
@@ -103,7 +148,12 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                 <NavigationMenuLink asChild>
                   <Link
                     href="/research"
-                    className="px-4 py-2 text-sm font-medium text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors",
+                      isActive('/research') 
+                        ? "text-black dark:text-white font-semibold" 
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                    )}
                   >
                     Research
                   </Link>
@@ -114,10 +164,15 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                 <NavigationMenuItem>
                   <NavigationMenuLink asChild>
                     <Link
-                      href="/get-started"
-                      className="px-4 py-2 text-sm font-medium text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                      href="/dashboard"
+                      className={cn(
+                        "px-4 py-2 text-sm font-medium transition-colors",
+                        isActive('/dashboard') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      )}
                     >
-                      Get Started
+                      Dashboard
                     </Link>
                   </NavigationMenuLink>
                 </NavigationMenuItem>
@@ -196,11 +251,16 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     transition={{ delay: 0.1 }}
                   >
                     <Link
-                      href="/get-started"
-                      className="block text-lg font-medium text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                      href="/"
+                      className={cn(
+                        "block text-lg font-medium transition-colors",
+                        isActive('/') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                      )}
                       onClick={() => setMenuOpen(false)}
                     >
-                      Get Started
+                      Home
                     </Link>
                   </motion.div>
 
@@ -210,11 +270,16 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     transition={{ delay: 0.15 }}
                   >
                     <Link
-                      href="/#features"
-                      className="block text-lg font-medium text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                      href="/get-started"
+                      className={cn(
+                        "block text-lg font-medium transition-colors",
+                        isActive('/get-started') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                      )}
                       onClick={() => setMenuOpen(false)}
                     >
-                      Features
+                      Get Started
                     </Link>
                   </motion.div>
 
@@ -224,11 +289,16 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     transition={{ delay: 0.2 }}
                   >
                     <Link
-                      href="/pricing"
-                      className="block text-lg font-medium text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                      href="/features"
+                      className={cn(
+                        "block text-lg font-medium transition-colors",
+                        isActive('/features') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                      )}
                       onClick={() => setMenuOpen(false)}
                     >
-                      Pricing
+                      Features
                     </Link>
                   </motion.div>
 
@@ -238,11 +308,16 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     transition={{ delay: 0.25 }}
                   >
                     <Link
-                      href="/faq"
-                      className="block text-lg font-medium text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                      href="/pricing"
+                      className={cn(
+                        "block text-lg font-medium transition-colors",
+                        isActive('/pricing') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                      )}
                       onClick={() => setMenuOpen(false)}
                     >
-                      FAQ
+                      Pricing
                     </Link>
                   </motion.div>
 
@@ -252,8 +327,32 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     transition={{ delay: 0.3 }}
                   >
                     <Link
+                      href="/faq"
+                      className={cn(
+                        "block text-lg font-medium transition-colors",
+                        isActive('/faq') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                      )}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      FAQ
+                    </Link>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.35 }}
+                  >
+                    <Link
                       href="/research"
-                      className="block text-lg font-medium text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                      className={cn(
+                        "block text-lg font-medium transition-colors",
+                        isActive('/research') 
+                          ? "text-black dark:text-white font-semibold" 
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                      )}
                       onClick={() => setMenuOpen(false)}
                     >
                       Research
@@ -264,14 +363,19 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.35 }}
+                      transition={{ delay: 0.4 }}
                     >
                       <Link
-                        href="/get-started"
-                        className="block text-lg font-medium text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                        href="/dashboard"
+                        className={cn(
+                          "block text-lg font-medium transition-colors",
+                          isActive('/dashboard') 
+                            ? "text-black dark:text-white font-semibold" 
+                            : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        )}
                         onClick={() => setMenuOpen(false)}
                       >
-                        Get Started
+                        Dashboard
                       </Link>
                     </motion.div>
                   )}
