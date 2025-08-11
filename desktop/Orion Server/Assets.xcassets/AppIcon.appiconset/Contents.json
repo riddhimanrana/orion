@@ -1,51 +1,61 @@
 {
   "images" : [
     {
+      "filename" : "Orion iOS Icon 1024x1024 2.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"
     },
     {
+      "filename" : "Orion iOS Icon 1024x1024 (1) 2.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
     },
     {
+      "filename" : "Orion iOS Icon 1024x1024 (2) 1.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "32x32"
     },
     {
+      "filename" : "Orion iOS Icon 1024x1024 (3) 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "32x32"
     },
     {
+      "filename" : "macOS Icon Design Template (8) 1.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
+      "filename" : "macOS Icon Design Template (7) 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
+      "filename" : "macOS Icon Design Template (7).png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
     },
     {
+      "filename" : "macOS Icon Design Template (6) 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
     },
     {
+      "filename" : "macOS Icon Design Template (6).png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "512x512"
     },
     {
+      "filename" : "macOS Icon Design Template (5) 2.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"
