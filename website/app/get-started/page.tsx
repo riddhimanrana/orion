@@ -83,7 +83,7 @@ export default function GetStartedPage() {
           <h2 className="text-3xl font-bold text-center mb-8">
             How to Get Started
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <Card className="text-center">
               <CardHeader>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -109,7 +109,7 @@ export default function GetStartedPage() {
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Monitor className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
-                <CardTitle>2. Setup Mac Server (Optional)</CardTitle>
+                <CardTitle>2. Setup Mac Server</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
@@ -137,6 +137,23 @@ export default function GetStartedPage() {
                 </p>
                 <Button className="w-full" variant="outline" asChild>
                   <Link href="/signup">Create Account</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="text-center">
+              <CardHeader>
+                <div className="w-12 h-12 bg-teal-100 dark:bg-teal-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <LinkIcon className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                </div>
+                <CardTitle>4. Link Your Devices</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Pair your iOS and Mac apps for a seamless local network connection.
+                </p>
+                <Button className="w-full" variant="outline" asChild>
+                  <Link href="/account">Go to Account</Link>
                 </Button>
               </CardContent>
             </Card>

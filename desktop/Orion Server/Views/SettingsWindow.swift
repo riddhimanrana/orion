@@ -11,12 +11,15 @@ import SwiftUI
 struct SettingsWindow: View {
     @ObservedObject var userViewModel: UserProfileViewModel
     let authManager: AuthManager
+    @EnvironmentObject var deviceManager: DeviceManager
     
     // State for app controls
     @State private var showInMenuBar = "When App is Running"
     
     // State to control the logout confirmation alert
     @State private var showingLogoutAlert = false
+    @State private var showingPairingSheet = false
+    @State private var pollingTimer: Timer? = nil
 
     var body: some View {
         NavigationStack {
@@ -33,7 +36,62 @@ struct SettingsWindow: View {
                     SettingsSection(title: "App") {
                         SettingsPickerRow(icon: "menubar.rectangle", title: "Show in Menu Bar", selection: $showInMenuBar, options: ["When App is Running", "Always", "Never"])
                     }
-                    
+
+                    // MARK: - Device Pairing Section
+                    SettingsSection(title: "Device Pairing") {
+                        VStack(spacing: 0) {
+                            if deviceManager.pairedDevices.isEmpty {
+                                SettingsSimpleInfoRow(title: "No devices paired.", value: "")
+                            } else {
+                                ForEach(deviceManager.pairedDevices) { pair in
+                                    HStack {
+                                        Image(systemName: "iphone.gen2") // Use a more specific icon
+                                            .font(.callout)
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 20, alignment: .center)
+
+                                        VStack(alignment: .leading) {
+                                            Text(pair.mobileDevice.name) // Display the mobile device's name
+                                                .font(.system(size: 13, weight: .medium))
+                                            Text("Paired on \(pair.createdAt, style: .date)")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(.secondary)
+                                        }
+                                        Spacer()
+                                        Button("Revoke") {
+                                            Task {
+                                                await deviceManager.revokePair(pairId: pair.id)
+                                            }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.red)
+                                    }
+                                    .padding(12)
+                                    
+                                    if pair.id != deviceManager.pairedDevices.last?.id {
+                                        Divider().padding(.leading, 44)
+                                    }
+                                }
+                            }
+                            
+                            Divider()
+                            
+                            SettingsButtonRow(icon: "link", title: "Pair a New Device") {
+                                showingPairingSheet = true
+                            }
+                            .disabled(!deviceManager.pairedDevices.isEmpty)
+                        }.padding(0)
+
+                        if !deviceManager.pairedDevices.isEmpty {
+                            Text("You can only have one active pair at a time. Revoke the existing pair to link a new device.")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 8)
+                        }
+                    }
+
                     // MARK: - Manage Section
                     SettingsSection(title: "Manage") {
                         SettingsLinkRow(
@@ -100,6 +158,8 @@ struct SettingsWindow: View {
                 }
                 .padding()
             }
+            .onAppear(perform: startPolling)
+            .onDisappear(perform: stopPolling)
             .navigationTitle("Settings")
         }
         .frame(minWidth: 500, maxWidth: 500)
@@ -112,6 +172,30 @@ struct SettingsWindow: View {
         } message: {
             Text("Are you sure you want to log out as \(userViewModel.email)?")
         }
+        .sheet(isPresented: $showingPairingSheet) {
+            PairingCodeInputView()
+                .environmentObject(deviceManager)
+        }
+    }
+
+    private func startPolling() {
+        // Fetch immediately on appear
+        Task {
+            await deviceManager.fetchPairedDevices()
+        }
+        // Then poll every 10 seconds
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+            Task {
+                print("Polling for paired devices...")
+                await deviceManager.fetchPairedDevices()
+            }
+        }
+    }
+
+    private func stopPolling() {
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+        print("Stopped polling for paired devices.")
     }
 }
 

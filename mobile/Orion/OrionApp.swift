@@ -13,11 +13,12 @@ import MLXVLM
 @main
 struct OrionApp: App {
     // Environment object to share app state
-    @StateObject private var appState = AppStateManager()
-    @StateObject private var cameraManager = CameraManager() // Create CameraManager instance
-    @StateObject private var webSocketManager = WebSocketManager() // Create WebSocketManager instance
-    @StateObject private var authManager = AuthManager()
-    @StateObject private var compatibilityManager = SystemCompatibilityManager()
+    @StateObject private var appState: AppStateManager
+    @StateObject private var cameraManager: CameraManager
+    @StateObject private var webSocketManager: WebSocketManager
+    @StateObject private var authManager: AuthManager
+    @StateObject private var deviceManager: DeviceManager
+    @StateObject private var compatibilityManager: SystemCompatibilityManager
 
     // Lazily initialize model-related objects
     @State private var objectDetector: ObjectDetector?
@@ -25,6 +26,14 @@ struct OrionApp: App {
     @State private var showCompatibilityCheck = false
 
     init() {
+        let auth = AuthManager()
+        _authManager = StateObject(wrappedValue: auth)
+        _deviceManager = StateObject(wrappedValue: DeviceManager(supabase: auth.supabase))
+        _appState = StateObject(wrappedValue: AppStateManager())
+        _cameraManager = StateObject(wrappedValue: CameraManager())
+        _webSocketManager = StateObject(wrappedValue: WebSocketManager())
+        _compatibilityManager = StateObject(wrappedValue: SystemCompatibilityManager())
+
         // Configure app appearance
         configureAppearance()
         
@@ -49,6 +58,12 @@ struct OrionApp: App {
                             if fastVLMModel == nil {
                                 fastVLMModel = FastVLMModel()
                             }
+                            // Initialize WebSocket connection and set CameraManager
+                            webSocketManager.connect()
+                            webSocketManager.setCameraManager(cameraManager)
+                            #if DEBUG
+                            WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
+                            #endif
                         }
                 }
             }
@@ -56,12 +71,20 @@ struct OrionApp: App {
             .environmentObject(cameraManager)
             .environmentObject(webSocketManager)
             .environmentObject(authManager)
+            .environmentObject(deviceManager)
             .environmentObject(compatibilityManager)
             .environmentObject(objectDetector ?? ObjectDetector()) // Provide a default instance
             .environmentObject(fastVLMModel ?? FastVLMModel()) // Provide a default instance
             .onOpenURL { url in
                 Task {
                     await authManager.handleSessionCallback(from: url)
+                }
+            }
+            .onChange(of: authManager.session) { _, newSession in
+                if newSession != nil && deviceManager.deviceId == nil {
+                    Task {
+                        await deviceManager.registerDeviceIfNeeded(type: "ios")
+                    }
                 }
             }
             .onAppear {

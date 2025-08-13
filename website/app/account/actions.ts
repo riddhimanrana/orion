@@ -682,3 +682,67 @@ export async function toggleSubscriptionTier(): Promise<{
     message: `Successfully ${newTier === "pro" ? "upgraded to" : "downgraded from"} Orion Pro`,
   };
 }
+
+// New functions for device management
+
+export async function getRegisteredDevices() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("User not authenticated");
+
+  const { data, error } = await supabase
+    .from('devices')
+    .select('*')
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error("Error fetching devices:", error);
+    throw new Error("Failed to fetch devices.");
+  }
+  return data;
+}
+
+export async function getPairedDevices() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("User not authenticated");
+
+  const { data, error } = await supabase
+    .from('device_pairs')
+    .select(`
+      id,
+      status,
+      created_at,
+      revoked_at,
+      mobile_device:devices!mobile_device_id(*),
+      server_device:devices!server_device_id(*)
+    `)
+    .eq('user_id', user.id)
+    .eq('status', 'active');
+
+  if (error) {
+    console.error("Error fetching pairs:", error);
+    throw new Error("Failed to fetch pairs.");
+  }
+  return data;
+}
+
+export async function revokeDevicePair(pairId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("User not authenticated");
+
+  const { error } = await supabase
+    .from('device_pairs')
+    .update({ status: 'revoked', revoked_at: new Date().toISOString() })
+    .eq('id', pairId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error("Error revoking pair:", error);
+    throw new Error("Failed to revoke pair.");
+  }
+  
+  revalidatePath("/account");
+  return { success: true };
+}

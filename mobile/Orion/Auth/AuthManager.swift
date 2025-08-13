@@ -25,11 +25,22 @@ class AuthManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        guard let supabaseURLString = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String,
-              let supabaseAnonKey = Bundle.main.infoDictionary?["SUPABASE_ANON_KEY"] as? String,
-              let supabaseURL = URL(string: supabaseURLString) else {
-            fatalError("Supabase URL or Anon Key not found in Info.plist")
+        guard let supabaseURLString = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String else {
+            fatalError("SUPABASE_URL not found in Info.plist. Please add your Supabase project URL.")
         }
+        guard let supabaseAnonKey = Bundle.main.infoDictionary?["SUPABASE_ANON_KEY"] as? String else {
+            fatalError("SUPABASE_ANON_KEY not found in Info.plist. Please add your Supabase anon key.")
+        }
+        guard supabaseURLString != "[your_supabase_url]" else {
+            fatalError("Please replace the placeholder SUPABASE_URL in Info.plist with your actual Supabase project URL")
+        }
+        guard supabaseAnonKey != "[your_supabase_anon_key]" else {
+            fatalError("Please replace the placeholder SUPABASE_ANON_KEY in Info.plist with your actual Supabase anon key")
+        }
+        guard let supabaseURL = URL(string: supabaseURLString) else {
+            fatalError("Invalid SUPABASE_URL in Info.plist: \(supabaseURLString)")
+        }
+        
         self.supabase = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: supabaseAnonKey)
 
         setupAuthListener()

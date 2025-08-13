@@ -59,6 +59,7 @@ import {
   toggleSubscriptionTier,
 } from "./actions";
 import EmailChangeForm from "@/components/account/email-change-form";
+import { DeviceManagement } from "@/components/account/device-management";
 import { useSubscription } from "@/hooks/use-subscription";
 
 import type { UserIdentity } from "@supabase/supabase-js";
@@ -369,9 +370,10 @@ export default function AccountPage() {
         </div>
 
         <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-auto">
+          <TabsList className="grid w-full grid-cols-4 h-auto">
             <TabsTrigger value="general" className="text-xs sm:text-sm">General</TabsTrigger>
             <TabsTrigger value="security" className="text-xs sm:text-sm">Security</TabsTrigger>
+            <TabsTrigger value="devices" className="text-xs sm:text-sm">Devices</TabsTrigger>
             <TabsTrigger value="subscription" className="text-xs sm:text-sm">Subscription</TabsTrigger>
           </TabsList>
 
@@ -1170,6 +1172,10 @@ export default function AccountPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="devices" className="space-y-4 sm:space-y-6">
+            <DeviceManagement />
           </TabsContent>
 
           <TabsContent value="subscription" className="space-y-4 sm:space-y-6">

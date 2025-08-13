@@ -12,7 +12,7 @@ import Combine
 struct ContentView: View {
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
-    @StateObject private var wsManager = WebSocketManager()
+    @EnvironmentObject var wsManager: WebSocketManager
 
     @State private var latestAnalysis: SceneAnalysis?
     @State private var analysisTimestamp: TimeInterval = 0
@@ -139,12 +139,7 @@ struct ContentView: View {
             }
         }
         
-        wsManager.connect()
-        wsManager.setCameraManager(cameraManager)
-        
-        #if DEBUG
-        WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
-        #endif
+        // The `onFrameProcessed` closure is no longer needed as we send frames asynchronously.
     }
 }
 

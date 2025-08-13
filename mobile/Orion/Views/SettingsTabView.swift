@@ -14,8 +14,11 @@ struct SettingsTabView: View {
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var wsManager: WebSocketManager
     @EnvironmentObject var cameraManager: CameraManager
+    @EnvironmentObject var deviceManager: DeviceManager
     @EnvironmentObject var compatibilityManager: SystemCompatibilityManager
     @State private var showingCompatibilityDetails = false
+    @State private var showingPairingSheet = false
+    @State private var pollingTimer: Timer? = nil
 
     var body: some View {
         NavigationView {
@@ -25,10 +28,19 @@ struct SettingsTabView: View {
                 cameraAndDetectionSection
                 performanceSection
                 debugSection
+
+                devicePairingSection
+
                 systemCompatibilitySection
                 aboutSection
             }
             .navigationTitle("Settings")
+            .onAppear(perform: startPolling)
+            .onDisappear(perform: stopPolling)
+        }
+        .sheet(isPresented: $showingPairingSheet) {
+            DevicePairingView()
+                .environmentObject(deviceManager)
         }
         .sheet(isPresented: $showingCompatibilityDetails) {
             CompatibilityCheckView()
@@ -95,6 +107,46 @@ struct SettingsTabView: View {
         }
     }
 
+    private var devicePairingSection: some View {
+        Section(header: Label("Device Pairing", systemImage: "link")) {
+            if deviceManager.pairedDevices.isEmpty {
+                Text("No devices paired.")
+            } else {
+                List {
+                    ForEach(deviceManager.pairedDevices) { pair in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(pair.serverDevice.name)
+                                    .font(.headline)
+                                Text("Paired on \(pair.createdAt, style: .date)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button("Revoke") {
+                                Task {
+                                    await deviceManager.revokePair(pairId: pair.id)
+                                }
+                            }
+                            .foregroundColor(.red)
+                        }
+                    }
+                }
+            }
+
+            Button("Link a New Device") {
+                showingPairingSheet = true
+            }
+            .disabled(deviceManager.deviceId == nil || !deviceManager.pairedDevices.isEmpty)
+
+            if !deviceManager.pairedDevices.isEmpty {
+                Text("You can only have one active pair at a time. Revoke the existing pair to link a new device.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
     private var aboutSection: some View {
         Section(header: Label("About", systemImage: "info.circle")) {
             HStack {
@@ -148,6 +200,26 @@ struct SettingsTabView: View {
 
     private func updateConnection() {
         wsManager.updateServerURL(host: settings.serverHost, port: settings.serverPort)
+    }
+
+    private func startPolling() {
+        // Fetch immediately on appear
+        Task {
+            await deviceManager.fetchPairedDevices()
+        }
+        // Then poll every 10 seconds
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+            Task {
+                print("Polling for paired devices...")
+                await deviceManager.fetchPairedDevices()
+            }
+        }
+    }
+
+    private func stopPolling() {
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+        print("Stopped polling for paired devices.")
     }
 }
 

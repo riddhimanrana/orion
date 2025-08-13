@@ -320,6 +320,20 @@ export function HomeContent() {
                     </p>
                   </div>
                 </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-black/10 dark:bg-white/10 rounded-lg flex items-center justify-center">
+                    <LinkIcon className="w-6 h-6 text-black dark:text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-2 text-black dark:text-white">
+                      Secure Device Pairing
+                    </h3>
+                    <p className="text-black/60 dark:text-white/60">
+                      Link your mobile and desktop apps for seamless local network communication.
+                    </p>
+                  </div>
+                </div>
               </div>
             </ScrollReveal>
 
