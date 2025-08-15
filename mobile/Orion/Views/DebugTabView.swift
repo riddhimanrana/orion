@@ -1,3 +1,4 @@
+
 //
 //  DebugTabView.swift
 //  Orion Live
@@ -8,24 +9,32 @@
 //
 import SwiftUI
 import Combine
+import WebRTC
 
 // MARK: - Main Debug View
 struct DebugTabView: View {
-    @EnvironmentObject var wsManager: WebSocketManager
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var cameraManager: CameraManager
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
 
     // State
     @State private var frameAnalysisLogs: [FrameAnalysisLog] = []
     @State private var analysisLogCancellable: AnyCancellable? = nil
     @State private var showingDetailFor: FrameAnalysisLog?
     @State private var showingSettingsSheet = false
+    @State private var pingTime: String = "N/A"
+    @State private var cancellables = Set<AnyCancellable>()
 
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Label("Connection", systemImage: "wifi")) {
-                    webSocketStatusSection
+                Section(header: Label("P2P Connection", systemImage: "network")) {
+                    p2pConnectionSection
+                }
+                
+                Section(header: Label("Signaling", systemImage: "wifi")) {
+                    signalingStatusSection
                 }
 
                 Section(header: Label("Live System Metrics", systemImage: "speedometer")) {
@@ -52,29 +61,46 @@ struct DebugTabView: View {
             FrameDetailView(log: log)
         }
         .sheet(isPresented: $showingSettingsSheet) {
-            DebugSettingsView().environmentObject(wsManager)
+            DebugSettingsView()
         }
-        .onAppear(perform: setupLogSubscribers)
-        .onDisappear(perform: cancelLogSubscribers)
+        .onAppear(perform: setupSubscribers)
+        .onDisappear(perform: cancelSubscribers)
     }
 
     // MARK: - Subviews
-    private var webSocketStatusSection: some View {
+    private var p2pConnectionSection: some View {
         VStack(spacing: 8) {
-            ConnectionStatusRow(label: "Status", value: wsManager.status.description, color: connectionStatusColor)
-            ConnectionStatusRow(label: "Server", value: "\(SettingsManager.shared.serverHost):\(SettingsManager.shared.serverPort)", color: .secondary)
-            ConnectionStatusRow(label: "Mode", value: SettingsManager.shared.processingMode.capitalized, color: .secondary)
-            ConnectionStatusRow(label: "Server Queue", value: "\(wsManager.serverQueueSize)", color: .secondary)
+            ConnectionStatusRow(label: "WebRTC Status", value: webRTCManager.connectionState.description, color: webRTCStatusColor)
+            ConnectionStatusRow(label: "Ping (RTT)", value: pingTime, color: .secondary)
+            HStack {
+                Button("Connect") {
+                    webRTCManager.connect()
+                }
+                .buttonStyle(.bordered)
+                .disabled(webRTCManager.connectionState == .connected || webRTCManager.connectionState == .checking)
+                
+                Spacer()
+                
+                Button("Ping") {
+                    webRTCManager.sendPing()
+                }
+                .buttonStyle(.bordered)
+                .disabled(webRTCManager.connectionState != .connected)
+            }
         }
     }
-
+    
+    private var signalingStatusSection: some View {
+        VStack(spacing: 8) {
+            ConnectionStatusRow(label: "Signaling Status", value: signalingClient.connectionState.description, color: signalingStatusColor)
+            ConnectionStatusRow(label: "Server", value: "signal.orionlive.ai", color: .secondary)
+        }
+    }
+    
     private var systemMetricsSection: some View {
         VStack(spacing: 8) {
-            // Note: CPU/GPU/ANE metrics are non-trivial to get and require more than SwiftUI.
-            // These are placeholders to illustrate the UI.
-            MetricRow(label: "CPU Usage", value: "65%", target: "< 80%")
-            MetricRow(label: "GPU Usage", value: "45%", target: "< 60%")
-            MetricRow(label: "ANE Usage", value: "80%", target: "N/A")
+            MetricRow(label: "CPU Usage", value: "--", target: "< 80%")
+            MetricRow(label: "GPU Usage", value: "--", target: "< 60%")
             MetricRow(label: "Memory", value: String(format: "%.0f MB", appState.performanceMetrics.memoryUsage), target: "< 500 MB")
             MetricRow(label: "Battery", value: "\(Int(appState.performanceMetrics.batteryLevel * 100))%", target: "> 20%")
         }
@@ -83,41 +109,25 @@ struct DebugTabView: View {
     private var analysisLogSection: some View {
         List {
             if frameAnalysisLogs.isEmpty {
-                Text("No analysis logs yet...")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                Text("No analysis logs yet...").foregroundColor(.secondary).frame(maxWidth: .infinity, alignment: .center)
             } else {
                 ForEach(frameAnalysisLogs.reversed()) { log in
                     DisclosureGroup {
                         VStack(alignment: .leading, spacing: 10) {
                             if let vlmResult = log.vlmResult {
-                                Text(vlmResult.description)
-                                    .font(.caption)
-                                    .foregroundColor(.primary)
-                                
+                                Text(vlmResult.description).font(.caption).foregroundColor(.primary)
                                 vlmMetricsView(vlmResult)
                             } else {
-                                Text("VLM analysis not performed or failed.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text("VLM analysis not performed or failed.").font(.caption).foregroundColor(.secondary)
                             }
-                            
-                            Button(action: { showingDetailFor = log }) {
-                                Text("Show Full Details")
-                                    .font(.caption.bold())
-                            }
-                            .padding(.top, 4)
+                            Button(action: { showingDetailFor = log }) { Text("Show Full Details").font(.caption.bold()) }.padding(.top, 4)
                         }
                     } label: {
                         HStack {
-                            Image(systemName: "brain.head.profile")
-                                .foregroundColor(.purple)
-                            Text("Frame \(log.frameId.prefix(6))")
-                                .font(.headline)
+                            Image(systemName: "brain.head.profile").foregroundColor(.purple)
+                            Text("Frame \(log.frameId.prefix(6))").font(.headline)
                             Spacer()
-                            Text(log.formattedTimestamp)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            Text(log.formattedTimestamp).font(.caption).foregroundColor(.secondary)
                         }
                     }
                 }
@@ -129,28 +139,34 @@ struct DebugTabView: View {
         HStack(spacing: 16) {
             VStack(alignment: .leading) {
                 Text("TTFT").font(.caption2).foregroundColor(.secondary)
-                Text(String(format: "%.0f ms", result.timeToFirstToken * 1000))
-                    .font(.caption.bold())
+                Text(String(format: "%.0f ms", result.timeToFirstToken * 1000)).font(.caption.bold())
             }
             VStack(alignment: .leading) {
                 Text("Tok/s").font(.caption2).foregroundColor(.secondary)
-                Text(String(format: "%.1f", result.tokensPerSecond))
-                    .font(.caption.bold())
+                Text(String(format: "%.1f", result.tokensPerSecond)).font(.caption.bold())
             }
             VStack(alignment: .leading) {
                 Text("Total Time").font(.caption2).foregroundColor(.secondary)
-                Text(String(format: "%.2f s", result.totalGenerationTime))
-                    .font(.caption.bold())
+                Text(String(format: "%.2f s", result.totalGenerationTime)).font(.caption.bold())
             }
         }
     }
 
     // MARK: - Helper Properties & Methods
-    private var connectionStatusColor: Color {
-        switch wsManager.status {
+    private var signalingStatusColor: Color {
+        switch signalingClient.connectionState {
         case .connected: .green
         case .connecting: .yellow
         case .disconnected: .red
+        }
+    }
+    
+    private var webRTCStatusColor: Color {
+        switch webRTCManager.connectionState {
+        case .connected, .completed: .green
+        case .checking: .yellow
+        case .disconnected, .failed, .closed: .red
+        default: .gray
         }
     }
 
@@ -158,21 +174,33 @@ struct DebugTabView: View {
         frameAnalysisLogs.removeAll()
     }
 
-    private func setupLogSubscribers() {
-        // Assumes CameraManager will publish FrameAnalysisLog entries
+    private func setupSubscribers() {
+        // Subscribe to frame analysis logs
         analysisLogCancellable = cameraManager.frameAnalysisLogPublisher
             .receive(on: DispatchQueue.main)
             .sink { logEntry in
                 self.frameAnalysisLogs.append(logEntry)
-                if self.frameAnalysisLogs.count > 50 { // Keep log size manageable
-                    self.frameAnalysisLogs.removeFirst()
+                if self.frameAnalysisLogs.count > 50 { self.frameAnalysisLogs.removeFirst() }
+            }
+        
+        // Subscribe to ping updates
+        webRTCManager.$lastPingRTT
+            .receive(on: DispatchQueue.main)
+            .sink { rtt in
+                if let rtt = rtt {
+                    self.pingTime = "\(String(format: "%.1f", rtt * 1000)) ms"
+                } else {
+                    self.pingTime = "N/A"
                 }
             }
+            .store(in: &cancellables)
     }
 
-    private func cancelLogSubscribers() {
+    private func cancelSubscribers() {
         analysisLogCancellable?.cancel()
         analysisLogCancellable = nil
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
     }
 }
 
@@ -207,10 +235,7 @@ struct FrameDetailView: View {
                         InfoRow(icon: "speedometer", label: "Tokens/sec", value: String(format: "%.1f", result.tokensPerSecond))
                         InfoRow(icon: "timer", label: "Total Time", value: String(format: "%.2f s", result.totalGenerationTime))
                         DisclosureGroup("VLM Prompt") {
-                            Text(log.vlmPrompt)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 4)
+                            Text(log.vlmPrompt).font(.caption).foregroundColor(.secondary).padding(.top, 4)
                         }
                     } else {
                         Text("No VLM result.")
@@ -222,18 +247,11 @@ struct FrameDetailView: View {
                     InfoRow(icon: "battery.100", label: "Battery Level", value: "\(Int(log.batteryLevel * 100))%")
                 }
             }
-            .navigationTitle("Frame Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                }
-            }
+            .navigationTitle("Frame Details").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("Done") { dismiss() } } }
         }
     }
 }
-
-
 
 struct ConnectionStatusRow: View {
     let label: String, value: String, color: Color
@@ -261,7 +279,6 @@ struct MetricRow: View {
 }
 
 struct DebugSettingsView: View {
-    @EnvironmentObject var wsManager: WebSocketManager
     @Environment(\.dismiss) var dismiss
     var body: some View {
         NavigationView {
@@ -280,18 +297,24 @@ struct DebugSettingsView: View {
 // MARK: - Previews
 struct DebugTabView_Previews: PreviewProvider {
     static var previews: some View {
+        // Mock all necessary managers for the preview
         let appState = AppStateManager()
         let cameraManager = CameraManager()
-        let wsManager = WebSocketManager()
+        let authManager = AuthManager()
+        let deviceManager = DeviceManager(supabase: authManager.supabase)
+        let apiService = APIService(supabase: authManager.supabase)
+        let signalingClient = SignalingClient(apiService: apiService, deviceManager: deviceManager)
+        let webRTCManager = WebRTCManager(signalingClient: signalingClient)
 
         // Setup mock data for preview
         appState.performanceMetrics = PerformanceMetrics(fps: 29.5, memoryUsage: 180.3, batteryLevel: 0.75, temperature: 0)
-        cameraManager.frameAnalysisLogPublisher.send(FrameAnalysisLog.placeholder())
+        // Correctly publish a mock log entry
         cameraManager.frameAnalysisLogPublisher.send(FrameAnalysisLog.placeholder())
 
         return DebugTabView()
             .environmentObject(appState)
             .environmentObject(cameraManager)
-            .environmentObject(wsManager)
+            .environmentObject(webRTCManager)
+            .environmentObject(signalingClient)
     }
 }

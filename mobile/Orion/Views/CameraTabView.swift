@@ -10,12 +10,16 @@
 
 import SwiftUI
 import Combine
+import WebRTC
 
 struct CameraTabView: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
-    @ObservedObject var wsManager: WebSocketManager
+    @EnvironmentObject var signalingClient: SignalingClient
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var deviceManager: DeviceManager
+    @EnvironmentObject var compatibilityManager: SystemCompatibilityManager
 
     @Binding var latestAnalysis: SceneAnalysis?
     @Binding var analysisTimestamp: TimeInterval
@@ -84,9 +88,14 @@ struct CameraTabView: View {
                     }
                     .navigationViewStyle(StackNavigationViewStyle())
                     .sheet(isPresented: $showingSettingsSheet) {
-                        SettingsView()
-                            .environmentObject(wsManager)
+                        // Pass all necessary environment objects to the settings view
+                        SettingsTabView()
                             .environmentObject(appState)
+                            .environmentObject(cameraManager)
+                            .environmentObject(signalingClient)
+                            .environmentObject(webRTCManager)
+                            .environmentObject(deviceManager)
+                            .environmentObject(compatibilityManager)
                     }
                 } else {
                     StartView(isCameraActive: $isCameraActive, onStart: { completion in
@@ -132,7 +141,7 @@ struct CameraTabView: View {
             // Perform cleanup in the background
             DispatchQueue.global(qos: .userInitiated).async {
                 cameraManager.stopStreaming()
-                wsManager.disconnect()
+                webRTCManager.disconnect() // Disconnect WebRTC
 
                 // Switch back to main thread to update UI
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // Small delay for animation
@@ -193,11 +202,11 @@ struct CameraTabView: View {
     private var connectionStatusView: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(webSocketStatusColor)
+                .fill(p2pStatusColor)
                 .frame(width: 10, height: 10)
-                .animation(.easeInOut, value: wsManager.status)
+                .animation(.easeInOut, value: webRTCManager.connectionState)
 
-            Text(webSocketStatusText)
+            Text(p2pStatusText)
                 .font(.caption.weight(.medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
         }
@@ -207,26 +216,16 @@ struct CameraTabView: View {
         .cornerRadius(20)
     }
 
-    private var webSocketStatusColor: Color {
-        switch wsManager.status {
-        case .connected:
-            return .green
-        case .connecting:
-            return .yellow
-        case .disconnected:
-            return .red
+    private var p2pStatusColor: Color {
+        switch webRTCManager.connectionState {
+        case .connected, .completed: return .green
+        case .new, .checking: return .yellow
+        default: return .red
         }
     }
 
-    private var webSocketStatusText: String {
-        switch wsManager.status {
-        case .connected:
-            return "Connected"
-        case .connecting:
-            return "Connecting..."
-        case .disconnected:
-            return "Disconnected"
-        }
+    private var p2pStatusText: String {
+        webRTCManager.connectionState.description
     }
 
     // MARK: - Detection Stats View
@@ -282,21 +281,22 @@ struct CameraTabView_Previews: PreviewProvider {
     static var previews: some View {
         let appState = AppStateManager()
         let cameraManager = CameraManager()
-        let wsManager = WebSocketManager()
-
-        appState.performanceMetrics = PerformanceMetrics(
-            fps: 29.5,
-            memoryUsage: 120.3,
-            batteryLevel: 0.75,
-            temperature: 0
-        )
+        let authManager = AuthManager()
+        let deviceManager = DeviceManager(supabase: authManager.supabase)
+        let apiService = APIService(supabase: authManager.supabase)
+        let signalingClient = SignalingClient(apiService: apiService, deviceManager: deviceManager)
+        let webRTCManager = WebRTCManager(signalingClient: signalingClient)
+        let compatibilityManager = SystemCompatibilityManager()
 
         return CameraTabView(
-            wsManager: wsManager,
             latestAnalysis: .constant(nil),
             analysisTimestamp: .constant(0)
         )
         .environmentObject(appState)
         .environmentObject(cameraManager)
+        .environmentObject(signalingClient)
+        .environmentObject(webRTCManager)
+        .environmentObject(deviceManager)
+        .environmentObject(compatibilityManager)
     }
 }

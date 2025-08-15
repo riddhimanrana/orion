@@ -19,6 +19,9 @@ struct OrionApp: App {
     @StateObject private var authManager: AuthManager
     @StateObject private var deviceManager: DeviceManager
     @StateObject private var compatibilityManager: SystemCompatibilityManager
+    @StateObject private var webRTCManager: WebRTCManager
+    @StateObject private var signalingClient: SignalingClient
+    @StateObject private var apiService: APIService
 
     // Lazily initialize model-related objects
     @State private var objectDetector: ObjectDetector?
@@ -26,13 +29,29 @@ struct OrionApp: App {
     @State private var showCompatibilityCheck = false
 
     init() {
+        // Initialize all managers first
         let auth = AuthManager()
+        let device = DeviceManager(supabase: auth.supabase)
+        let api = APIService(supabase: auth.supabase)
+        let signaling = SignalingClient(apiService: api, deviceManager: device)
+        let webrtc = WebRTCManager(signalingClient: signaling)
+        let camera = CameraManager()
+        
+        // Set state objects
         _authManager = StateObject(wrappedValue: auth)
-        _deviceManager = StateObject(wrappedValue: DeviceManager(supabase: auth.supabase))
+        _deviceManager = StateObject(wrappedValue: device)
+        _apiService = StateObject(wrappedValue: api)
+        _signalingClient = StateObject(wrappedValue: signaling)
+        _webRTCManager = StateObject(wrappedValue: webrtc)
+        _cameraManager = StateObject(wrappedValue: camera)
+        
+        // App-level managers
         _appState = StateObject(wrappedValue: AppStateManager())
-        _cameraManager = StateObject(wrappedValue: CameraManager())
-        _webSocketManager = StateObject(wrappedValue: WebSocketManager())
+        _webSocketManager = StateObject(wrappedValue: WebSocketManager()) // Note: This is for the old flow, might be deprecated
         _compatibilityManager = StateObject(wrappedValue: SystemCompatibilityManager())
+
+        // Now that all managers are initialized, inject dependencies
+        camera.setup(webRTCManager: webrtc)
 
         // Configure app appearance
         configureAppearance()
@@ -52,15 +71,13 @@ struct OrionApp: App {
                 } else {
                     ContentView()
                         .onAppear {
-                            if objectDetector == nil {
-                                objectDetector = ObjectDetector()
-                            }
-                            if fastVLMModel == nil {
-                                fastVLMModel = FastVLMModel()
-                            }
-                            // Initialize WebSocket connection and set CameraManager
-                            webSocketManager.connect()
-                            webSocketManager.setCameraManager(cameraManager)
+                            if objectDetector == nil { objectDetector = ObjectDetector() }
+                            if fastVLMModel == nil { fastVLMModel = FastVLMModel() }
+                            
+                            // Connect signaling and WebRTC
+                            Task { await signalingClient.connect() }
+                            webRTCManager.connect()
+                            
                             #if DEBUG
                             WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
                             #endif
@@ -73,6 +90,9 @@ struct OrionApp: App {
             .environmentObject(authManager)
             .environmentObject(deviceManager)
             .environmentObject(compatibilityManager)
+            .environmentObject(webRTCManager)
+            .environmentObject(signalingClient)
+            .environmentObject(apiService)
             .environmentObject(objectDetector ?? ObjectDetector()) // Provide a default instance
             .environmentObject(fastVLMModel ?? FastVLMModel()) // Provide a default instance
             .onOpenURL { url in

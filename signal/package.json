@@ -1,0 +1,23 @@
+{
+  "name": "orion-signal",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "bun --watch index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.17.1",
+    "@supabase/supabase-js": "^2.44.4"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20",
+    "@types/ws": "^8.5.10",
+    "bun-types": "latest",
+    "typescript": "^5"
+  }
+}
