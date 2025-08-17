@@ -121,14 +121,14 @@
         scrollbar-gutter: stable;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground font-sans;
         scrollbar-gutter: stable;
         button:not([disabled]),
         [role="button"]:not([disabled]) {
             cursor: pointer;
         }
     }
-    
+
     /* Add scroll margin to account for fixed navbar */
     [id] {
         scroll-margin-top: 5rem; /* 80px - slightly more than navbar height for better spacing */

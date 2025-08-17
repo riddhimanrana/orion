@@ -8,148 +8,162 @@
 
 import SwiftUI
 import Supabase
+import WebRTC
 
-@MainActor
-class UserProfileViewModel: ObservableObject {
-    @Published var fullName: String = "Loading..."
-    @Published var email: String = "-"
-    @Published var memberSince: String = "-"
-    @Published var subscriptionTier: String = "Free"
-    @Published var profilePictureURL: URL? = nil
-    @Published var isLoading = true
-
-    func fetchUserDetails(for user: User) async {
-        self.email = user.email ?? "No email provided"
-        let joinDate = user.createdAt
-        self.memberSince = joinDate.formatted(date: .abbreviated, time: .omitted)
-
-        // Extract full name from user metadata
-        if let fullNameJSON = user.userMetadata["full_name"], case .string(let fullName) = fullNameJSON {
-            self.fullName = fullName
-        } else {
-            self.fullName = user.email?.components(separatedBy: "@").first?.capitalized ?? "User"
-        }
-
-        // Extract subscription tier
-        if let tierJSON = user.userMetadata["subscription_tier"], case .string(let tier) = tierJSON {
-            self.subscriptionTier = tier.capitalized
-        }
-
-        await fetchProfilePictureURL(for: user)
-        self.isLoading = false
-    }
-
-    private func fetchProfilePictureURL(for user: User) async {
-        var finalProfilePictureURL: URL? = nil
-
-        // Check profile_picture_source preference
-        if let preferredSourceJSON = user.userMetadata["profile_picture_source"],
-           case .string(let preferredSource) = preferredSourceJSON {
-            
-            if preferredSource == "monogram" {
-                finalProfilePictureURL = nil // Use monogram
-            } else {
-                // Try to get avatar from specific identity (Google/GitHub)
-                if let identities = user.identities {
-                    if let identity = identities.first(where: { $0.provider == preferredSource }),
-                       let avatarURLString = identity.identityData?["avatar_url"] as? String {
-                        finalProfilePictureURL = URL(string: avatarURLString)
-                    }
-                }
-            }
-        }
-
-        // Fallback to user_metadata.avatar_url
-        if finalProfilePictureURL == nil {
-            if let avatarURLJSON = user.userMetadata["avatar_url"],
-               case .string(let avatarURLString) = avatarURLJSON {
-                finalProfilePictureURL = URL(string: avatarURLString)
-            }
-        }
-
-        self.profilePictureURL = finalProfilePictureURL
-    }
-    
-    func getInitials(from fullName: String) -> String {
-        let components = fullName.split(separator: " ")
-        let firstNameInitial = components.first?.first.map(String.init) ?? ""
-        let lastNameInitial = components.count > 1 ? components.last?.first.map(String.init) ?? "" : ""
-        return "\(firstNameInitial)\(lastNameInitial)"
-    }
-}
-
+// MARK: - Main Dashboard View
 struct MainDashboard: View {
-    @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var authManager: AuthManager
-    @StateObject private var userViewModel = UserProfileViewModel()
-    @State private var showingSettings = false
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
+    @EnvironmentObject var userViewModel: UserProfileViewModel
     
+    @State private var remoteVideoTrack: RTCVideoTrack?
+
     var body: some View {
-        ZStack {
-            // Background
-            Color(.windowBackgroundColor)
-                .ignoresSafeArea()
-            
-            VStack(spacing: 40) {
-                // Top spacing for traffic lights
-                Spacer()
-                    .frame(height: 60)
-                
-                Spacer()
-                
-                // Welcome Section
-                VStack(spacing: 24) {
-                    Group {
-                        if let profileURL = userViewModel.profilePictureURL {
-                            AsyncImage(url: profileURL) { image in
-                                image.resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                MonogramAvatar(initials: userViewModel.getInitials(from: userViewModel.fullName))
-                            }
-                        } else {
-                            MonogramAvatar(initials: userViewModel.getInitials(from: userViewModel.fullName))
-                        }
-                    }
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                    
-                    VStack(spacing: 8) {
-                        Text("Welcome back, \(userViewModel.fullName.components(separatedBy: " ").first ?? "User")")
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundColor(.primary)
-                        
-                        Text("Orion Server is running and ready")
-                            .font(.system(size: 18))
+        HSplitView {
+            // Main content: Video feed
+            VStack {
+                if let track = remoteVideoTrack {
+                    RTCVideoView(videoTrack: track)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ZStack {
+                        Color(NSColor.windowBackgroundColor)
+                        Text("Waiting for video stream...")
                             .foregroundColor(.secondary)
                     }
-                    
-                    // Simple status indicator
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 8, height: 8)
-                        
-                        Text("Connected")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 8)
                 }
-                
-                Spacer()
-                Spacer()
             }
+            .frame(minWidth: 500, idealWidth: 800, maxWidth: .infinity)
+
+            // Sidebar: Status and controls
+            SidebarView()
+                .frame(minWidth: 250, idealWidth: 300, maxWidth: 400)
         }
-        .task {
-            if let user = authManager.session?.user {
-                await userViewModel.fetchUserDetails(for: user)
-            }
+        .onReceive(webRTCManager.$videoTrack) { track in
+            self.remoteVideoTrack = track
         }
     }
 }
 
+// MARK: - Sidebar View
+struct SidebarView: View {
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
+    @EnvironmentObject var userViewModel: UserProfileViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // User Profile Section
+            HStack {
+                MonogramAvatar(initials: userViewModel.getInitials(from: userViewModel.fullName))
+                    .frame(width: 40, height: 40)
+                VStack(alignment: .leading) {
+                    Text(userViewModel.fullName).font(.headline)
+                    Text(userViewModel.email).font(.caption).foregroundColor(.secondary)
+                }
+            }
+            
+            // Connection Status Section
+            VStack(alignment: .leading) {
+                Text("Connection Status").font(.headline).padding(.bottom, 5)
+                StatusRow(label: "Signaling", status: signalingClient.connectionState.description, color: signalingStatusColor)
+                StatusRow(label: "WebRTC", status: webRTCStatusString, color: webRTCStatusColor)
+            }
+            
+            // Logs Section
+            VStack(alignment: .leading) {
+                Text("Logs").font(.headline).padding(.bottom, 5)
+                ScrollView {
+                    Text("Log messages will appear here...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 200)
+                .background(Color(NSColor.textBackgroundColor))
+                .cornerRadius(8)
+            }
+            
+            Spacer()
+        }
+        .padding()
+    }
+    
+    private var signalingStatusColor: Color {
+        switch signalingClient.connectionState {
+        case .connected: .green
+        case .connecting: .yellow
+        case .disconnected: .red
+        }
+    }
+
+    private var webRTCStatusString: String {
+        switch webRTCManager.connectionState {
+        case .new: return "new"
+        case .checking: return "checking"
+        case .connected: return "connected"
+        case .completed: return "completed"
+        case .failed: return "failed"
+        case .disconnected: return "disconnected"
+        case .closed: return "closed"
+        case .count: return "count"
+        @unknown default: return "unknown"
+        }
+    }
+
+    private var webRTCStatusColor: Color {
+        switch webRTCManager.connectionState {
+        case .connected, .completed: .green
+        case .checking: .yellow
+        case .new, .disconnected, .failed, .closed, .count: .red
+        @unknown default:
+            .gray
+        }
+    }
+}
+
+// MARK: - Status Row
+struct StatusRow: View {
+    let label: String
+    let status: String
+    let color: Color
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(status)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.2))
+            .cornerRadius(8)
+        }
+    }
+}
+
+// MARK: - WebRTC Video View Representable
+struct RTCVideoView: NSViewRepresentable {
+    var videoTrack: RTCVideoTrack
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.black.cgColor
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // Note: RTCMTLVideoView might not be available in all WebRTC versions
+        // This is a placeholder implementation
+        // You may need to implement custom video rendering or use RTCEAGLVideoView equivalent
+    }
+}
+
+// MARK: - Monogram Avatar
 struct MonogramAvatar: View {
     let initials: String
     
@@ -169,9 +183,4 @@ struct MonogramAvatar: View {
                 .foregroundColor(.white)
         }
     }
-}
-
-#Preview {
-    MainDashboard()
-        .environmentObject(AuthManager())
 }

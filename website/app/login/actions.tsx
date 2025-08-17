@@ -178,9 +178,9 @@ export async function signInWithEmail(
     console.log("Authentication successful for user:", data.user.email);
 
     // If a mobile redirect is specified, return the bridge URL
-    if (redirectTo && redirectTo.startsWith("orionauth://")) {
+    if (redirectTo && redirectTo.startsWith("orion://")) {
       const bridgeURL = new URL(
-        "/auth/mobile-bridge",
+        "/auth/native-bridge",
         process.env.NEXT_PUBLIC_SITE_URL,
       );
       bridgeURL.searchParams.set("redirectTo", redirectTo);

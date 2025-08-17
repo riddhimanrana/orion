@@ -44,22 +44,28 @@ function EmailConfirmContent() {
   useEffect(() => {
     const handleConfirmation = async () => {
       // Handle URL-based success/error (from callback route)
-      if (success === "email_confirmed" || success === "mobile_signup_confirmed") {
+      if (
+        success === "email_confirmed" ||
+        success === "mobile_signup_confirmed"
+      ) {
         setStatus("success");
         setUserEmail(email ? decodeURIComponent(email) : "");
-        
+
         if (success === "mobile_signup_confirmed") {
           if (note === "already_confirmed") {
             toast.success("Account already confirmed!", {
-              description: "Your mobile account is ready. Use the Orion Live app to sign in.",
+              description:
+                "Your mobile account is ready. Use the Orion Live app to sign in.",
             });
           } else if (note === "session_error") {
             toast.success("Account confirmed successfully!", {
-              description: "Your account is ready. Use the Orion Live app to sign in.",
+              description:
+                "Your account is ready. Use the Orion Live app to sign in.",
             });
           } else {
             toast.success("Mobile account confirmed!", {
-              description: "Your account is ready. Use the Orion Live app to sign in.",
+              description:
+                "Your account is ready. Use the Orion Live app to sign in.",
             });
           }
         } else {
@@ -68,15 +74,19 @@ function EmailConfirmContent() {
           });
         }
 
-        // Check if this is a mobile auth callback and if user is on mobile
-        const isMobileAuthCallback = redirectTo && decodeURIComponent(redirectTo).startsWith("orionauth://");
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
+        // Check if this is a mobile auth callback and if user is on mobile/desktop hence the native name
+        const isMobileAuthCallback =
+          redirectTo && decodeURIComponent(redirectTo).startsWith("orion://");
+        const isMobileDevice =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+          );
+
         if (isMobileAuthCallback) {
           if (isMobileDevice && success === "email_confirmed") {
             // Only auto-redirect for email_confirmed on mobile (where we have a session)
             setTimeout(() => {
-              const bridgeUrl = `/auth/mobile-bridge?redirectTo=${encodeURIComponent(redirectTo)}`;
+              const bridgeUrl = `/auth/native-bridge?redirectTo=${encodeURIComponent(redirectTo)}`;
               window.location.href = bridgeUrl;
             }, 1500);
           } else if (isMobileDevice && success === "mobile_signup_confirmed") {
@@ -84,16 +94,16 @@ function EmailConfirmContent() {
             setTimeout(() => {
               // Try to close the window (works in ASWebAuthenticationSession)
               window.close();
-              
+
               // Fallback: redirect to a closing page if window.close() doesn't work
               setTimeout(() => {
                 window.location.href = `/auth/close-window?message=${encodeURIComponent("Please return to the Orion Live app")}`;
               }, 1000);
             }, 2000);
           }
-          // For desktop users with mobile callback, we'll show different UI below
+          // For desktop users we're just not going to do signups...maybe we'll do it later?
         }
-        
+
         return;
       }
 
@@ -101,7 +111,9 @@ function EmailConfirmContent() {
         setStatus("error");
         switch (error) {
           case "confirmation_failed":
-            setErrorMessage("Failed to confirm email. The link may be invalid or expired.");
+            setErrorMessage(
+              "Failed to confirm email. The link may be invalid or expired.",
+            );
             break;
           case "unexpected_error":
             setErrorMessage("An unexpected error occurred. Please try again.");
@@ -140,7 +152,8 @@ function EmailConfirmContent() {
               );
             } else {
               setErrorMessage(
-                verifyError.message || "Failed to confirm email. Please try again.",
+                verifyError.message ||
+                  "Failed to confirm email. Please try again.",
               );
             }
             return;
@@ -210,10 +223,14 @@ function EmailConfirmContent() {
   }
 
   if (status === "success") {
-    const isMobileAuthCallback = redirectTo && decodeURIComponent(redirectTo).startsWith("orionauth://");
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobileAuthCallback =
+      redirectTo && decodeURIComponent(redirectTo).startsWith("orion://");
+    const isMobileDevice =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
     const isMobileSignupConfirmed = success === "mobile_signup_confirmed";
-    
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-muted/20">
         <div className="w-full max-w-md">
@@ -224,13 +241,14 @@ function EmailConfirmContent() {
               </div>
               <div>
                 <CardTitle className="text-2xl">
-                  {isMobileSignupConfirmed ? "Account confirmed!" : "Email confirmed!"}
+                  {isMobileSignupConfirmed
+                    ? "Account confirmed!"
+                    : "Email confirmed!"}
                 </CardTitle>
                 <CardDescription className="mt-2">
-                  {isMobileSignupConfirmed 
+                  {isMobileSignupConfirmed
                     ? "Your Orion Live account has been successfully activated"
-                    : "Your account has been successfully activated"
-                  }
+                    : "Your account has been successfully activated"}
                   {userEmail && (
                     <>
                       {" "}
@@ -250,42 +268,44 @@ function EmailConfirmContent() {
                   Account activated successfully
                 </p>
                 <p className="text-xs text-green-600 dark:text-green-400">
-                  {isMobileSignupConfirmed 
+                  {isMobileSignupConfirmed
                     ? "Open the Orion Live app and sign in with your credentials"
-                    : "You can now sign in and access all features"
-                  }
+                    : "You can now sign in and access all features"}
                 </p>
               </div>
 
               {/* Mobile auth callback on mobile device */}
-              {isMobileAuthCallback && isMobileDevice && !isMobileSignupConfirmed && (
-                <div className="space-y-3">
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      Opening Orion Live app...
-                    </p>
+              {isMobileAuthCallback &&
+                isMobileDevice &&
+                !isMobileSignupConfirmed && (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        Opening Orion Live app...
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        // Go through the mobile bridge to get authenticated tokens
+                        const bridgeUrl = `/auth/native-bridge?redirectTo=${encodeURIComponent(redirectTo)}`;
+                        window.location.href = bridgeUrl;
+                      }}
+                      className="w-full"
+                    >
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Open Orion Live
+                    </Button>
                   </div>
-                  <Button
-                    onClick={() => {
-                      // Go through the mobile bridge to get authenticated tokens
-                      const bridgeUrl = `/auth/mobile-bridge?redirectTo=${encodeURIComponent(redirectTo)}`;
-                      window.location.href = bridgeUrl;
-                    }}
-                    className="w-full"
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2" />
-                    Open Orion Live
-                  </Button>
-                </div>
-              )}
+                )}
 
               {/* Mobile auth callback on desktop OR mobile signup confirmed */}
-              {((isMobileAuthCallback && !isMobileDevice) || isMobileSignupConfirmed) && (
+              {((isMobileAuthCallback && !isMobileDevice) ||
+                isMobileSignupConfirmed) && (
                 <div className="space-y-3">
                   {/* <div className="p-4 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg">
                     <p className="text-sm text-green-800 dark:text-green-200 font-medium mb-2">
-                      🎉 {isMobileSignupConfirmed 
-                        ? "Mobile account confirmed successfully!" 
+                      🎉 {isMobileSignupConfirmed
+                        ? "Mobile account confirmed successfully!"
                         : "This signup was intended for the mobile app"
                       }
                     </p>
@@ -296,16 +316,19 @@ function EmailConfirmContent() {
                       }
                     </p>
                   </div> */}
-                  
+
                   <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-xs text-blue-700 dark:text-blue-300">
-                      <strong>Next steps:</strong><br />
-                      1. Open the Orion Live app on your phone<br />
-                      2. Tap &quot;Log In&quot; and enter your credentials<br />
+                      <strong>Next steps:</strong>
+                      <br />
+                      1. Open the Orion Live app on your phone
+                      <br />
+                      2. Tap &quot;Log In&quot; and enter your credentials
+                      <br />
                       3. Start using Orion Live!
                     </p>
                   </div>
-                  
+
                   <Button
                     onClick={() => router.push("/")}
                     variant="outline"
@@ -322,7 +345,9 @@ function EmailConfirmContent() {
                 <div className="space-y-3">
                   <Button
                     onClick={() => {
-                      const targetUrl = redirectTo ? decodeURIComponent(redirectTo) : "/dashboard";
+                      const targetUrl = redirectTo
+                        ? decodeURIComponent(redirectTo)
+                        : "/dashboard";
                       router.push(targetUrl);
                     }}
                     className="w-full"

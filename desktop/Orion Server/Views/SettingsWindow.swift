@@ -12,6 +12,8 @@ struct SettingsWindow: View {
     @ObservedObject var userViewModel: UserProfileViewModel
     let authManager: AuthManager
     @EnvironmentObject var deviceManager: DeviceManager
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
     
     // State for app controls
     @State private var showInMenuBar = "When App is Running"
@@ -35,6 +37,16 @@ struct SettingsWindow: View {
                     // MARK: - App Section
                     SettingsSection(title: "App") {
                         SettingsPickerRow(icon: "menubar.rectangle", title: "Show in Menu Bar", selection: $showInMenuBar, options: ["When App is Running", "Always", "Never"])
+                    }
+
+                    // MARK: - P2P Connection Section
+                    SettingsSection(title: "Peer-to-Peer Connection") {
+                        SettingsInfoRow(icon: "network", title: "Signaling Status", value: signalingClient.connectionState.description)
+                        SettingsInfoRow(icon: "webrtc", title: "WebRTC Status", value: webRTCStatusString)
+                        Divider().padding(.leading, 40)
+                        SettingsButtonRow(icon: "arrow.clockwise", title: "Reconnect Now") {
+                            webRTCManager.connect()
+                        }
                     }
 
                     // MARK: - Device Pairing Section
@@ -175,6 +187,20 @@ struct SettingsWindow: View {
         .sheet(isPresented: $showingPairingSheet) {
             PairingCodeInputView()
                 .environmentObject(deviceManager)
+        }
+    }
+
+    private var webRTCStatusString: String {
+        switch webRTCManager.connectionState {
+        case .new: return "new"
+        case .checking: return "checking"
+        case .connected: return "connected"
+        case .completed: return "completed"
+        case .failed: return "failed"
+        case .disconnected: return "disconnected"
+        case .closed: return "closed"
+        case .count: return "count"
+        @unknown default: return "unknown"
         }
     }
 
@@ -354,15 +380,17 @@ struct SettingsLinkRow: View {
 
 // MARK: - Preview
 
-// This mock class inherits from your project's REAL UserProfileViewModel to provide sample data.
+// This mock class provides sample data for previews
 class MockUserProfileViewModel: UserProfileViewModel {
-    // We override the default initializer to populate it with mock data.
+    // We initialize with mock data
     override init() {
         super.init()
-        self.email = "riddhiman.rana@gmail.com"
-        self.fullName = "Riddhiman Rana"
-        self.subscriptionTier = "Pro Plan"
-        self.memberSince = "August 2025"
+        Task { @MainActor in
+            self.email = "riddhiman.rana@gmail.com"
+            self.fullName = "Riddhiman Rana"
+            self.subscriptionTier = "Pro Plan"
+            self.memberSince = "August 2025"
+        }
     }
 }
 

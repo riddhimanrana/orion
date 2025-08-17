@@ -7,9 +7,9 @@ echo "🚀 Setting up YOLO11N + FastVLM models..."
 # YOLO11n CoreML
 YOLO_URL="https://huggingface.co/riddhimanrana/yolo11n-coreml/resolve/main/yolo11n.mlpackage"
 
-mkdir -p Orion/Detection/model
+mkdir -p Orion\ Live/Detection/model
 echo "📦 Downloading YOLOv11n CoreML model..."
-curl -L "$YOLO_URL" -o Orion/Detection/model/yolo11n.mlpackage
+curl -L "$YOLO_URL" -o Orion\ Live/Detection/model/yolo11n.mlpackage
 
 
 # FastVLM Model Files

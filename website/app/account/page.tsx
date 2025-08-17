@@ -177,7 +177,9 @@ export default function AccountPage() {
     try {
       setUnlinkingProvider(provider);
       await unlinkOAuthProvider(provider);
-      toast.success(`${getProviderDisplayName(provider)} account unlinked successfully`);
+      toast.success(
+        `${getProviderDisplayName(provider)} account unlinked successfully`,
+      );
       await loadIdentities(); // Refresh the list
     } catch (error) {
       toast.error(`Failed to unlink ${getProviderDisplayName(provider)}`, {
@@ -363,7 +365,9 @@ export default function AccountPage() {
       <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Account Settings</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
+            Account Settings
+          </h1>
           <p className="text-base sm:text-lg lg:text-xl text-muted-foreground">
             Manage your visual perception platform account and preferences
           </p>
@@ -371,10 +375,18 @@ export default function AccountPage() {
 
         <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
           <TabsList className="grid w-full grid-cols-4 h-auto">
-            <TabsTrigger value="general" className="text-xs sm:text-sm">General</TabsTrigger>
-            <TabsTrigger value="security" className="text-xs sm:text-sm">Security</TabsTrigger>
-            <TabsTrigger value="devices" className="text-xs sm:text-sm">Devices</TabsTrigger>
-            <TabsTrigger value="subscription" className="text-xs sm:text-sm">Subscription</TabsTrigger>
+            <TabsTrigger value="general" className="text-xs sm:text-sm">
+              General
+            </TabsTrigger>
+            <TabsTrigger value="security" className="text-xs sm:text-sm">
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="devices" className="text-xs sm:text-sm">
+              Devices
+            </TabsTrigger>
+            <TabsTrigger value="subscription" className="text-xs sm:text-sm">
+              Subscription
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 sm:space-y-6">
@@ -425,7 +437,11 @@ export default function AccountPage() {
                       </p>
                     </div>
                   </div>
-                  <Button type="submit" disabled={updatingProfile} className="w-full sm:w-auto">
+                  <Button
+                    type="submit"
+                    disabled={updatingProfile}
+                    className="w-full sm:w-auto"
+                  >
                     {updatingProfile ? "Updating..." : "Update Profile"}
                   </Button>
                 </form>
@@ -435,7 +451,9 @@ export default function AccountPage() {
             {/* Account Details */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Account Details</CardTitle>
+                <CardTitle className="text-lg sm:text-xl">
+                  Account Details
+                </CardTitle>
                 <CardDescription className="text-sm">
                   View your account information and manage your subscription
                 </CardDescription>
@@ -446,7 +464,9 @@ export default function AccountPage() {
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Email</span>
                   </div>
-                  <span className="text-sm break-all sm:break-normal">{user?.email}</span>
+                  <span className="text-sm break-all sm:break-normal">
+                    {user?.email}
+                  </span>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-1 sm:space-y-0">
                   <div className="flex items-center space-x-2">
@@ -531,7 +551,11 @@ export default function AccountPage() {
                               }}
                             >
                               <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full sm:w-auto"
+                                >
                                   <Edit className="w-4 h-4 mr-2" />
                                   Change Password
                                 </Button>
@@ -720,7 +744,11 @@ export default function AccountPage() {
                             }}
                           >
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full sm:w-auto"
+                              >
                                 <Plus className="w-4 h-4 mr-2" />
                                 Set Password
                               </Button>
@@ -1064,7 +1092,8 @@ export default function AccountPage() {
                       <div className="flex items-center text-sm text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-lg space-x-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                         <span>
-                          You must have at least two login methods to unlink an account.
+                          You must have at least two login methods to unlink an
+                          account.
                         </span>
                       </div>
                     )}
@@ -1100,7 +1129,11 @@ export default function AccountPage() {
                     onOpenChange={setShowDeleteDialog}
                   >
                     <DialogTrigger asChild>
-                      <Button variant="destructive" size="sm" className="w-full sm:w-auto sm:ml-4">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full sm:w-auto sm:ml-4"
+                      >
                         <UserX className="w-4 h-4 mr-2" />
                         Delete Account
                       </Button>
@@ -1192,9 +1225,10 @@ export default function AccountPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Orion Live is actively being developed. You can enable Pro features to test 
-                  cloud processing and advanced capabilities without any charges. Billing will 
-                  be introduced after the official release.
+                  Orion Live is actively being developed. You can enable Pro
+                  features to test cloud processing and advanced capabilities
+                  without any charges. Billing will be introduced after the
+                  official release.
                 </p>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• No payment required for any features</li>
@@ -1318,11 +1352,13 @@ export default function AccountPage() {
                     </Button>
                     {subscriptionTier === "pro" ? (
                       <p className="text-xs text-muted-foreground text-center">
-                        Pro features enabled for testing. No charges during development.
+                        Pro features enabled for testing. No charges during
+                        development.
                       </p>
                     ) : (
                       <p className="text-xs text-muted-foreground text-center">
-                        Enable Pro features to test cloud processing and advanced capabilities.
+                        Enable Pro features to test cloud processing and
+                        advanced capabilities.
                       </p>
                     )}
                   </div>
@@ -1397,4 +1433,3 @@ export default function AccountPage() {
     </div>
   );
 }
-

@@ -129,7 +129,6 @@ function DeviceManagement() {
           <CardDescription className="text-sm">
             Manage your connected iOS and macOS devices.
           </CardDescription>
-          <P2PStatusIndicator />
         </CardHeader>
         <CardContent>
           <DeviceLoadingSkeleton />
@@ -149,6 +148,7 @@ function DeviceManagement() {
           <CardDescription className="text-sm">
             Manage your connected iOS and macOS devices.
           </CardDescription>
+          <P2PStatusIndicator />
         </CardHeader>
         <CardContent>
           <Alert
@@ -188,6 +188,7 @@ function DeviceManagement() {
         <CardDescription className="text-sm">
           Manage your connected iOS and macOS devices and their pairing status.
         </CardDescription>
+        <P2PStatusIndicator />
       </CardHeader>
       <CardContent className="space-y-8">
         {/* Active Pairs Section */}

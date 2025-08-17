@@ -23,7 +23,8 @@ import Link from "next/link";
 function AuthCodeErrorContent() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [errorTitle, setErrorTitle] = useState<string>("Authentication Error");
-  const [isMobileSignupOnDesktop, setIsMobileSignupOnDesktop] = useState<boolean>(false);
+  const [isMobileSignupOnDesktop, setIsMobileSignupOnDesktop] =
+    useState<boolean>(false);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -34,21 +35,32 @@ function AuthCodeErrorContent() {
     const redirectTo = searchParams.get("redirectTo");
 
     // Check if this is a mobile signup link opened on desktop
-    const isMobileRedirect = redirectTo && decodeURIComponent(redirectTo).startsWith("orionauth://");
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
+    const isMobileRedirect =
+      redirectTo && decodeURIComponent(redirectTo).startsWith("orion://");
+    const isMobileDevice =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      );
+
     if (isMobileRedirect && !isMobileDevice) {
       setIsMobileSignupOnDesktop(true);
       setErrorTitle("Signup Already Confirmed");
-      setErrorMessage("Your mobile account has been successfully confirmed. Please use the Orion Live app to sign in.");
+      setErrorMessage(
+        "Your mobile account has been successfully confirmed. Please use the Orion Live app to sign in.",
+      );
       return;
     }
 
     // Check for specific mobile signup errors
-    if (isMobileRedirect && (errorCode === "otp_expired" || error === "access_denied")) {
+    if (
+      isMobileRedirect &&
+      (errorCode === "otp_expired" || error === "access_denied")
+    ) {
       setIsMobileSignupOnDesktop(true);
       setErrorTitle("Account Already Confirmed");
-      setErrorMessage("Your email has already been confirmed. You can now sign in to the Orion Live app with your credentials.");
+      setErrorMessage(
+        "Your email has already been confirmed. You can now sign in to the Orion Live app with your credentials.",
+      );
       return;
     }
 
@@ -106,11 +118,11 @@ function AuthCodeErrorContent() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-muted/20">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-            isMobileSignupOnDesktop 
-              ? "bg-green-500/10" 
-              : "bg-red-500/10"
-          }`}>
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              isMobileSignupOnDesktop ? "bg-green-500/10" : "bg-red-500/10"
+            }`}
+          >
             {isMobileSignupOnDesktop ? (
               <CheckCircle className="w-8 h-8 text-green-500" />
             ) : (
@@ -129,10 +141,9 @@ function AuthCodeErrorContent() {
               {isMobileSignupOnDesktop ? "Account Ready" : "Unable to Sign In"}
             </CardTitle>
             <CardDescription>
-              {isMobileSignupOnDesktop 
+              {isMobileSignupOnDesktop
                 ? "Your account is confirmed and ready to use in the mobile app."
-                : "We encountered an error while trying to authenticate your account."
-              }
+                : "We encountered an error while trying to authenticate your account."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -156,8 +167,7 @@ function AuthCodeErrorContent() {
                   • Open the Orion Live app on your mobile device
                   <br />
                   • Sign in with your email and password
-                  <br />
-                  • Your account is ready to use!
+                  <br />• Your account is ready to use!
                 </p>
               ) : (
                 <p className="text-xs text-blue-700 dark:text-blue-300">
@@ -175,9 +185,7 @@ function AuthCodeErrorContent() {
 
             <div className="space-y-3">
               {isMobileSignupOnDesktop ? (
-                <>
-                  
-                </>
+                <></>
               ) : (
                 <Button asChild className="w-full">
                   <Link href="/login">

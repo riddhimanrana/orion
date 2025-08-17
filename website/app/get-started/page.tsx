@@ -25,6 +25,7 @@ import {
   Users,
   Code,
   Wrench,
+  LinkIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -40,23 +41,29 @@ export default function GetStartedPage() {
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">Get Started with Orion Live</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+            Get Started with Orion Live
+          </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Experience revolutionary visual AI on your devices. Download our iOS app and optional Mac server 
-            to start understanding the world around you with cutting-edge computer vision technology.
+            Experience revolutionary visual AI on your devices. Download our iOS
+            app and optional Mac server to start understanding the world around
+            you with cutting-edge computer vision technology.
           </p>
-          
+
           {/* Development Status Alert */}
           <div className="max-w-2xl mx-auto mb-8">
             <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/20">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Wrench className="h-4 w-4 text-amber-500" />
-                  <h3 className="font-semibold text-sm">Currently in Development</h3>
+                  <h3 className="font-semibold text-sm">
+                    Currently in Development
+                  </h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Orion Live is actively being developed. While there are no public app store releases yet, 
-                  you can compile and test the apps yourself from our open-source GitHub repository.
+                  Orion Live is actively being developed. While there are no
+                  public app store releases yet, you can compile and test the
+                  apps yourself from our open-source GitHub repository.
                 </p>
               </CardContent>
             </Card>
@@ -64,7 +71,11 @@ export default function GetStartedPage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="px-8" asChild>
-              <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+              <Link
+                href="https://github.com/riddhimanrana/orion"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <SiGithub className="h-5 w-5" />
                 View on GitHub
               </Link>
@@ -93,10 +104,15 @@ export default function GetStartedPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
-                  Compile the Orion Live iOS app from GitHub and install on your iPhone
+                  Compile the Orion Live iOS app from GitHub and install on your
+                  iPhone
                 </p>
                 <Button className="w-full" variant="outline" asChild>
-                  <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                  <Link
+                    href="https://github.com/riddhimanrana/orion"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Code className="h-4 w-4" />
                     iOS Source Code
                   </Link>
@@ -113,10 +129,15 @@ export default function GetStartedPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
-                  For local processing, compile and run the Mac server for faster inference
+                  For local processing, compile and run the Mac server for
+                  faster inference
                 </p>
                 <Button className="w-full" variant="outline" asChild>
-                  <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                  <Link
+                    href="https://github.com/riddhimanrana/orion"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Laptop className="h-4 w-4" />
                     Mac Server Code
                   </Link>
@@ -133,7 +154,8 @@ export default function GetStartedPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
-                  Sign up for an account to sync devices and manage your AI processing
+                  Sign up for an account to sync devices and manage your AI
+                  processing
                 </p>
                 <Button className="w-full" variant="outline" asChild>
                   <Link href="/signup">Create Account</Link>
@@ -150,7 +172,8 @@ export default function GetStartedPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground mb-4">
-                  Pair your iOS and Mac apps for a seamless local network connection.
+                  Pair your iOS and Mac apps for a seamless local network
+                  connection.
                 </p>
                 <Button className="w-full" variant="outline" asChild>
                   <Link href="/account">Go to Account</Link>
@@ -169,7 +192,8 @@ export default function GetStartedPage() {
                 Open Source Development
               </CardTitle>
               <CardDescription>
-                Orion Live is currently in active development and available as open source
+                Orion Live is currently in active development and available as
+                open source
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -195,7 +219,11 @@ export default function GetStartedPage() {
               </div>
               <div className="pt-4 border-t">
                 <Button asChild>
-                  <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                  <Link
+                    href="https://github.com/riddhimanrana/orion"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <SiGithub className="h-4 w-4" />
                     Explore the Code
                   </Link>
@@ -207,9 +235,7 @@ export default function GetStartedPage() {
 
         {/* Setup Options */}
         <div className="max-w-6xl mx-auto mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">
-            Setup Options
-          </h2>
+          <h2 className="text-3xl font-bold text-center mb-8">Setup Options</h2>
 
           <Tabs defaultValue="comparison" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
@@ -274,7 +300,11 @@ export default function GetStartedPage() {
                     </div>
 
                     <Button className="w-full" asChild>
-                      <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                      <Link
+                        href="https://github.com/riddhimanrana/orion"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         <SiGithub className="h-4 w-4" />
                         Get Mac Server Code
                       </Link>
@@ -367,10 +397,15 @@ export default function GetStartedPage() {
                         Get and Compile Mac Server
                       </h3>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Clone the Orion Live repository and compile the Mac server for local AI processing.
+                        Clone the Orion Live repository and compile the Mac
+                        server for local AI processing.
                       </p>
                       <Button className="mb-3" asChild>
-                        <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                        <Link
+                          href="https://github.com/riddhimanrana/orion"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <SiGithub className="h-4 w-4" />
                           Get Server Code
                         </Link>
@@ -395,14 +430,17 @@ export default function GetStartedPage() {
                       </span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold mb-2">
-                        Get iPhone App
-                      </h3>
+                      <h3 className="font-semibold mb-2">Get iPhone App</h3>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Compile the Orion Live iOS app from our GitHub repository using Xcode.
+                        Compile the Orion Live iOS app from our GitHub
+                        repository using Xcode.
                       </p>
                       <Button variant="outline" asChild>
-                        <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                        <Link
+                          href="https://github.com/riddhimanrana/orion"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Code className="h-4 w-4" />
                           Get iOS App Code
                         </Link>
@@ -460,14 +498,17 @@ export default function GetStartedPage() {
                       </span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold mb-2">
-                        Get iPhone App
-                      </h3>
+                      <h3 className="font-semibold mb-2">Get iPhone App</h3>
                       <p className="text-sm text-muted-foreground mb-3">
-                        Compile the Orion Live app from our GitHub repository using Xcode.
+                        Compile the Orion Live app from our GitHub repository
+                        using Xcode.
                       </p>
                       <Button asChild>
-                        <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+                        <Link
+                          href="https://github.com/riddhimanrana/orion"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Code className="h-4 w-4" />
                           Get iOS App Code
                         </Link>
@@ -508,8 +549,9 @@ export default function GetStartedPage() {
                       </p>
                       <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                         <p className="text-sm text-amber-800 dark:text-amber-200">
-                          <strong>Development Status:</strong> Orion Live is currently in active development. 
-                          Create an account to stay updated on progress and releases.
+                          <strong>Development Status:</strong> Orion Live is
+                          currently in active development. Create an account to
+                          stay updated on progress and releases.
                         </p>
                       </div>
                     </div>
@@ -534,8 +576,9 @@ export default function GetStartedPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Orion Live is currently in active development. While there are no App Store releases yet, 
-                  you can compile and test the apps yourself from our open-source GitHub repository.
+                  Orion Live is currently in active development. While there are
+                  no App Store releases yet, you can compile and test the apps
+                  yourself from our open-source GitHub repository.
                 </p>
               </CardContent>
             </Card>
@@ -548,32 +591,39 @@ export default function GetStartedPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  For iOS: Xcode with iOS 16+ SDK. For Mac server: macOS 13+ with Xcode Command Line Tools. 
-                  Follow the setup instructions in the GitHub repository README.
+                  For iOS: Xcode with iOS 16+ SDK. For Mac server: macOS 13+
+                  with Xcode Command Line Tools. Follow the setup instructions
+                  in the GitHub repository README.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Is the project open source?</CardTitle>
+                <CardTitle className="text-lg">
+                  Is the project open source?
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Yes! Orion Live is completely open source. You can view the code, contribute to development, 
-                  report issues, and suggest features on our GitHub repository.
+                  Yes! Orion Live is completely open source. You can view the
+                  code, contribute to development, report issues, and suggest
+                  features on our GitHub repository.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">When will it be released?</CardTitle>
+                <CardTitle className="text-lg">
+                  When will it be released?
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  We&apos;re actively developing Orion Live. Follow our GitHub repository or create an account 
-                  to stay updated on development progress and release announcements.
+                  We&apos;re actively developing Orion Live. Follow our GitHub
+                  repository or create an account to stay updated on development
+                  progress and release announcements.
                 </p>
               </CardContent>
             </Card>
@@ -582,14 +632,21 @@ export default function GetStartedPage() {
 
         {/* CTA Section */}
         <div className="text-center mt-16">
-          <h2 className="text-2xl font-bold mb-4">Ready to explore the code?</h2>
+          <h2 className="text-2xl font-bold mb-4">
+            Ready to explore the code?
+          </h2>
           <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Orion Live is open source and actively being developed. Check out the repository 
-            to compile and test the apps yourself, or create an account to stay updated.
+            Orion Live is open source and actively being developed. Check out
+            the repository to compile and test the apps yourself, or create an
+            account to stay updated.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="px-8" asChild>
-              <Link href="https://github.com/riddhimanrana/orion" target="_blank" rel="noopener noreferrer">
+              <Link
+                href="https://github.com/riddhimanrana/orion"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <SiGithub className="h-5 w-5" />
                 Explore GitHub Repository
               </Link>

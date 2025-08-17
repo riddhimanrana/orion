@@ -19,12 +19,6 @@ This is the web front-end for the Orion architecture which handles authenticatio
 - [Vercel](https://vercel.com/) — Deployment/hosting platform for the website
 - [Cloudflare](https://cloudflare.com/) — Domain CDN and DNS management
 
-## Screenshots
-
-| Landing Page | Main Dashboard |
-|--------------|----------------|
-| ![Landing Page](../demo/website/landingpage.png) | ![Main Dashboard](../demo/website/dashboard.png) |
-
 ## Getting Started
 
 ### Installation
@@ -33,7 +27,7 @@ This is the web front-end for the Orion architecture which handles authenticatio
 
    ```bash
    git clone https://github.com/riddhimanrana/orion
-   cd orion/website
+   cd orion/orion-website
    ```
 
 2. Install dependencies  
@@ -51,3 +45,11 @@ bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Contributing
+
+This is a solo project and I'm currently not accepting contributions, however the code is still publicly available for transparency.
+
+## License
+
+This project is open source under the MIT License.

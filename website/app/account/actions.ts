@@ -510,7 +510,8 @@ export async function getDefaultProfilePictureSource(): Promise<ProfilePictureSo
   }
 
   // If user has already set a preference, use it
-  const userPreference = user.user_metadata?.profile_picture_source as ProfilePictureSource;
+  const userPreference = user.user_metadata
+    ?.profile_picture_source as ProfilePictureSource;
   if (userPreference) {
     return userPreference;
   }
@@ -687,13 +688,15 @@ export async function toggleSubscriptionTier(): Promise<{
 
 export async function getRegisteredDevices() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("User not authenticated");
 
   const { data, error } = await supabase
-    .from('devices')
-    .select('*')
-    .eq('user_id', user.id);
+    .from("devices")
+    .select("*")
+    .eq("user_id", user.id);
 
   if (error) {
     console.error("Error fetching devices:", error);
@@ -704,21 +707,25 @@ export async function getRegisteredDevices() {
 
 export async function getPairedDevices() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("User not authenticated");
 
   const { data, error } = await supabase
-    .from('device_pairs')
-    .select(`
+    .from("device_pairs")
+    .select(
+      `
       id,
       status,
       created_at,
       revoked_at,
       mobile_device:devices!mobile_device_id(*),
       server_device:devices!server_device_id(*)
-    `)
-    .eq('user_id', user.id)
-    .eq('status', 'active');
+    `,
+    )
+    .eq("user_id", user.id)
+    .eq("status", "active");
 
   if (error) {
     console.error("Error fetching pairs:", error);
@@ -729,20 +736,37 @@ export async function getPairedDevices() {
 
 export async function revokeDevicePair(pairId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("User not authenticated");
 
   const { error } = await supabase
-    .from('device_pairs')
-    .update({ status: 'revoked', revoked_at: new Date().toISOString() })
-    .eq('id', pairId)
-    .eq('user_id', user.id);
+    .from("device_pairs")
+    .update({ status: "revoked", revoked_at: new Date().toISOString() })
+    .eq("id", pairId)
+    .eq("user_id", user.id);
 
   if (error) {
     console.error("Error revoking pair:", error);
     throw new Error("Failed to revoke pair.");
   }
-  
+
   revalidatePath("/account");
   return { success: true };
+}
+
+export async function revokeDevicePairForm(formData: FormData) {
+  const pairId = formData.get("pairId") as string;
+  if (!pairId) {
+    throw new Error("Pair ID is required");
+  }
+
+  try {
+    await revokeDevicePair(pairId);
+    revalidatePath("/account");
+  } catch (error) {
+    console.error("Failed to revoke pair:", error);
+    throw error;
+  }
 }

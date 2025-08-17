@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (errorCode) errorParams.append("error_code", errorCode);
     if (errorDescription)
       errorParams.append("error_description", errorDescription);
-    
+
     // Preserve redirectTo for mobile signup error handling
     if (redirectTo) errorParams.append("redirectTo", redirectTo);
 
@@ -83,14 +83,19 @@ export async function GET(request: NextRequest) {
   // Handle signup confirmation flow
   if (type === "signup") {
     // Check if this is a mobile redirect opened on desktop first
-    const isMobileRedirect = next && next.startsWith("orionauth://");
+    const isMobileRedirect = next && next.startsWith("orion://");
     const userAgent = request.headers.get("user-agent") || "";
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-    
+    const isMobileDevice =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        userAgent,
+      );
+
     if (isMobileRedirect && !isMobileDevice) {
       // For mobile signup opened on desktop, show success without session exchange
       // This is a successful confirmation, just for the wrong device
-      console.log("Mobile signup confirmed on desktop - showing success message");
+      console.log(
+        "Mobile signup confirmed on desktop - showing success message",
+      );
       return NextResponse.redirect(
         `${origin}/auth/confirm?success=mobile_signup_confirmed&redirectTo=${encodeURIComponent(next)}`,
       );
@@ -105,15 +110,17 @@ export async function GET(request: NextRequest) {
 
       if (sessionError) {
         console.error("Error during signup confirmation:", sessionError);
-        
+
         // For mobile signups, provide specific guidance instead of generic errors
         if (isMobileRedirect) {
-          console.log("Mobile signup session error - likely already confirmed or expired");
+          console.log(
+            "Mobile signup session error - likely already confirmed or expired",
+          );
           return NextResponse.redirect(
             `${origin}/auth/confirm?success=mobile_signup_confirmed&note=already_confirmed&redirectTo=${encodeURIComponent(next)}`,
           );
         }
-        
+
         return NextResponse.redirect(
           `${origin}/auth/confirm?error=confirmation_failed`,
         );
@@ -128,7 +135,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (error) {
       console.error("Unexpected error during signup confirmation:", error);
-      
+
       // Even for unexpected errors with mobile signups, show success since the account is likely confirmed
       if (isMobileRedirect) {
         console.log("Mobile signup unexpected error - treating as confirmed");
@@ -136,7 +143,7 @@ export async function GET(request: NextRequest) {
           `${origin}/auth/confirm?success=mobile_signup_confirmed&note=session_error&redirectTo=${encodeURIComponent(next)}`,
         );
       }
-      
+
       return NextResponse.redirect(
         `${origin}/auth/confirm?error=unexpected_error`,
       );
@@ -160,7 +167,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Check if this is likely an email confirmation (new user with recent sign up)
-  const isLikelyEmailConfirmation = data.user.email_confirmed_at && 
+  const isLikelyEmailConfirmation =
+    data.user.email_confirmed_at &&
     new Date(data.user.email_confirmed_at).getTime() > Date.now() - 60000; // Confirmed in last minute
 
   if (isLikelyEmailConfirmation) {
@@ -185,8 +193,8 @@ export async function GET(request: NextRequest) {
   console.log("Authentication successful for user:", data.user.email);
 
   // If a mobile redirect is specified, go to the bridge
-  if (redirectTo && redirectTo.startsWith("orionauth://")) {
-    const bridgeURL = new URL("/auth/mobile-bridge", origin);
+  if (redirectTo && redirectTo.startsWith("orion://")) {
+    const bridgeURL = new URL("/auth/native-bridge", origin);
     bridgeURL.searchParams.set("redirectTo", redirectTo);
     return NextResponse.redirect(bridgeURL);
   }

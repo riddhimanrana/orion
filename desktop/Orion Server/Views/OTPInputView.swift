@@ -14,7 +14,7 @@ struct OTPInputView: View {
                     .frame(width: 0, height: 0)
                     .opacity(0)
                     .focused($focusedField, equals: 0) // Always keep focus on the hidden field
-                    .onChange(of: code) { newValue in
+                    .onChange(of: code) { _, newValue in
                         // Limit to the number of fields and only allow numeric input
                         let filtered = newValue.filter { $0.isNumber }
                         if filtered.count > numberOfFields {

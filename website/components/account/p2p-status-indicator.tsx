@@ -15,12 +15,19 @@ export function P2PStatusIndicator() {
       setStatus((prev) => (prev === "connected" ? "connecting" : prev));
 
       try {
-        const healthUrl = `${process.env.NEXT_PUBLIC_P2P_SIGNAL_URL || 'ws://localhost:3001'}/health`.replace(/^ws/, 'http');
-        const response = await fetch(healthUrl, { method: 'GET', cache: 'no-store' });
-        
+        const healthUrl =
+          `${process.env.NEXT_PUBLIC_P2P_SIGNAL_URL || "ws://localhost:3001"}/health`.replace(
+            /^ws/,
+            "http",
+          );
+        const response = await fetch(healthUrl, {
+          method: "GET",
+          cache: "no-store",
+        });
+
         if (response.ok) {
           const data = await response.json();
-          if (data.status === 'ok') {
+          if (data.status === "ok") {
             setStatus("connected");
             return;
           }
@@ -68,5 +75,7 @@ export function P2PStatusIndicator() {
     }
   };
 
-  return <div className="flex items-center space-x-2">{getStatusContent()}</div>;
+  return (
+    <div className="flex items-center space-x-2">{getStatusContent()}</div>
+  );
 }

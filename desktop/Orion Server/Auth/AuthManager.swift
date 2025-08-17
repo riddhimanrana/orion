@@ -25,18 +25,18 @@ class AuthManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        
+
         // Debug: Print all available Info.plist keys
         if let infoPlist = Bundle.main.infoDictionary {
             print("Available Info.plist keys: \(infoPlist.keys)")
         } else {
             print("No Info.plist found in main bundle")
         }
-        
+
         // Try multiple approaches to read the Info.plist
         var supabaseURLString: String?
         var supabaseAnonKey: String?
-        
+
         // Approach 1: Direct from Bundle
         if let infoDictionary = Bundle.main.infoDictionary {
             supabaseURLString = infoDictionary["SUPABASE_URL"] as? String
@@ -45,7 +45,7 @@ class AuthManager: NSObject, ObservableObject {
             print("  SUPABASE_URL: \(supabaseURLString ?? "NOT FOUND")")
             print("  SUPABASE_ANON_KEY: \(supabaseAnonKey ?? "NOT FOUND")")
         }
-        
+
         // Approach 2: Direct from plist file path
         if supabaseURLString == nil || supabaseAnonKey == nil {
             if let plistPath = Bundle.main.path(forResource: "Info", ofType: "plist"),
@@ -57,7 +57,7 @@ class AuthManager: NSObject, ObservableObject {
                 print("  SUPABASE_ANON_KEY: \(supabaseAnonKey ?? "NOT FOUND")")
             }
         }
-        
+
         // Approach 3: Read from embedded plist
         if supabaseURLString == nil || supabaseAnonKey == nil {
             if let url = Bundle.main.url(forResource: "Info", withExtension: "plist"),
@@ -70,28 +70,28 @@ class AuthManager: NSObject, ObservableObject {
                 print("  SUPABASE_ANON_KEY: \(supabaseAnonKey ?? "NOT FOUND")")
             }
         }
-        
+
         // Validate we got the values
         guard let finalURLString = supabaseURLString,
               !finalURLString.isEmpty,
               !finalURLString.contains("YOUR_") else {
             fatalError("SUPABASE_URL not found in Info.plist. Make sure the Info.plist file is properly included in your app bundle.")
         }
-        
+
         guard let finalAnonKey = supabaseAnonKey,
               !finalAnonKey.isEmpty,
               !finalAnonKey.contains("YOUR_") else {
             fatalError("SUPABASE_ANON_KEY not found in Info.plist. Make sure the Info.plist file is properly included in your app bundle.")
         }
-        
+
         guard let supabaseURL = URL(string: finalURLString) else {
             fatalError("Invalid SUPABASE_URL format: \(finalURLString)")
         }
-        
+
         print("✅ Successfully loaded Supabase credentials from Info.plist:")
         print("- URL: \(finalURLString)")
         print("- Key: \(String(finalAnonKey.prefix(20)))...")
-        
+
         self.supabase = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: finalAnonKey)
 
         setupAuthListener()
@@ -136,7 +136,7 @@ class AuthManager: NSObject, ObservableObject {
         do {
             try await supabase.auth.signInWithOAuth(
                 provider: provider,
-                redirectTo: URL(string: "orionauth://auth/mobile-auth-callback")!
+                redirectTo: URL(string: "orion://auth/native-auth-callback")!
             )
             print("OAuth sign in initiated successfully")
         } catch {
@@ -146,28 +146,28 @@ class AuthManager: NSObject, ObservableObject {
 
     // MARK: - Web Sign In/Up
     func openWebSignIn() {
-        guard var urlComponents = URLComponents(string: "https://orionlive.ai/login") else { 
+        guard var urlComponents = URLComponents(string: "https://orionlive.ai/login") else {
             print("Failed to create URL components for login")
-            return 
+            return
         }
-        urlComponents.queryItems = [URLQueryItem(name: "redirectTo", value: "orionauth://auth/mobile-auth-callback")]
-        guard let url = urlComponents.url else { 
+        urlComponents.queryItems = [URLQueryItem(name: "redirectTo", value: "orion://auth/native-auth-callback")]
+        guard let url = urlComponents.url else {
             print("Failed to create login URL")
-            return 
+            return
         }
         print("Opening web sign in URL: \(url.absoluteString)")
         startWebAuthenticationSession(url: url)
     }
 
     func openWebSignUp() {
-        guard var urlComponents = URLComponents(string: "https://orionlive.ai/signup") else { 
+        guard var urlComponents = URLComponents(string: "https://orionlive.ai/signup") else {
             print("Failed to create URL components for signup")
-            return 
+            return
         }
-        urlComponents.queryItems = [URLQueryItem(name: "redirectTo", value: "orionauth://auth/mobile-auth-callback")]
-        guard let url = urlComponents.url else { 
+        urlComponents.queryItems = [URLQueryItem(name: "redirectTo", value: "orion://auth/native-auth-callback")]
+        guard let url = urlComponents.url else {
             print("Failed to create signup URL")
-            return 
+            return
         }
         print("Opening web sign up URL: \(url.absoluteString)")
         startWebAuthenticationSession(url: url)
@@ -176,7 +176,7 @@ class AuthManager: NSObject, ObservableObject {
     private func startWebAuthenticationSession(url: URL) {
         print("Starting web authentication session with URL: \(url.absoluteString)")
 
-        webAuthSession = ASWebAuthenticationSession(url: url, callbackURLScheme: "orionauth") { [weak self] callbackURL, error in
+        webAuthSession = ASWebAuthenticationSession(url: url, callbackURLScheme: "orion") { [weak self] callbackURL, error in
             guard let self = self else { return }
 
             if let error = error {
@@ -283,7 +283,7 @@ class AuthManager: NSObject, ObservableObject {
     func signOut() async {
         isLoading = true
         defer { isLoading = false }
-        
+
         print("Signing out user")
         do {
             try await supabase.auth.signOut()

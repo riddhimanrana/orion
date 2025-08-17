@@ -1,15 +1,17 @@
-
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('Authorization');
+  const authHeader = request.headers.get("Authorization");
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new NextResponse(JSON.stringify({ error: "Unauthorized: Missing or invalid token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new NextResponse(
+      JSON.stringify({ error: "Unauthorized: Missing or invalid token" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const token = authHeader.substring(7);
@@ -20,27 +22,33 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       global: { headers: { Authorization: `Bearer ${token}` } },
-    }
+    },
   );
 
-  const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: getUserError,
+  } = await supabase.auth.getUser();
 
   if (getUserError || !user) {
     console.error("Error getting user for token:", getUserError);
-    return new NextResponse(JSON.stringify({ error: "Unauthorized: Invalid token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new NextResponse(
+      JSON.stringify({ error: "Unauthorized: Invalid token" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
-  console.log('Register Device API: User authenticated:', user.id);
+  console.log("Register Device API: User authenticated:", user.id);
 
   const { type, name } = await request.json();
 
-  if (!type || !name || !['ios', 'mac'].includes(type)) {
+  if (!type || !name || !["ios", "mac"].includes(type)) {
     return new NextResponse(JSON.stringify({ error: "Invalid request body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+      status: 400,
+      headers: { "Content-Type": "application/json" },
     });
   }
 

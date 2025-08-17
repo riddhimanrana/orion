@@ -133,7 +133,7 @@ struct MenuItemButton: View {
 #Preview {
     UserMenuView(
         userViewModel: UserProfileViewModel(),
-        showingSettings: .constant(false),
+        showingSettings: Binding.constant(false),
         authManager: AuthManager()
     )
 }

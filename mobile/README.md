@@ -4,16 +4,16 @@ Orion Live is the iOS app designed to work seamlessly with the Orion architectur
 
 ## Requirements
 
-- Xcode 16 or later  
-- iOS 18.0 or later  
-- Swift 5.8 or later  
+- Xcode 16 or later
+- iOS 18.0 or later
+- Swift 5.8 or later
 
 ## Frameworks
 
-- SwiftUI for building the user interface  
-- CoreML for on-device machine learning  
-- Combine for reactive data binding  
-- URLSession for networking  
+- SwiftUI for building the user interface
+- CoreML for on-device machine learning
+- Combine for reactive data binding
+- URLSession for networking
 
 ## Screenshots
 
@@ -21,22 +21,22 @@ Orion Live is the iOS app designed to work seamlessly with the Orion architectur
 |:-----------:|:----------:|:---------:|:---------------:|:------------:|:---------:|
 | ![AccountView](../demo/mobile/AccountView.png) | ![CameraView](../demo/mobile/CameraView.png) | ![DebugView](../demo/mobile/DebugView.png) | ![FrameDetailsView](../demo/mobile/FrameDetailsView.png) | ![SettingsView](../demo/mobile/SettingsView.png) | ![StartView](../demo/mobile/StartView.png) |
 
-**AccountView**  
+**AccountView**
 Manages user authentication, profile, and account-related settings.
 
-**CameraView**  
+**CameraView**
 Main interface for live camera feed, running on-device YOLO and VLM models, and streaming detections to the server.
 
-**DebugView**  
+**DebugView**
 Displays logs, diagnostics, and internal state for development and troubleshooting.
 
-**FrameDetailsView**  
+**FrameDetailsView**
 Shows detailed information for a selected detection frame, including bounding boxes and VLM descriptions.
 
-**SettingsView**  
+**SettingsView**
 Allows configuration of app preferences, server URLs, and model options.
 
-**StartView**  
+**StartView**
 Initial landing screen for onboarding and navigation to other app sections.
 
 ## Deployment Target
@@ -45,28 +45,28 @@ Initial landing screen for onboarding and navigation to other app sections.
 
 ## Getting Started
 
-1. Clone the repository:  
+1. Clone the repository:
 
    ```bash
    git clone https://github.com/riddhimanrana/orion
    cd orion/mobile
    ```
 
-2. Download the YOLO11N and custom fine-tuned FastVLM coreml models:  
+2. Download the YOLO11N and custom fine-tuned FastVLM coreml models:
 
    ```bash
    sh setup_models.sh
    ```
 
-3. Open the project in Xcode:  
+3. Open the project in Xcode:
 
    ```bash
-   open Orion.xcodeproj
+   open Orion\ Live.xcodeproj
    ```
 
 ## Configuration
 
-The file `Orion-Info.plist` contains auth endpoints and keys.
+The file `Info.plist` contains auth endpoints and keys.
 
 Feel free to replace them with your own database or authentication endpoints.
 
@@ -74,5 +74,5 @@ In addition, the folder `Configuration/Build.xconfig` contains a `DISAMBIGUATOR`
 
 ## Running the App
 
-- Select a simulator or device in Xcode  
+- Select a simulator or device in Xcode
 - Press `⌘`+`R` or click **Run**

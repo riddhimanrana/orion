@@ -5,8 +5,8 @@
         "appIDs": [ "TEAM_ID.com.riddhimanrana.Orion" ],
         "components": [
           {
-            "/": "/auth/mobile-auth-callback*",
-            "comment": "Matches the mobile auth callback"
+            "/": "/auth/native-auth-callback*",
+            "comment": "Matches the mobile/desktop native auth callback"
           }
         ]
       }

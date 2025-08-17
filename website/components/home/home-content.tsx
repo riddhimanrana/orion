@@ -12,7 +12,8 @@ import {
   Server,
   Search,
   AlertTriangle,
-  Microscope
+  Microscope,
+  LinkIcon,
 } from "lucide-react";
 
 // Import our clean components
@@ -25,7 +26,7 @@ import { Cover } from "@/components/ui/cover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export function HomeContent() {  
+export function HomeContent() {
   return (
     <div className="min-h-screen overflow-hidden bg-white dark:bg-black text-black dark:text-white">
       {/* Hero Section */}
@@ -94,7 +95,10 @@ export function HomeContent() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
           >
-            <Badge variant="outline" className="px-3 py-1.5 text-xs font-medium border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50">
+            <Badge
+              variant="outline"
+              className="px-3 py-1.5 text-xs font-medium border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50"
+            >
               <AlertTriangle className="w-3 h-3 mr-1.5" />
               Currently in Research & Development
             </Badge>
@@ -330,7 +334,8 @@ export function HomeContent() {
                       Secure Device Pairing
                     </h3>
                     <p className="text-black/60 dark:text-white/60">
-                      Link your mobile and desktop apps for seamless local network communication.
+                      Link your mobile and desktop apps for seamless local
+                      network communication.
                     </p>
                   </div>
                 </div>

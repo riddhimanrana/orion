@@ -6,6 +6,30 @@
 //
 
 import SwiftUI
+import WebRTC
+
+// MARK: - P2P Manager Container
+@MainActor
+class P2PManagers: ObservableObject {
+    let apiService: APIService
+    let signalingClient: SignalingClient
+    let webRTCManager: WebRTCManager
+
+    init(authManager: AuthManager, deviceManager: DeviceManager) {
+        self.apiService = APIService(authManager: authManager)
+        self.signalingClient = SignalingClient(apiService: self.apiService, deviceManager: deviceManager)
+        self.webRTCManager = WebRTCManager(signalingClient: self.signalingClient)
+    }
+
+    func connect() {
+        webRTCManager.connect()
+    }
+    
+    func disconnect() {
+        webRTCManager.disconnect()
+    }
+}
+
 
 @main
 struct Orion_ServerApp: App {
@@ -13,7 +37,9 @@ struct Orion_ServerApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var userViewModel = UserProfileViewModel()
     @StateObject private var menuBarManager = MenuBarManager()
+    
     @State private var deviceManager: DeviceManager?
+    @State private var p2pManagers: P2PManagers?
 
     @Environment(\.openWindow) private var openWindow
 
@@ -27,10 +53,15 @@ struct Orion_ServerApp: App {
                         .frame(minWidth: 400, minHeight: 600)
                 } else {
                     Group {
-                        if let deviceManager = deviceManager {
-                            MainDashboard(userViewModel: userViewModel)
-                                .frame(minWidth: 500, minHeight: 400)
+                        if let deviceManager = deviceManager, let p2pManagers = p2pManagers {
+                            let dashboard = MainDashboard()
+                                .frame(minWidth: 800, minHeight: 600)
+                            
+                            dashboard
                                 .environmentObject(deviceManager)
+                                .environmentObject(p2pManagers.apiService)
+                                .environmentObject(p2pManagers.signalingClient)
+                                .environmentObject(p2pManagers.webRTCManager)
                         } else {
                             VStack {
                                 ProgressView()
@@ -41,10 +72,15 @@ struct Orion_ServerApp: App {
                         }
                     }
                     .task {
-                        // Initialize DeviceManager when authenticated
+                        // Initialize managers when authenticated
                         if deviceManager == nil {
-                            deviceManager = DeviceManager(supabase: authManager.supabase)
-                            await deviceManager?.registerDeviceIfNeeded(type: "mac")
+                            let newDeviceManager = DeviceManager(supabase: authManager.supabase)
+                            self.deviceManager = newDeviceManager
+                            await newDeviceManager.registerDeviceIfNeeded(type: "mac")
+                            
+                            let newP2PManagers = P2PManagers(authManager: authManager, deviceManager: newDeviceManager)
+                            self.p2pManagers = newP2PManagers
+                            newP2PManagers.connect()
                         }
 
                         // Fetch user details once the session is available
@@ -56,6 +92,7 @@ struct Orion_ServerApp: App {
             }
             .environmentObject(authManager)
             .environmentObject(menuBarManager)
+            .environmentObject(userViewModel)
             .onOpenURL { url in
                 // Handle deep linking for authentication callbacks
                 Task {
@@ -63,9 +100,11 @@ struct Orion_ServerApp: App {
                 }
             }
             .onChange(of: authManager.session) { _, newSession in
-                // Reset DeviceManager when user logs out
+                // Reset managers when user logs out
                 if newSession == nil {
+                    p2pManagers?.disconnect()
                     deviceManager = nil
+                    p2pManagers = nil
                 }
             }
         }
@@ -88,54 +127,53 @@ struct Orion_ServerApp: App {
         }
 
         // MARK: - Menu Bar Extra
-        // Uses the native .menu style by default
         MenuBarExtra("Orion Server", image: "MenuBarIcon") {
-            // "About" button
-            Button("About Orion Server") {
-                NSApplication.shared.orderFrontStandardAboutPanel()
-            }
-
-            Divider()
-
-            // "Launch at Login" toggle. Renders as a menu item with a checkmark.
-            Toggle("Launch at Login", isOn: $menuBarManager.launchAtLogin)
-                .onChange(of: menuBarManager.launchAtLogin) { _, newValue in
-                    menuBarManager.setLaunchAtLogin(enabled: newValue)
-                }
-
-            // "Settings" button to open the dedicated settings window
-            Button("Settings...") {
-                openWindow(id: "settings")
-            }
-            .keyboardShortcut(",", modifiers: .command)
-
-            Divider()
-
-            // Conditional "Sign Out" button
-            if authManager.session != nil {
-                Button("Sign Out") {
-                    Task {
-                        await authManager.signOut()
+            VStack {
+                if authManager.session != nil {
+                    Text("Orion Server")
+                        .font(.headline)
+                    
+                    Divider()
+                    
+                    Button("Open Dashboard") {
+                        openWindow(id: "main")
+                    }
+                    
+                    Button("Settings...") {
+                        openWindow(id: "settings")
+                    }
+                    
+                    Divider()
+                    
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                } else {
+                    Text("Orion Server")
+                        .font(.headline)
+                    
+                    Divider()
+                    
+                    Button("Open App") {
+                        openWindow(id: "main")
+                    }
+                    
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
                     }
                 }
-
-                Divider()
             }
-
-            // "Quit" button
-            Button("Quit Orion Server") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q", modifiers: .command)
         }
-        // By removing `.menuBarExtraStyle(.window)`, it defaults to a native menu.
 
         // MARK: - Settings Window
         Window("Settings", id: "settings") {
             Group {
-                if let deviceManager = deviceManager {
+                if let deviceManager = deviceManager, let p2pManagers = p2pManagers {
                     SettingsWindow(userViewModel: userViewModel, authManager: authManager)
                         .environmentObject(deviceManager)
+                        .environmentObject(p2pManagers.apiService)
+                        .environmentObject(p2pManagers.signalingClient)
+                        .environmentObject(p2pManagers.webRTCManager)
                 } else {
                     VStack {
                         if authManager.session != nil {
@@ -151,17 +189,19 @@ struct Orion_ServerApp: App {
                 }
             }
             .task {
-                // Initialize DeviceManager if authenticated but not yet initialized
+                // Initialize managers if authenticated but not yet initialized
                 if authManager.session != nil && deviceManager == nil {
-                    deviceManager = DeviceManager(supabase: authManager.supabase)
-                    await deviceManager?.registerDeviceIfNeeded(type: "mac")
+                    let newDeviceManager = DeviceManager(supabase: authManager.supabase)
+                    self.deviceManager = newDeviceManager
+                    await newDeviceManager.registerDeviceIfNeeded(type: "mac")
+                    
+                    let newP2PManagers = P2PManagers(authManager: authManager, deviceManager: newDeviceManager)
+                    self.p2pManagers = newP2PManagers
                 }
             }
         }
         .defaultPosition(.center)
         .defaultSize(width: 600, height: 500)
         .handlesExternalEvents(matching: Set(arrayLiteral: "settings"))
-        // Note: The keyboard shortcut for the window itself is less common.
-        // The shortcut on the menu item is the standard user experience.
     }
 }
