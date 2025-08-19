@@ -55,7 +55,6 @@
 		8494C52B2E516A9C004AB96F /* Bbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4F62E516A9C004AB96F /* Bbox.swift */; };
 		8494C52C2E516A9C004AB96F /* DevicePairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C5032E516A9C004AB96F /* DevicePairingView.swift */; };
 		8494C52D2E516A9C004AB96F /* FrameAnalysisLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4EE2E516A9C004AB96F /* FrameAnalysisLog.swift */; };
-		8494C52E2E516A9C004AB96F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C5062E516A9C004AB96F /* SettingsView.swift */; };
 		8494C52F2E516A9C004AB96F /* SignalingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C5092E516A9C004AB96F /* SignalingClient.swift */; };
 		8494C5302E516A9C004AB96F /* NetworkDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4F02E516A9C004AB96F /* NetworkDetection.swift */; };
 		8494C5312E516A9C004AB96F /* ObjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4EA2E516A9C004AB96F /* ObjectDetector.swift */; };
@@ -129,7 +128,6 @@
 		8494C5032E516A9C004AB96F /* DevicePairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePairingView.swift; sourceTree = "<group>"; };
 		8494C5042E516A9C004AB96F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		8494C5052E516A9C004AB96F /* SettingsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTabView.swift; sourceTree = "<group>"; };
-		8494C5062E516A9C004AB96F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8494C5072E516A9C004AB96F /* StartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartView.swift; sourceTree = "<group>"; };
 		8494C5092E516A9C004AB96F /* SignalingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalingClient.swift; sourceTree = "<group>"; };
 		8494C50A2E516A9C004AB96F /* WebRTCManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCManager.swift; sourceTree = "<group>"; };
@@ -314,7 +312,6 @@
 				8494C5032E516A9C004AB96F /* DevicePairingView.swift */,
 				8494C5042E516A9C004AB96F /* LoginView.swift */,
 				8494C5052E516A9C004AB96F /* SettingsTabView.swift */,
-				8494C5062E516A9C004AB96F /* SettingsView.swift */,
 				8494C5072E516A9C004AB96F /* StartView.swift */,
 			);
 			path = Views;
@@ -373,6 +370,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				84080BA12E28467600F965A1 /* FastVLM */,
 			);
 			name = FastVLM;
 			packageProductDependencies = (
@@ -530,7 +530,6 @@
 				8494C52B2E516A9C004AB96F /* Bbox.swift in Sources */,
 				8494C52C2E516A9C004AB96F /* DevicePairingView.swift in Sources */,
 				8494C52D2E516A9C004AB96F /* FrameAnalysisLog.swift in Sources */,
-				8494C52E2E516A9C004AB96F /* SettingsView.swift in Sources */,
 				8494C52F2E516A9C004AB96F /* SignalingClient.swift in Sources */,
 				8494C5302E516A9C004AB96F /* NetworkDetection.swift in Sources */,
 				8494C5312E516A9C004AB96F /* ObjectDetector.swift in Sources */,

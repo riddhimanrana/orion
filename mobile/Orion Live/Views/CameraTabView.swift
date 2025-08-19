@@ -82,11 +82,6 @@ struct CameraTabView: View {
                         .navigationBarHidden(true)
                     }
                     .navigationViewStyle(StackNavigationViewStyle())
-                    .sheet(isPresented: $showingSettingsSheet) {
-                        SettingsView()
-                            .environmentObject(wsManager)
-                            .environmentObject(appState)
-                    }
                 } else {
                     StartView(isCameraActive: $isCameraActive, onStart: { completion in
                         // Run camera startup

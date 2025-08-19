@@ -134,13 +134,13 @@ struct SettingsTabView: View {
                 }
             }
 
-            Button("Link a New Device") {
+            Button("Pair a New Device") {
                 showingPairingSheet = true
             }
             .disabled(deviceManager.deviceId == nil || !deviceManager.pairedDevices.isEmpty)
 
             if !deviceManager.pairedDevices.isEmpty {
-                Text("You can only have one active pair at a time. Revoke the existing pair to link a new device.")
+                Text("You can only have one active pair at a time. Revoke the existing pair to pair a new device.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

@@ -174,6 +174,7 @@ class WebSocketManager: ObservableObject {
     
     // Network monitoring
     private var networkMonitor: NWPathMonitor?
+    private var isCleaningUp = false // Add flag to prevent operations during cleanup
     
     init() {
         self.currentHost = UserDefaults.standard.string(forKey: UserDefaultsKeys.serverHost) ?? ServerConfig.host
@@ -214,12 +215,15 @@ class WebSocketManager: ObservableObject {
     }
     
     func disconnect() {
+        guard !isCleaningUp else { return }
         wsTask?.cancel(with: .normalClosure, reason: nil)
         wsTask = nil
         if status != .disconnected {
             DispatchQueue.main.async {
-                self.status = .disconnected
-                self.lastRoundTripTime = nil
+                if !self.isCleaningUp {
+                    self.status = .disconnected
+                    self.lastRoundTripTime = nil
+                }
             }
             log("Disconnected from server")
         }
@@ -281,8 +285,9 @@ class WebSocketManager: ObservableObject {
     }
     
     private func receiveMessage() {
+        guard !isCleaningUp else { return }
         wsTask?.receive { [weak self] result in
-            guard let self = self else { return }
+            guard let self = self, !self.isCleaningUp else { return }
             
             switch result {
             case .success(let message):
@@ -291,18 +296,27 @@ class WebSocketManager: ObservableObject {
                 case .data(let data): self.handleMessage(String(data: data, encoding: .utf8) ?? "")
                 @unknown default: self.log("Received unknown message type.")
                 }
-                if self.wsTask?.state == .running { self.receiveMessage() }
+                if self.wsTask?.state == .running && !self.isCleaningUp { 
+                    self.receiveMessage() 
+                }
                 
             case .failure(let error):
+                guard !self.isCleaningUp else { return }
                 let nsError = error as NSError
                 let closeCode = (error as? WSError) == .connectionFailed ? nil : nsError.code
                 let reason = (error as? WSError) == .connectionFailed ? nil : nsError.localizedFailureReason
                 self.log("Receive error: \(error.localizedDescription), domain: \(nsError.domain), code: \(closeCode ?? 0), reason: \(reason ?? "N/A")")
-                if self.status != .disconnected {
-                    DispatchQueue.main.async { self.status = .disconnected }
+                if self.status != .disconnected && !self.isCleaningUp {
+                    DispatchQueue.main.async { 
+                        if !self.isCleaningUp {
+                            self.status = .disconnected 
+                        }
+                    }
                     self.onError?(.connectionFailed)
                     DispatchQueue.main.asyncAfter(deadline: .now() + SettingsManager.shared.reconnectDelay) {
-                        if self.status == .disconnected { self.connect() }
+                        if self.status == .disconnected && !self.isCleaningUp { 
+                            self.connect() 
+                        }
                     }
                 }
             }
@@ -381,14 +395,26 @@ class WebSocketManager: ObservableObject {
     }
     
     private func startNetworkMonitoring() {
-        guard networkMonitor == nil else { return }
+        guard networkMonitor == nil && !isCleaningUp else { return }
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
-            guard let self = self else { return }
+            guard let self = self, !self.isCleaningUp else { return }
             if path.status == .satisfied {
-                if self.status == .disconnected { self.connect() }
+                if self.status == .disconnected { 
+                    DispatchQueue.main.async {
+                        if !self.isCleaningUp {
+                            self.connect()
+                        }
+                    }
+                }
             } else {
-                if self.status != .disconnected { self.disconnect() }
+                if self.status != .disconnected { 
+                    DispatchQueue.main.async {
+                        if !self.isCleaningUp {
+                            self.disconnect()
+                        }
+                    }
+                }
             }
         }
         self.networkMonitor = monitor
@@ -400,8 +426,30 @@ class WebSocketManager: ObservableObject {
     }
     
     deinit {
-        log("WebSocketManager deinitialized.")
+        cleanup()
+    }
+    
+    func cleanup() {
+        guard !isCleaningUp else { return }
+        isCleaningUp = true
+        
+        // Cancel network monitor first
         networkMonitor?.cancel()
-        disconnect()
+        networkMonitor = nil
+        
+        // Disconnect WebSocket
+        wsTask?.cancel(with: .normalClosure, reason: nil)
+        wsTask = nil
+        
+        // Clear callbacks to break retain cycles
+        onFrameProcessed = nil
+        onAnalysis = nil
+        onPromptResponse = nil
+        onError = nil
+        
+        // Clear camera manager reference
+        cameraManager = nil
+        
+        print("WebSocketManager cleaned up") // Use print instead of log to avoid potential issues
     }
 }

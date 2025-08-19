@@ -2,9 +2,10 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Microscope } from "lucide-react";
+import { Mail } from "lucide-react";
 import { SiGithub, SiX } from "react-icons/si";
 import { cn } from "../lib/utils";
+import { SystemStatus } from "./SystemStatus";
 
 interface FooterProps {
   className?: string;
@@ -114,21 +115,9 @@ export const CleanFooter = ({ className }: FooterProps) => {
           </div>
         </div>
 
-        {/* Mobile: Development status at the very bottom */}
+        {/* Mobile: System status at the very bottom */}
         <div className="flex justify-center lg:hidden mt-6">
-          <div className="inline-flex items-center space-x-1 px-3 py-2 bg-black/5 dark:bg-white/5 rounded-full border border-black/10 dark:border-white/10">
-            <div className="flex items-center space-x-2">
-            <Microscope className="w-3.5 h-3.5 text-blue-500" />
-            <span className="text-black/60 dark:text-white/60 text-sm font-medium">
-              Research Phase
-            </span>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <span className="text-black dark:text-white text-sm font-semibold">2</span>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-            </div>
-          </div>
+          <SystemStatus />
         </div>
 
         {/* Desktop layout (original) */}
@@ -324,18 +313,7 @@ export const CleanFooter = ({ className }: FooterProps) => {
           <p className="text-black/40 dark:text-white/40 text-sm">
             © 2025 Riddhiman Rana. All rights reserved.
           </p>
-          <div className="inline-flex items-center space-x-1 px-3 py-2 bg-black/5 dark:bg-white/5 rounded-full border border-black/10 dark:border-white/10">
-            <div className="flex items-center space-x-2">
-            <Microscope className="w-3.5 h-3.5 text-blue-500" />
-            <span className="text-black/60 dark:text-white/60 text-sm font-medium">
-              Research Phase
-            </span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-black dark:text-white text-sm font-semibold">2</span>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-          </div>
-          </div>
+          <SystemStatus />
         </div>
       </div>
     </footer>

@@ -14,20 +14,18 @@ struct ContentView: View {
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var webSocketManager: WebSocketManager // Use the existing one from environment
 
     @State private var latestAnalysis: SceneAnalysis? // This will be populated via WebRTC data channel
     @State private var analysisTimestamp: TimeInterval = 0
     @State private var showErrorAlert = false
     @State private var alertMessage = ""
-    
-    // Create a mock WebSocketManager for compatibility with CameraTabView
-    @StateObject private var wsManager = WebSocketManager()
 
     var body: some View {
         TabView {
             // Tab 1: Camera Feed
             CameraTabView(
-                wsManager: wsManager,
+                wsManager: webSocketManager, // Use the environment object instead of creating a new one
                 latestAnalysis: $latestAnalysis,
                 analysisTimestamp: $analysisTimestamp
             )

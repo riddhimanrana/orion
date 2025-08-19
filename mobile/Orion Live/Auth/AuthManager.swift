@@ -16,12 +16,16 @@ import AuthenticationServices
 class AuthManager: NSObject, ObservableObject {
     @Published var session: Session?
     @Published var isLoading = false
+    @Published var isInitializing = true // Add this to track initial session check
 
     private var cancellables = Set<AnyCancellable>()
     private var authChangeListener: AuthStateChangeListenerRegistration?
     private var webAuthSession: ASWebAuthenticationSession?
 
     var supabase: SupabaseClient!
+
+    // MARK: - Cleanup handlers
+    var onSignOut: (() -> Void)?
 
     override init() {
         super.init()
@@ -51,9 +55,13 @@ class AuthManager: NSObject, ObservableObject {
                 let currentSession = try await supabase.auth.session
                 DispatchQueue.main.async {
                     self.session = currentSession
+                    self.isInitializing = false // Mark initialization as complete
                 }
             } catch {
                 Logger.shared.log("Error fetching initial session: \(error.localizedDescription)", level: .error, category: .general)
+                DispatchQueue.main.async {
+                    self.isInitializing = false // Mark initialization as complete even on error
+                }
             }
         }
     }
@@ -208,14 +216,29 @@ class AuthManager: NSObject, ObservableObject {
         // MARK: - Sign Out
         func signOut() async {
             isLoading = true
-            defer { isLoading = false }
+            
+            // Call cleanup handlers before signing out
+            onSignOut?()
+            
             do {
                 try await supabase.auth.signOut()
             } catch {
                 Logger.shared.log("Error signing out: \(error.localizedDescription)", level: .error, category: .general)
             }
+            
+            // Ensure UI updates happen after cleanup
+            await MainActor.run {
+                isLoading = false
+            }
         }
+    
+    deinit {
+        // Clean up auth listener and web session
+        authChangeListener?.remove()
+        webAuthSession?.cancel()
+        cancellables.removeAll()
     }
+}
 
 extension AuthManager: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {

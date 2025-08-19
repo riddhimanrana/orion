@@ -36,6 +36,7 @@ struct OrionApp: App {
         let signaling = SignalingClient(apiService: api, deviceManager: device)
         let webrtc = WebRTCManager(signalingClient: signaling)
         let camera = CameraManager()
+        let wsManager = WebSocketManager()
 
         // Set state objects
         _authManager = StateObject(wrappedValue: auth)
@@ -44,14 +45,25 @@ struct OrionApp: App {
         _signalingClient = StateObject(wrappedValue: signaling)
         _webRTCManager = StateObject(wrappedValue: webrtc)
         _cameraManager = StateObject(wrappedValue: camera)
+        _webSocketManager = StateObject(wrappedValue: wsManager)
 
         // App-level managers
         _appState = StateObject(wrappedValue: AppStateManager())
-        _webSocketManager = StateObject(wrappedValue: WebSocketManager()) // Note: This is for the old flow, might be deprecated
         _compatibilityManager = StateObject(wrappedValue: SystemCompatibilityManager())
 
         // Now that all managers are initialized, inject dependencies
         camera.setup(webRTCManager: webrtc)
+        wsManager.setCameraManager(camera)
+
+        // Setup cleanup handler for sign out
+        auth.onSignOut = { [weak wsManager, weak webrtc, weak signaling, weak camera] in
+            print("Cleaning up managers before sign out...")
+            // Explicitly cleanup managers to break retain cycles
+            wsManager?.cleanup()
+            webrtc?.disconnect()
+            signaling?.disconnect()
+            camera?.stopStreaming()
+        }
 
         // Configure app appearance
         configureAppearance()
@@ -65,81 +77,101 @@ struct OrionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if authManager.session == nil {
-                    LoginView()
-                } else {
-                    ContentView()
-                        .onAppear {
-                            if objectDetector == nil { objectDetector = ObjectDetector() }
-                            if fastVLMModel == nil { fastVLMModel = FastVLMModel() }
-
-                            // Connect signaling and WebRTC
-                            Task { await signalingClient.connect() }
-                            Task { await webRTCManager.connect() }
-
-                            #if DEBUG
-                            WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
-                            #endif
+            mainContentView
+                .environmentObject(appState)
+                .environmentObject(cameraManager)
+                .environmentObject(webSocketManager)
+                .environmentObject(authManager)
+                .environmentObject(deviceManager)
+                .environmentObject(compatibilityManager)
+                .environmentObject(webRTCManager)
+                .environmentObject(signalingClient)
+                .environmentObject(apiService)
+                .environmentObject(objectDetector ?? ObjectDetector()) // Provide a default instance
+                .environmentObject(fastVLMModel ?? FastVLMModel()) // Provide a default instance
+                .onOpenURL { url in
+                    Task {
+                        await authManager.handleSessionCallback(from: url)
+                    }
+                }
+                .onChange(of: authManager.session) { _, newSession in
+                    if newSession != nil && deviceManager.deviceId == nil {
+                        Task {
+                            await deviceManager.registerDeviceIfNeeded(type: "ios")
+                        }
+                    }
+                }
+                .onAppear {
+                    // Show compatibility check on first launch or if not yet shown
+                    let hasShownCompatibilityCheck = UserDefaults.standard.bool(forKey: "hasShownCompatibilityCheck")
+                    if !hasShownCompatibilityCheck {
+                        showCompatibilityCheck = true
+                    }
+                }
+                .sheet(isPresented: $showCompatibilityCheck) {
+                    CompatibilityCheckView()
+                        .environmentObject(compatibilityManager)
+                        .onDisappear {
+                            UserDefaults.standard.set(true, forKey: "hasShownCompatibilityCheck")
                         }
                 }
-            }
-            .environmentObject(appState)
-            .environmentObject(cameraManager)
-            .environmentObject(webSocketManager)
-            .environmentObject(authManager)
-            .environmentObject(deviceManager)
-            .environmentObject(compatibilityManager)
-            .environmentObject(webRTCManager)
-            .environmentObject(signalingClient)
-            .environmentObject(apiService)
-            .environmentObject(objectDetector ?? ObjectDetector()) // Provide a default instance
-            .environmentObject(fastVLMModel ?? FastVLMModel()) // Provide a default instance
-            .onOpenURL { url in
-                Task {
-                    await authManager.handleSessionCallback(from: url)
+                // Enable/disable idle timer when streaming starts/stops (iOS17+ style)
+                .onChange(of: appState.isStreaming) { _, newStreaming in
+                    UIApplication.shared.isIdleTimerDisabled = newStreaming
                 }
-            }
-            .onChange(of: authManager.session) { _, newSession in
-                if newSession != nil && deviceManager.deviceId == nil {
-                    Task {
-                        await deviceManager.registerDeviceIfNeeded(type: "ios")
-                    }
+                // Handle background transition
+                .onReceive(
+                    NotificationCenter.default.publisher(
+                        for: UIApplication.willResignActiveNotification
+                    )
+                ) { _ in
+                    appState.handleBackgroundTransition()
                 }
-            }
-            .onAppear {
-                // Show compatibility check on first launch or if not yet shown
-                let hasShownCompatibilityCheck = UserDefaults.standard.bool(forKey: "hasShownCompatibilityCheck")
-                if !hasShownCompatibilityCheck {
-                    showCompatibilityCheck = true
+                // Handle foreground transition
+                .onReceive(
+                    NotificationCenter.default.publisher(
+                        for: UIApplication.willEnterForegroundNotification
+                    )
+                ) { _ in
+                    appState.handleForegroundTransition()
                 }
-            }
-            .sheet(isPresented: $showCompatibilityCheck) {
-                CompatibilityCheckView()
-                    .environmentObject(compatibilityManager)
-                    .onDisappear {
-                        UserDefaults.standard.set(true, forKey: "hasShownCompatibilityCheck")
-                    }
-            }
-            // Enable/disable idle timer when streaming starts/stops (iOS17+ style)
-            .onChange(of: appState.isStreaming) { _, newStreaming in
-                UIApplication.shared.isIdleTimerDisabled = newStreaming
-            }
-            // Handle background transition
-            .onReceive(
-                NotificationCenter.default.publisher(
-                    for: UIApplication.willResignActiveNotification
-                )
-            ) { _ in
-                appState.handleBackgroundTransition()
-            }
-            // Handle foreground transition
-            .onReceive(
-                NotificationCenter.default.publisher(
-                    for: UIApplication.willEnterForegroundNotification
-                )
-            ) { _ in
-                appState.handleForegroundTransition()
+        }
+    }
+    
+    @ViewBuilder
+    private var mainContentView: some View {
+        if authManager.isInitializing {
+            AppLoadingView()
+        } else if authManager.session == nil {
+            LoginView()
+        } else {
+            ContentView()
+                .onAppear {
+                    if objectDetector == nil { objectDetector = ObjectDetector() }
+                    if fastVLMModel == nil { fastVLMModel = FastVLMModel() }
+
+                    // Connect signaling and WebRTC
+                    Task { await signalingClient.connect() }
+                    Task { await webRTCManager.connect() }
+
+                    #if DEBUG
+                    WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
+                    #endif
+                }
+        }
+    }
+    
+    // Inline loading view to avoid scope issues
+    private struct AppLoadingView: View {
+        var body: some View {
+            ZStack {
+                Color(UIColor.systemBackground).edgesIgnoringSafeArea(.all)
+                
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .offset(y: 10) // Position exactly 10 points below center
             }
         }
     }

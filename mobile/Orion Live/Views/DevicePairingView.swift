@@ -62,7 +62,7 @@ struct DevicePairingView: View {
                 }
             }
             .padding()
-            .navigationTitle("Link Device")
+            .navigationTitle("Pair Device")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

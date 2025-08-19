@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23727" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23727" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="Y6W-OH-hqX">
     <device id="retina6_12" orientation="portrait" appearance="light"/>
     <dependencies>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23721"/>
@@ -17,20 +17,18 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="AppLogo" translatesAutoresizingMaskIntoConstraints="NO" id="C6p-iK-EVF">
-                                <rect key="frame" x="146.66666666666666" y="376" width="100" height="100"/>
+                                <rect key="frame" x="136.5" y="396" width="120" height="120"/>
                                 <constraints>
-                                    <constraint firstAttribute="height" constant="100" id="lJm-2c-fUn"/>
-                                    <constraint firstAttribute="width" constant="100" id="yEs-9u-488"/>
+                                    <constraint firstAttribute="height" constant="120" id="lJm-2c-fUn"/>
+                                    <constraint firstAttribute="width" constant="120" id="yEs-9u-488"/>
                                 </constraints>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
-                            <constraint firstItem="C6p-iK-EVF" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="EWX-TT-Ev6"/>
+                            <constraint firstItem="C6p-iK-EVF" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" constant="10" id="EWX-TT-Ev6"/>
                             <constraint firstItem="C6p-iK-EVF" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="h63-4h-o6p"/>
-                            <constraint firstItem="C6p-iK-EVF" firstAttribute="centerY" secondItem="5EZ-qb-Rvc" secondAttribute="centerY" id="rIh-dw-k3X"/>
-                            <constraint firstItem="C6p-iK-EVF" firstAttribute="centerX" secondItem="5EZ-qb-Rvc" secondAttribute="centerX" id="vNn-gu-2CD"/>
                         </constraints>
                     </view>
                 </viewController>
