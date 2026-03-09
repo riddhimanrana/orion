@@ -59,7 +59,7 @@ class GroundingDINOWrapper:
 
         self.model.to(self.device)
         self.model.eval()
-        logger.info("✓ GroundingDINO ready (half=%s)", self.use_half_precision)
+        logger.info("✓ GroundingDINO ready (device=%s, half=%s)", self.device, self.use_half_precision)
 
     def detect(
         self,

@@ -31,9 +31,25 @@ LABEL_ALIASES = {
 def main():
     vid = sys.argv[1] if len(sys.argv) > 1 else '001YG'
     
+    # Determine device
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    print(f"Using device: {device}")
+    
     # Load AG annotations
     print("Loading AG annotations...")
-    with open('datasets/ActionGenome/annotations/action_genome_v1.0/object_bbox_and_relationship.pkl', 'rb') as f:
+    possible_anno_paths = [
+        'datasets/ActionGenome/annotations/action_genome_v1.0/object_bbox_and_relationship.pkl',
+        'datasets/ActionGenome/object_bbox_and_relationship.pkl',
+        '../datasets/ActionGenome/object_bbox_and_relationship.pkl',
+        '../datasets/ActionGenome/annotations/action_genome_v1.0/object_bbox_and_relationship.pkl'
+    ]
+    
+    anno_path = next((p for p in possible_anno_paths if Path(p).exists()), None)
+    if not anno_path:
+        print(f"Error: Could not find object_bbox_and_relationship.pkl. Checked: {possible_anno_paths}")
+        return
+
+    with open(anno_path, 'rb') as f:
         ag = pickle.load(f)
     
     # Build AG prompt for GroundingDINO
@@ -42,7 +58,7 @@ def main():
     
     # Load GroundingDINO
     print("Loading GroundingDINO...")
-    gdino = GroundingDINOWrapper(device="cpu")
+    gdino = GroundingDINOWrapper(device=device, use_half_precision=False)
     
     # Load SGA model
     print("Loading SGA model...")
@@ -52,7 +68,7 @@ def main():
         cfg = TemporalSGAConfig(**cfg)
     model = TemporalSGAModel(cfg)
     model.load_state_dict(ckpt['state_dict'])
-    model.eval()
+    model.to(device).eval()
     print("Models loaded!")
     
     # Get GT frames for this video
@@ -76,9 +92,16 @@ def main():
     print(f"Video {vid}: {len(gt_frames)} GT frames")
     
     # Run GroundingDINO detection
-    vpath = Path(f'datasets/ActionGenome/videos/Charades_v1_480/{vid}.mp4')
-    if not vpath.exists():
-        print(f"Video not found: {vpath}")
+    possible_video_paths = [
+        f'datasets/ActionGenome/videos/Charades_v1_480/{vid}.mp4',
+        f'datasets/ActionGenome/videos/{vid}.mp4',
+        f'../datasets/ActionGenome/videos/{vid}.mp4',
+        f'../datasets/ActionGenome/videos/Charades_v1_480/{vid}.mp4'
+    ]
+    
+    vpath = next((Path(p) for p in possible_video_paths if Path(p).exists()), None)
+    if not vpath:
+        print(f"Video not found: {vid}. Checked: {possible_video_paths}")
         return
     
     print("Running GroundingDINO detection...")
@@ -150,7 +173,14 @@ def main():
         
         # Run model
         with torch.no_grad():
-            out = model(labels.unsqueeze(0), boxes.unsqueeze(0), None, masks.unsqueeze(0), None, num_future_frames=1)
+            out = model(
+                labels.unsqueeze(0).to(device), 
+                boxes.unsqueeze(0).to(device), 
+                None, 
+                masks.unsqueeze(0).to(device), 
+                None, 
+                num_future_frames=1
+            )
         
         pred_probs = torch.sigmoid(out['predicate_logits'][0, 0])
         
