@@ -45,7 +45,7 @@ Frame → Observation (detections)
 - Embedding backends in `orion/backends/`: V-JEPA2 (video-native), CLIP (legacy)
 - Each backend implements factory pattern with `validate()` called in config `__post_init__`
 
-See [orion/perception/types.py](orion/perception/types.py) and [orion/graph/types.py](orion/graph/types.py).
+See [orion/perception/types.py](../orion/perception/types.py) and [orion/graph/types.py](../orion/graph/types.py).
 
 ## Episode & Results Format
 
@@ -62,7 +62,7 @@ See [orion/perception/types.py](orion/perception/types.py) and [orion/graph/type
 Example:
 ```bash
 python -c "from orion.config import list_episodes; print(list_episodes())"
-python -m orion.cli.run_showcase --episode test_demo --video data/examples/test.mp4
+python -m orion run --video data/examples/test.mp4 --episode test_demo
 ```
 
 ## Developer Workflows
@@ -70,40 +70,29 @@ python -m orion.cli.run_showcase --episode test_demo --video data/examples/test.
 ### Running Perception
 ```bash
 # End-to-end pipeline (detection → embedding → tracking → scene graph)
-python -m orion.cli.run_showcase --episode test_demo --video data/examples/test.mp4
+python -m orion run --video data/examples/test.mp4 --episode test_demo
 
 # Reuse tracks, rebuild only scene graph & overlay
-python -m orion.cli.run_showcase --episode test_demo --skip-phase1
+python -m orion run --video data/examples/test.mp4 --episode test_demo --skip-phase1
 
-# Export to Memgraph (requires docker-compose up -d memgraph)
-python -m orion.cli.run_showcase --episode test_demo --memgraph --memgraph-host 127.0.0.1
-
-# Quality sweep (perception → graph → optional Gemini validation)
-python -m orion.cli.run_quality_sweep --episode test_demo
+# Export to Memgraph (requires external Memgraph instance)
+python -m orion run --video data/examples/test.mp4 --episode test_demo --memgraph --memgraph-host 127.0.0.1
 
 # Standalone overlay regeneration
-python -m orion.perception.viz_overlay_v2 --video data/examples/test.mp4 --results results/test_demo
+python -m orion overlay --video data/examples/test.mp4 --episode test_demo
 ```
 
 ### Testing & Validation
-- `scripts/validate_setup.py`: Environment validation (PyTorch, MPS, model weights)
-- `scripts/test_gemini_comparison.py`: VLM-based relation validation
-- Re-ID metrics: Embedded in `PerceptionResult.metrics['reid']` (access via `scripts/print_reid_metrics.py`)
-- Scene graph analysis: `scripts/analyze_scene_graph.py` (node/edge distributions)
+- Verify CLI parsing: `python -m orion --help`
+- Verify showcase parser: `python -m orion.cli.run_showcase --help`
+- Re-ID metrics are emitted under `run_metadata.json` and pipeline summaries
+- Scene graph schema details: `docs/results_schema.md`
 
 ### Memgraph Integration
 ```bash
-# Start Memgraph with docker-compose
-docker-compose up -d
-
-# Verify Memgraph running (ports 7687 Bolt, 7444/3000 Lab UI)
-docker ps | grep memgraph
-
-# Run showcase with Memgraph ingest
-python -m orion.cli.run_showcase --episode test_demo --video data/examples/test.mp4 --memgraph
-
-# Query via mgconsole (in container)
-docker exec -it orion-memgraph mgconsole
+# Ensure Memgraph is running (Bolt port 7687)
+# Then run Orion with ingest enabled:
+python -m orion run --video data/examples/test.mp4 --episode test_demo --memgraph
 ```
 
 ### Configuration Patterns
@@ -180,10 +169,9 @@ docker exec -it orion-memgraph mgconsole
 
 ## References
 
-- **Detailed schemas**: [docs/episodes.md](docs/episodes.md), [docs/results_schema.md](docs/results_schema.md)
-- **Phase status**: [docs/PHASE_4_PLAN.md](docs/PHASE_4_PLAN.md)
-- **Config reference**: [orion/perception/config.py](orion/perception/config.py) (150+ lines, all documented)
-- **CLI entry**: [orion/cli/main.py](orion/cli/main.py)
-- **Core engine**: [orion/perception/engine.py](orion/perception/engine.py) (~1400 lines, main logic)
+- **Detailed schemas**: [docs/episodes.md](../docs/episodes.md), [docs/results_schema.md](../docs/results_schema.md)
+- **Config reference**: [orion/perception/config.py](../orion/perception/config.py) (150+ lines, all documented)
+- **CLI entry**: [orion/cli/main.py](../orion/cli/main.py)
+- **Core engine**: [orion/perception/engine.py](../orion/perception/engine.py) (~1400 lines, main logic)
 
 **Apple Silicon note:** Project built & tested on M-series. MPS (Metal Performance Shaders) is default device. No special setup needed beyond standard PyTorch with MPS support.

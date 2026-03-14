@@ -6,27 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from orion.cli.run_tracks import process_video_to_tracks
 from orion.config import ensure_results_dir, get_episode_video_path
-from orion.graph import (
-    build_graph_summary,
-    build_scene_graphs,
-    load_memory,
-    load_tracks,
-    save_graph_summary,
-    save_scene_graphs,
-)
-from orion.graph.backends.exporter import MemgraphExportResult, export_results_to_memgraph
-from orion.perception.reid.matcher import build_memory_from_tracks
-from orion.perception.viz_overlay import OverlayOptions, render_insight_overlay
 
 logger = logging.getLogger("orion.showcase")
 
@@ -43,6 +26,8 @@ def _resolve_video_path(args: argparse.Namespace) -> Path:
 
 
 def _phase1(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Dict:
+    from orion.cli.run_tracks import process_video_to_tracks
+
     tracks_path = results_dir / "tracks.jsonl"
     meta_path = results_dir / "run_metadata.json"
     if args.skip_phase1:
@@ -87,6 +72,8 @@ def _phase1(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Di
 
 
 def _phase2(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Dict:
+    from orion.perception.reid.matcher import build_memory_from_tracks
+
     memory_path = results_dir / "memory.json"
     if args.skip_memory:
         if not memory_path.exists():
@@ -121,6 +108,15 @@ def _phase2(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Di
 
 
 def _phase3_graph(args: argparse.Namespace, results_dir: Path) -> Dict:
+    from orion.graph import (
+        build_graph_summary,
+        build_scene_graphs,
+        load_memory,
+        load_tracks,
+        save_graph_summary,
+        save_scene_graphs,
+    )
+
     graph_path = results_dir / "scene_graph.jsonl"
     summary_path = results_dir / "graph_summary.json"
     if args.skip_graph:
@@ -177,6 +173,8 @@ def _phase3_graph(args: argparse.Namespace, results_dir: Path) -> Dict:
 def _render_overlay(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Optional[Path]:
     if args.no_overlay:
         return None
+    from orion.perception.viz_overlay import OverlayOptions, render_insight_overlay
+
     logger.info("[Overlay] Rendering insight overlay")
     options = OverlayOptions(
         max_relations=args.overlay_max_relations,
@@ -189,9 +187,11 @@ def _render_overlay(args: argparse.Namespace, video_path: Path, results_dir: Pat
     return render_insight_overlay(video_path=video_path, results_dir=results_dir, output_path=output_path, options=options)
 
 
-def _export_memgraph(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Optional[MemgraphExportResult]:
+def _export_memgraph(args: argparse.Namespace, video_path: Path, results_dir: Path) -> Optional[Any]:
     if not args.memgraph:
         return None
+    from orion.graph.backends.exporter import export_results_to_memgraph
+
     logger.info("[Memgraph] Exporting results to %s:%d", args.memgraph_host, args.memgraph_port)
     return export_results_to_memgraph(
         results_dir=results_dir,
@@ -346,12 +346,8 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    parser = build_parser()
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
+def run_pipeline(args: argparse.Namespace) -> Dict[str, Any]:
+    """Run the full showcase pipeline and return a machine-readable summary."""
     results_dir = ensure_results_dir(args.episode)
     video_path = _resolve_video_path(args)
 
@@ -361,21 +357,48 @@ def main() -> None:
     overlay_path = _render_overlay(args, video_path, results_dir)
     memgraph_result = _export_memgraph(args, video_path, results_dir)
 
+    summary: Dict[str, Any] = {
+        "episode": args.episode,
+        "video": str(video_path),
+        "results_dir": str(results_dir),
+        "tracks": phase1_meta.get("statistics", {}),
+        "memory_objects": len(memory_data.get("objects", [])),
+        "graph": graph_summary,
+        "overlay": str(overlay_path) if overlay_path else None,
+        "memgraph": None,
+    }
+
+    if memgraph_result is not None:
+        summary["memgraph"] = {
+            "observations_written": memgraph_result.observations_written,
+            "relations_written": memgraph_result.relations_written,
+            "host": memgraph_result.output_host,
+            "port": memgraph_result.output_port,
+        }
+
     logger.info("\n=== SHOWCASE SUMMARY ===")
-    logger.info("Episode: %s", args.episode)
-    logger.info("Video: %s", video_path)
-    if phase1_meta:
-        stats = phase1_meta.get("statistics", {})
-        logger.info("Tracks: %s frames, %s unique", stats.get("frames_processed"), stats.get("unique_tracks"))
-    logger.info("Memory objects: %d", len(memory_data.get("objects", [])))
+    logger.info("Episode: %s", summary["episode"])
+    logger.info("Video: %s", summary["video"])
+
+    tracks_stats = summary.get("tracks", {})
+    if tracks_stats:
+        logger.info(
+            "Tracks: %s frames, %s unique",
+            tracks_stats.get("frames_processed"),
+            tracks_stats.get("unique_tracks"),
+        )
+
+    logger.info("Memory objects: %d", summary["memory_objects"])
     logger.info(
         "Graph: frames=%s edges/frame=%.2f",
         graph_summary.get("total_frames"),
         graph_summary.get("avg_edges_per_frame", 0.0),
     )
+
     if overlay_path:
         logger.info("Overlay: %s", overlay_path)
-    if memgraph_result:
+
+    if memgraph_result is not None:
         logger.info(
             "Memgraph: %d observations, %d relations → %s:%d",
             memgraph_result.observations_written,
@@ -383,5 +406,15 @@ def main() -> None:
             memgraph_result.output_host,
             memgraph_result.output_port,
         )
+
+    return summary
+
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    run_pipeline(args)
 if __name__ == "__main__":
     main()

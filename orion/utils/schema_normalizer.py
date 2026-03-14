@@ -3,7 +3,7 @@ Schema Normalization for Tracks.jsonl
 =====================================
 
 Canonical normalizer for Orion's track records. Handles schema drift between
-different writers (run_showcase.py, run_engine.py, tracker serialization).
+different writers (run_showcase.py and tracker serialization).
 
 Key issues identified in deep research:
 1. `frame_id` vs `frame_number` vs `frame_idx` (all same concept)

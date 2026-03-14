@@ -1,19 +1,15 @@
-"""Command-line interface for the Orion research toolkit.
+"""Command-line interface package for Orion.
 
-Keep package import side-effect free.
-
-Some CLI dependencies (e.g. rich) are only needed when running the `orion`
-console script. Importing submodules like `orion.cli.run_tracks` should not
-require the full CLI stack.
+Keep this module import side-effect free so submodules can be imported without
+triggering CLI parsing.
 """
 
 
 def main() -> int:
-	# Lazy import to avoid importing rich (and other CLI deps) when users only
-	# want to import a submodule.
-	from .main import main as _main
+    # Lazy import so importing `orion.cli` does not execute parser setup.
+    from .main import main as _main
 
-	return _main()
+    return _main()
 
 
 __all__ = ["main"]
