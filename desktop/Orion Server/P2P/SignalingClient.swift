@@ -66,6 +66,7 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
     @Published private(set) var lastPacketTypeReceived: String?
     @Published private(set) var lastSignalHealth: SignalHealthResponse?
     @Published private(set) var lastSignalDiagnostics: SignalDiagnosticsResponse?
+    @Published private(set) var lastSignalAccountUsage: SignalAccountUsageResponse?
     weak var delegate: SignalingClientDelegate?
 
     private var webSocket: URLSessionWebSocketTask?
@@ -387,10 +388,12 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
             do {
                 async let healthTask = apiService.fetchSignalHealth()
                 async let diagTask = apiService.fetchSignalDiagnostics(token: token)
-                let (health, diagnostics) = try await (healthTask, diagTask)
+                async let usageTask = apiService.fetchSignalAccountUsage(token: token)
+                let (health, diagnostics, accountUsage) = try await (healthTask, diagTask, usageTask)
                 guard !Task.isCancelled else { return }
                 self.lastSignalHealth = health
                 self.lastSignalDiagnostics = diagnostics
+                self.lastSignalAccountUsage = accountUsage
             } catch {
                 print("Signaling diagnostics check failed: \(error.localizedDescription)")
             }
