@@ -1,0 +1,67 @@
+name: Sync split repo into monorepo development
+
+on:
+  push:
+    branches: [main, development]
+  workflow_dispatch:
+
+env:
+  MONO_REPO: riddhimanrana/orion
+  MONO_TARGET_BRANCH: development
+  PREFIX: research
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: sync-research-to-mono-development
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MONO_REPO }}
+          token: ${{ secrets.MONO_PUSH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Checkout split repo
+        uses: actions/checkout@v4
+        with:
+          path: split
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "orion-sync-bot"
+          git config user.email "bot@users.noreply.github.com"
+
+      - name: Checkout monorepo target branch
+        env:
+          TARGET_BRANCH: ${{ env.MONO_TARGET_BRANCH }}
+        run: |
+          git fetch origin "$TARGET_BRANCH" || true
+          if git ls-remote --heads origin "$TARGET_BRANCH" | grep -q "$TARGET_BRANCH"; then
+            git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+          else
+            git checkout -B "$TARGET_BRANCH"
+          fi
+
+      - name: Add split repo as local remote
+        run: git remote add split ./split
+
+      - name: Subtree sync into prefix
+        env:
+          SOURCE_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -d "$PREFIX" ]; then
+            git subtree pull --prefix="$PREFIX" split "$SOURCE_BRANCH" -m "chore(sync): $GITHUB_REPOSITORY@$GITHUB_SHA ($SOURCE_BRANCH) -> $PREFIX"
+          else
+            git subtree add --prefix="$PREFIX" split "$SOURCE_BRANCH" -m "chore(sync): initial $GITHUB_REPOSITORY@$GITHUB_SHA ($SOURCE_BRANCH) -> $PREFIX"
+          fi
+
+      - name: Push monorepo development
+        env:
+          TARGET_BRANCH: ${{ env.MONO_TARGET_BRANCH }}
+        run: git push origin "$TARGET_BRANCH"
