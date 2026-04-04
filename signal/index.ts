@@ -1,18 +1,18 @@
 // @ts-nocheck
-import WebSocket, { WebSocketServer } from "ws";
-import jwt from "jsonwebtoken";
-import url from "url";
-import crypto from "crypto";
+import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
+import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
+import type { IncomingMessage } from "http";
 
-// Environment variables
+// --- Config from env ---
+const JWT_SECRET = process.env.P2P_SIGNAL_JWT_SECRET;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PORT = process.env.P2P_SIGNAL_PORT
   ? parseInt(process.env.P2P_SIGNAL_PORT, 10)
   : 3001;
-const JWT_SECRET = process.env.P2P_SIGNAL_JWT_SECRET;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TURN_REALM = process.env.TURN_REALM || "orionlive.ai";
 const TURN_REST_SECRET = process.env.TURN_REST_SECRET || "";
 const TURN_URLS = (process.env.TURN_URLS || "")
@@ -24,72 +24,171 @@ const TURN_TTL = process.env.TURN_TTL
   : 600; // seconds
 const ICE_RATE_WINDOW_SEC = process.env.ICE_RATE_WINDOW_SEC
   ? parseInt(process.env.ICE_RATE_WINDOW_SEC, 10)
-  : 600; // 10 min
+  : 600;
 const ICE_RATE_MAX = process.env.ICE_RATE_MAX
   ? parseInt(process.env.ICE_RATE_MAX, 10)
-  : 20; // max requests per window per user
+  : 20;
 
-// Validations
-if (!JWT_SECRET) {
-  console.error(
-    "FATAL: P2P_SIGNAL_JWT_SECRET environment variable is not set.",
-  );
-  process.exit(1);
-}
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error("FATAL: Supabase environment variables are not set.");
-  process.exit(1);
-}
-if (!TURN_REST_SECRET) {
-  console.warn(
-    "WARN: TURN_REST_SECRET is not set. /v1/ice endpoint will be disabled.",
-  );
+if (!JWT_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing required environment variables");
 }
 
-// Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+// --- Supabase admin client ---
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Create a standard HTTP server for health checks
-// In-memory rate limiting state: userId -> { windowStart, count }
+// --- Types ---
+type SignalMessage = {
+  t: "offer" | "answer" | "ice" | "bye" | "mode";
+  pairId: string;
+  fromDeviceId: string;
+  toDeviceId?: string;
+  sdp?: any;
+  ice?: any;
+  mode?: string;
+  ts?: number;
+};
+
+type PacketType = SignalMessage["t"];
+
+type PairPacketStats = {
+  relayedByType: Record<PacketType, number>;
+  bytesRelayed: number;
+  lastRelayAt: number | null;
+};
+
+interface ClientMeta {
+  userId: string;
+  pairId: string;
+  deviceId: string;
+}
+
+// --- In-memory state ---
+const rooms = new Map<string, WebSocket[]>();
+const serverStartedAtMs = Date.now();
+const packetStatsByPair = new Map<string, PairPacketStats>();
 const iceRateState = new Map<string, { windowStart: number; count: number }>();
 
-const server = http.createServer(async (req, res) => {
-  const parsed = url.parse(req.url || "", true);
-  const path = parsed.pathname || "/";
-  // Basic CORS (adjust allowlist as needed)
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
-
-  if (req.method === "OPTIONS") {
-    res.writeHead(204).end();
-    return;
+function ensurePairStats(pairId: string): PairPacketStats {
+  let stats = packetStatsByPair.get(pairId);
+  if (!stats) {
+    stats = {
+      relayedByType: {
+        offer: 0,
+        answer: 0,
+        ice: 0,
+        bye: 0,
+        mode: 0,
+      },
+      bytesRelayed: 0,
+      lastRelayAt: null,
+    };
+    packetStatsByPair.set(pairId, stats);
   }
+  return stats;
+}
+
+function totalConnectedClients(): number {
+  let total = 0;
+  for (const clients of rooms.values()) total += clients.length;
+  return total;
+}
+
+function aggregatePacketStats() {
+  const totals: Record<PacketType, number> = {
+    offer: 0,
+    answer: 0,
+    ice: 0,
+    bye: 0,
+    mode: 0,
+  };
+  let bytesRelayed = 0;
+  let pairCount = 0;
+
+  for (const stats of packetStatsByPair.values()) {
+    pairCount += 1;
+    bytesRelayed += stats.bytesRelayed;
+    totals.offer += stats.relayedByType.offer;
+    totals.answer += stats.relayedByType.answer;
+    totals.ice += stats.relayedByType.ice;
+    totals.bye += stats.relayedByType.bye;
+    totals.mode += stats.relayedByType.mode;
+  }
+
+  return { totals, bytesRelayed, pairCount };
+}
+
+function wsMeta(ws: WebSocket): ClientMeta | undefined {
+  return (ws as any)._meta as ClientMeta | undefined;
+}
+
+function setWsMeta(ws: WebSocket, meta: ClientMeta) {
+  (ws as any)._meta = meta;
+}
+
+function makeTurnCredentials(user: string, ttlSec: number) {
+  const unix = Math.floor(Date.now() / 1000) + ttlSec;
+  const username = `${unix}:${user}`;
+  const hmac = crypto.createHmac("sha1", TURN_REST_SECRET);
+  hmac.update(username);
+  const credential = hmac.digest("base64");
+  return { username, credential };
+}
+
+function checkIceRate(userId: string) {
+  const now = Math.floor(Date.now() / 1000);
+  const rec = iceRateState.get(userId);
+  if (!rec || now - rec.windowStart >= ICE_RATE_WINDOW_SEC) {
+    const next = { windowStart: now, count: 1 };
+    iceRateState.set(userId, next);
+    return {
+      allowed: true,
+      count: next.count,
+      remaining: Math.max(0, ICE_RATE_MAX - next.count),
+      resetIn: ICE_RATE_WINDOW_SEC,
+    };
+  }
+  rec.count += 1;
+  const allowed = rec.count <= ICE_RATE_MAX;
+  const resetIn = Math.max(0, ICE_RATE_WINDOW_SEC - (now - rec.windowStart));
+  return {
+    allowed,
+    count: rec.count,
+    remaining: Math.max(0, ICE_RATE_MAX - rec.count),
+    resetIn,
+  };
+}
+
+// --- HTTP server for health + authenticated ICE + diagnostics ---
+const server = http.createServer(async (req, res) => {
+  const url = req.url || "";
+  const parsed = new URL(url, `http://${req.headers.host || "localhost"}`);
+  const path = parsed.pathname;
 
   if (path === "/health") {
-    res.writeHead(200, {
-      "Content-Type": "application/json",
-    });
-    res.end(JSON.stringify({ status: "ok" }));
+    const aggregate = aggregatePacketStats();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        uptimeSec: Math.floor((Date.now() - serverStartedAtMs) / 1000),
+        roomsActive: rooms.size,
+        clientsConnected: totalConnectedClients(),
+        trackedPairs: aggregate.pairCount,
+        packetsRelayedByType: aggregate.totals,
+        bytesRelayed: aggregate.bytesRelayed,
+      }),
+    );
     return;
   }
 
-  // Ephemeral TURN credentials endpoint
-  if (path === "/v1/ice") {
-    if (!TURN_REST_SECRET) {
-      res.writeHead(503, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "ICE endpoint disabled" }));
-      return;
-    }
-
+  if (path === "/v1/diag") {
     try {
-      // Extract token from Authorization: Bearer <token> or ?token=
       const authHeader = req.headers["authorization"] || "";
       let token: string | undefined;
       if (authHeader.toLowerCase().startsWith("bearer ")) {
         token = authHeader.slice(7).trim();
-      } else if (parsed.query && typeof parsed.query.token === "string") {
-        token = parsed.query.token;
+      } else if (parsed.searchParams.get("token")) {
+        token = parsed.searchParams.get("token") || undefined;
       }
 
       if (!token) {
@@ -98,218 +197,275 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // Verify JWT
       const payload = jwt.verify(token, JWT_SECRET!);
       if (typeof payload === "string") throw new Error("Invalid token payload");
+
       const { pairId, deviceId, userId } = payload as {
         pairId: string;
         deviceId: string;
         userId: string;
       };
+
       if (!pairId || !deviceId || !userId) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Invalid token claims" }));
         return;
       }
 
-      // Validate active pair belongs to user
       const { data: pair, error } = await supabase
         .from("device_pairs")
-        .select("id, status, user_id")
+        .select("id, status, user_id, device_a_id, device_b_id")
         .eq("id", pairId)
-        .eq("status", "active")
         .single();
-      if (error || !pair || pair.user_id !== userId) {
+
+      if (error || !pair) {
         res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid or unauthorized pair" }));
+        res.end(JSON.stringify({ error: "Invalid pair" }));
         return;
       }
 
-      // Rate limiting per userId
-      const nowSec = Math.floor(Date.now() / 1000);
-      const entry = iceRateState.get(userId);
-      if (!entry || nowSec - entry.windowStart >= ICE_RATE_WINDOW_SEC) {
-        iceRateState.set(userId, { windowStart: nowSec, count: 0 });
-      }
-      const state = iceRateState.get(userId)!;
-      if (state.count >= ICE_RATE_MAX) {
-        const windowRemainingSec = Math.max(
-          0,
-          ICE_RATE_WINDOW_SEC - (nowSec - state.windowStart),
-        );
-        res.writeHead(429, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            error: "Rate limit exceeded",
-            usage: {
-              countInWindow: state.count,
-              maxInWindow: ICE_RATE_MAX,
-              windowRemainingSec,
-            },
-          }),
-        );
+      if (pair.user_id !== userId) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized pair" }));
         return;
       }
 
-      // Generate ephemeral TURN credentials (use-auth-secret)
-      const now = nowSec;
-      const expiry = now + TURN_TTL;
-      // username format: "expiry:userId" (can use pairId instead)
-      const turnUsername = `${expiry}:${userId}`;
-      const credential = crypto
-        .createHmac("sha1", TURN_REST_SECRET)
-        .update(turnUsername)
-        .digest("base64");
-
-      // Compose URLs (include STUN fallback)
-      const urls = [...TURN_URLS, "stun:stun.l.google.com:19302"];
-
-      // Increment usage count after successful generation
-      state.count += 1;
-
-      console.log(
-        `ICE issued for user ${userId}, pair ${pairId}. count=${state.count}/${ICE_RATE_MAX}`,
-      );
-      // Persist a lightweight usage record (ignore errors)
-      try {
-        await supabase.from("ice_usage").insert({
-          user_id: userId,
-          pair_id: pairId,
-          device_id: deviceId,
-          issued_at: new Date(now * 1000).toISOString(),
-          ttl: TURN_TTL,
-        });
-      } catch (e) {
-        console.warn("ice_usage insert failed (non-blocking)");
-      }
-
-      const body = {
-        urls,
-        username: turnUsername,
-        credential,
-        ttl: TURN_TTL,
-        realm: TURN_REALM,
-        issuedAt: now,
-        expiresAt: expiry,
-        usage: {
-          countInWindow: state.count,
-          maxInWindow: ICE_RATE_MAX,
-          windowRemainingSec: Math.max(
-            0,
-            ICE_RATE_WINDOW_SEC - (now - state.windowStart),
-          ),
-        },
-      };
+      const room = rooms.get(pairId) ?? [];
+      const pairStats = ensurePairStats(pairId);
+      const aggregate = aggregatePacketStats();
 
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(body));
+      res.end(
+        JSON.stringify({
+          authenticated: true,
+          pair: {
+            id: pair.id,
+            status: pair.status,
+            hasDeviceA: Boolean(pair.device_a_id),
+            hasDeviceB: Boolean(pair.device_b_id),
+          },
+          room: {
+            connectedClients: room.length,
+          },
+          transfer: {
+            byType: pairStats.relayedByType,
+            bytesRelayed: pairStats.bytesRelayed,
+            lastRelayAt: pairStats.lastRelayAt,
+          },
+          server: {
+            uptimeSec: Math.floor((Date.now() - serverStartedAtMs) / 1000),
+            roomsActive: rooms.size,
+            clientsConnected: totalConnectedClients(),
+            packetsRelayedByType: aggregate.totals,
+            bytesRelayed: aggregate.bytesRelayed,
+          },
+        }),
+      );
       return;
     } catch (err) {
-      console.error("/v1/ice error:", err);
+      console.error("/v1/diag auth error:", err);
       res.writeHead(401, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Unauthorized" }));
       return;
     }
   }
-  res.writeHead(404).end();
+
+  if (path === "/v1/ice") {
+    try {
+      const authHeader = req.headers["authorization"] || "";
+      let token: string | undefined;
+      if (authHeader.toLowerCase().startsWith("bearer ")) {
+        token = authHeader.slice(7).trim();
+      } else if (parsed.searchParams.get("token")) {
+        token = parsed.searchParams.get("token") || undefined;
+      }
+      if (!token) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token" }));
+        return;
+      }
+
+      const payload = jwt.verify(token, JWT_SECRET!);
+      if (typeof payload === "string") throw new Error("Invalid token payload");
+
+      const { pairId, deviceId, userId } = payload as {
+        pairId: string;
+        deviceId: string;
+        userId: string;
+      };
+
+      if (!pairId || !deviceId || !userId) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid token claims" }));
+        return;
+      }
+
+      const rate = checkIceRate(userId);
+      if (!rate.allowed) {
+        res.writeHead(429, {
+          "Content-Type": "application/json",
+          "Retry-After": String(rate.resetIn),
+        });
+        res.end(
+          JSON.stringify({
+            error: "Rate limit exceeded",
+            limit: ICE_RATE_MAX,
+            windowSec: ICE_RATE_WINDOW_SEC,
+            resetInSec: rate.resetIn,
+          }),
+        );
+        return;
+      }
+
+      const { data: pair, error } = await supabase
+        .from("device_pairs")
+        .select("id, status, user_id, device_a_id, device_b_id")
+        .eq("id", pairId)
+        .single();
+
+      if (error || !pair) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid pair" }));
+        return;
+      }
+
+      if (pair.user_id !== userId) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized pair" }));
+        return;
+      }
+
+      const isMember = pair.device_a_id === deviceId || pair.device_b_id === deviceId;
+      if (!isMember) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Device not in pair" }));
+        return;
+      }
+
+      if (!TURN_REST_SECRET || TURN_URLS.length === 0) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "TURN is not configured" }));
+        return;
+      }
+
+      const user = `${userId}:${pairId}:${deviceId}`;
+      const { username, credential } = makeTurnCredentials(user, TURN_TTL);
+      const now = Math.floor(Date.now() / 1000);
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          urls: TURN_URLS,
+          username,
+          credential,
+          ttl: TURN_TTL,
+          realm: TURN_REALM,
+          issuedAt: now,
+          expiresAt: now + TURN_TTL,
+          usage: {
+            countInWindow: rate.count,
+            maxInWindow: ICE_RATE_MAX,
+            windowRemainingSec: rate.resetIn,
+          },
+        }),
+      );
+      return;
+    } catch (err) {
+      console.error("/v1/ice auth error:", err);
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+  }
+
+  res.writeHead(404, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Not found" }));
 });
 
-// Attach the WebSocket server to the HTTP server
 const wss = new WebSocketServer({ noServer: true });
 
-server.on("upgrade", (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit("connection", ws, request);
-  });
-});
+function rejectUpgrade(socket: any, status: number, msg: string) {
+  socket.write(
+    `HTTP/1.1 ${status} ${msg}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+  );
+  socket.destroy();
+}
 
-// In-memory room storage
-const rooms = new Map<string, WebSocket[]>();
-
-wss.on("connection", async (ws, req) => {
-  const { query } = url.parse(req.url || "", true);
-  const token = query.token as string | undefined;
-
-  if (!token) {
-    return ws.close(1008, "No token provided");
-  }
-
-  let decoded: jwt.JwtPayload;
+server.on("upgrade", async (req: IncomingMessage, socket, head) => {
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    if (typeof payload === "string") throw new Error("Invalid token payload");
-    decoded = payload;
-  } catch (err) {
-    console.log("Connection rejected: Invalid token.", (err as Error).message);
-    return ws.close(1008, "Invalid token");
-  }
+    const url = req.url || "";
+    const parsed = new URL(url, `http://${req.headers.host || "localhost"}`);
 
-  const { pairId, deviceId, userId } = decoded as {
-    pairId: string;
-    deviceId: string;
-    userId: string;
-  };
+    let token = parsed.searchParams.get("token") || "";
+    if (!token) {
+      const authHeader = (req.headers["authorization"] as string) || "";
+      if (authHeader.toLowerCase().startsWith("bearer ")) {
+        token = authHeader.slice(7).trim();
+      }
+    }
+    if (!token) return rejectUpgrade(socket, 401, "Unauthorized");
 
-  if (!pairId || !deviceId || !userId) {
-    return ws.close(1008, "Token missing required claims");
-  }
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET!);
+    } catch {
+      return rejectUpgrade(socket, 401, "Unauthorized");
+    }
+    if (typeof payload === "string") return rejectUpgrade(socket, 401, "Unauthorized");
 
-  // **[NEW] Validate pairId against Supabase**
-  try {
+    const { userId, pairId, deviceId } = payload as {
+      userId?: string;
+      pairId?: string;
+      deviceId?: string;
+    };
+    if (!userId || !pairId || !deviceId)
+      return rejectUpgrade(socket, 401, "Unauthorized");
+
     const { data: pair, error } = await supabase
       .from("device_pairs")
-      .select("id, status, user_id")
+      .select("id, status, user_id, device_a_id, device_b_id")
       .eq("id", pairId)
-      .eq("status", "active")
       .single();
 
-    if (error || !pair) {
-      console.log(`Connection rejected: Invalid or inactive pairId ${pairId}`);
-      return ws.close(1008, "Invalid or inactive pair");
-    }
+    if (error || !pair) return rejectUpgrade(socket, 403, "Forbidden");
+    if (pair.user_id !== userId) return rejectUpgrade(socket, 403, "Forbidden");
+    if (pair.status !== "active") return rejectUpgrade(socket, 403, "Forbidden");
 
-    // Ensure the user in the token matches the owner of the pair
-    if (pair.user_id !== userId) {
-      console.log(
-        `Connection rejected: User ${userId} does not own pair ${pairId}`,
-      );
-      return ws.close(1008, "Unauthorized pair");
-    }
-  } catch (dbError) {
-    console.error("Supabase validation error:", dbError);
-    return ws.close(1011, "Server error during validation");
+    const isMember = pair.device_a_id === deviceId || pair.device_b_id === deviceId;
+    if (!isMember) return rejectUpgrade(socket, 403, "Forbidden");
+
+    wss.handleUpgrade(req, socket as any, head, (ws) => {
+      setWsMeta(ws, { userId, pairId, deviceId });
+      wss.emit("connection", ws, req);
+    });
+  } catch {
+    return rejectUpgrade(socket, 500, "Internal Server Error");
   }
+});
 
-  // Add client to the room
-  if (!rooms.has(pairId)) {
-    rooms.set(pairId, []);
-  }
-  const room = rooms.get(pairId)!;
+wss.on("connection", (ws) => {
+  const meta = wsMeta(ws)!;
+  const { userId, pairId, deviceId } = meta;
 
-  if (room.length >= 2) {
-    console.log(`Connection rejected: Room ${pairId} is full.`);
-    return ws.close(1011, "Room is full");
-  }
+  if (!rooms.has(pairId)) rooms.set(pairId, []);
+  const clients = rooms.get(pairId)!;
+  clients.push(ws);
 
-  room.push(ws);
-  console.log(
-    `Client with deviceId ${deviceId} connected to room ${pairId}. Room size: ${room.length}`,
-  );
+  console.log(`Device ${deviceId} connected to room ${pairId} (user ${userId})`);
 
-  ws.on("message", (message: WebSocket.RawData) => {
-    let parsedMessage;
+  ws.on("message", (message) => {
+    let parsedMessage: SignalMessage;
     try {
       parsedMessage = JSON.parse(message.toString());
-    } catch (e) {
-      console.log(`Invalid JSON from ${deviceId}.`);
+    } catch {
+      console.log(`Invalid JSON from ${deviceId}`);
       return;
     }
 
-    // **[NEW] Validate message schema and pairId consistency**
     if (
       !parsedMessage.t ||
       !parsedMessage.pairId ||
-      !["offer", "answer", "ice", "bye"].includes(parsedMessage.t)
+      !["offer", "answer", "ice", "bye", "mode"].includes(parsedMessage.t)
     ) {
       console.log(
         `Message from ${deviceId} is missing required fields or has invalid type.`,
@@ -319,12 +475,11 @@ wss.on("connection", async (ws, req) => {
 
     if (parsedMessage.pairId !== pairId) {
       console.log(
-        `Message pairId ${parsedMessage.pairId} from ${deviceId} does not match token's pairId ${pairId}.`,
+        `Dropping message from ${deviceId}: pair mismatch (${parsedMessage.pairId} != ${pairId})`,
       );
       return;
     }
 
-    // Optional: sanity checks for payload shape
     if (
       (parsedMessage.t === "offer" || parsedMessage.t === "answer") &&
       !parsedMessage.sdp
@@ -332,62 +487,69 @@ wss.on("connection", async (ws, req) => {
       console.log(`Dropping ${parsedMessage.t} without SDP from ${deviceId}`);
       return;
     }
+
     if (parsedMessage.t === "ice" && !parsedMessage.ice) {
       console.log(`Dropping ICE without payload from ${deviceId}`);
       return;
     }
 
-    // Relay message to the other client in the room
-    const otherClient = room.find((client) => client !== ws);
+    if (parsedMessage.t === "mode" && !parsedMessage.mode) {
+      console.log(`Dropping mode without mode value from ${deviceId}`);
+      return;
+    }
+
+    const roomClients = rooms.get(pairId);
+    if (!roomClients) {
+      console.log(`Room ${pairId} not found for message from ${deviceId}`);
+      return;
+    }
+
+    const otherClient = roomClients.find((client) => client !== ws);
     if (otherClient && otherClient.readyState === WebSocket.OPEN) {
       console.log(
         `Relaying message of type '${parsedMessage.t}' from ${deviceId} in room ${pairId}`,
       );
       otherClient.send(message.toString());
 
-      // If this is a 'bye', proactively close both sides to cleanup
+      const stats = ensurePairStats(pairId);
+      const typed = parsedMessage.t as PacketType;
+      stats.relayedByType[typed] += 1;
+      stats.bytesRelayed += Buffer.byteLength(message.toString(), "utf8");
+      stats.lastRelayAt = Date.now();
+
       if (parsedMessage.t === "bye") {
-        try {
-          otherClient.close(1000, "peer bye");
-        } catch {}
-        try {
-          ws.close(1000, "bye sent");
-        } catch {}
+        roomClients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.close(1000, "Call ended");
+          }
+        });
+        rooms.delete(pairId);
       }
     } else {
-      console.log(`No other client in room ${pairId} to relay message to.`);
-      if (parsedMessage.t === "bye") {
-        try {
-          ws.close(1000, "bye; empty room");
-        } catch {}
-      }
+      console.log(
+        `No other peer connected in room ${pairId}. Message queued not supported.`,
+      );
     }
   });
 
   ws.on("close", () => {
-    console.log(
-      `Client with deviceId ${deviceId} disconnected from room ${pairId}.`,
-    );
-    const currentRoom = rooms.get(pairId);
-    if (currentRoom) {
-      const index = currentRoom.indexOf(ws);
-      if (index > -1) currentRoom.splice(index, 1);
-      if (currentRoom.length === 0) {
-        console.log(`Room ${pairId} is now empty, removing.`);
+    console.log(`Device ${deviceId} disconnected from room ${pairId}`);
+    const roomClients = rooms.get(pairId);
+    if (roomClients) {
+      const updatedClients = roomClients.filter((client) => client !== ws);
+      if (updatedClients.length > 0) {
+        rooms.set(pairId, updatedClients);
+      } else {
         rooms.delete(pairId);
       }
     }
   });
 
-  ws.on("error", (error: unknown) => {
-    console.error(
-      `WebSocket error for deviceId ${deviceId} in room ${pairId}:`,
-      error,
-    );
+  ws.on("error", (err) => {
+    console.error(`WebSocket error for ${deviceId}:`, err);
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 P2P Signaling Server listening on ws://localhost:${PORT}`);
-  console.log(`   Health check available at http://localhost:${PORT}/health`);
+  console.log(`🔌 Signal server listening on port ${PORT}`);
 });

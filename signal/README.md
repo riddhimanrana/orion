@@ -43,4 +43,19 @@ This server is a critical component of the Orion architecture, responsible for f
 bun run dev
 ```
 
+## Connection diagnostics
+
+Run a full auth + connectivity diagnostic against deployed services:
+
+```bash
+npm run verify:connections
+```
+
+Optional environment variables:
+
+- `SIGNAL_BASE_URL` (default: `https://signal.orionlive.ai`)
+- `ORION_API_BASE_URL` (default: `https://orionlive.ai`)
+- `SIGNAL_BEARER_TOKEN` (enables authenticated `/v1/ice` + `/v1/diag` checks)
+- `RENDER_API_KEY` + `RENDER_SERVICE_ID` (enables Render API status check)
+
 The server will start on `ws://localhost:3001` by default.
