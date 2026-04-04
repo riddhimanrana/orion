@@ -47,21 +47,26 @@ jobs:
             git checkout -B "$TARGET_BRANCH"
           fi
 
-      - name: Add split repo as local remote
-        run: git remote add split ./split
-
-      - name: Subtree sync into prefix
+      - name: Sync split files into monorepo prefix
+        id: sync
         env:
           SOURCE_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ -d "$PREFIX" ]; then
-            git subtree pull --prefix="$PREFIX" split "$SOURCE_BRANCH" -m "chore(sync): $GITHUB_REPOSITORY@$GITHUB_SHA ($SOURCE_BRANCH) -> $PREFIX"
+          mkdir -p "$PREFIX"
+          rsync -a --delete --exclude ".git/" ./split/ "$PREFIX/"
+          git add -A "$PREFIX"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit for $PREFIX"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
           else
-            git subtree add --prefix="$PREFIX" split "$SOURCE_BRANCH" -m "chore(sync): initial $GITHUB_REPOSITORY@$GITHUB_SHA ($SOURCE_BRANCH) -> $PREFIX"
+            git commit -m "chore(sync): $GITHUB_REPOSITORY@$GITHUB_SHA ($SOURCE_BRANCH) -> $PREFIX"
+            echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Push monorepo development
+        if: steps.sync.outputs.committed == 'true'
         env:
           TARGET_BRANCH: ${{ env.MONO_TARGET_BRANCH }}
         run: git push origin "$TARGET_BRANCH"
