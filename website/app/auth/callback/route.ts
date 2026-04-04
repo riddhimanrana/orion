@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       if (sessionError) {
         console.error("Error during email change confirmation:", sessionError);
         return NextResponse.redirect(
-          `${origin}/account/change-email-confirm?error=confirmation_failed`,
+          `${origin}/dashboard/account/change-email-confirm?error=confirmation_failed`,
         );
       }
 
@@ -69,13 +69,13 @@ export async function GET(request: NextRequest) {
         // Redirect to confirmation page with success
         const email = encodeURIComponent(data.user.email || "");
         return NextResponse.redirect(
-          `${origin}/account/change-email-confirm?success=email_confirmed&email=${email}`,
+          `${origin}/dashboard/account/change-email-confirm?success=email_confirmed&email=${email}`,
         );
       }
     } catch (error) {
       console.error("Unexpected error during email change:", error);
       return NextResponse.redirect(
-        `${origin}/account/change-email-confirm?error=unexpected_error`,
+        `${origin}/dashboard/account/change-email-confirm?error=unexpected_error`,
       );
     }
   }

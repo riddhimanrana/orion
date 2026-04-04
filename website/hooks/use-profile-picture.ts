@@ -5,7 +5,7 @@ import {
   getProfilePictureUrl,
   getDefaultProfilePictureSource,
   type ProfilePictureSource,
-} from "@/app/account/actions";
+} from "@/app/dashboard/account/actions";
 
 interface UseProfilePictureReturn {
   imageUrl: string | undefined;

@@ -1,24 +1,16 @@
-"use client";
-
-import { useUser } from "@/hooks/use-user";
+import { usePathname } from "next/navigation";
 import { CleanNavigation } from "./Navbar";
-import { AuthenticatedNavigation } from "./AuthenticatedNavbar";
 
 interface NavbarWrapperProps {
   className?: string;
 }
 
 export const NavbarWrapper = ({ className }: NavbarWrapperProps) => {
-  const { user, loading } = useUser();
+  const pathname = usePathname();
 
-  // During loading, show the unauthenticated navbar to prevent layout shift
-  if (loading) {
-    return <CleanNavigation className={className} />;
-  }
-
-  // Show appropriate navbar based on authentication state
-  if (user) {
-    return <AuthenticatedNavigation className={className} />;
+  // Hide navbar on dashboard routes
+  if (pathname.startsWith("/dashboard")) {
+    return null;
   }
 
   return <CleanNavigation className={className} />;

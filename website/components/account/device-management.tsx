@@ -5,7 +5,7 @@ import {
   getPairedDevices,
   getRegisteredDevices,
   revokeDevicePairForm,
-} from "@/app/account/actions";
+} from "@/app/dashboard/account/actions";
 import { P2PStatusIndicator } from "./p2p-status-indicator";
 import {
   Card,

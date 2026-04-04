@@ -131,7 +131,7 @@ function EmailChangeConfirmContent() {
           type: "info",
           title: "Confirm Your Email Change",
           description:
-            "We&apos;ve sent confirmation links to both your old and new email addresses.",
+            "We've sent confirmation links to both your old and new email addresses.",
           message:
             "You must click both links to complete the email change. This is a security measure to protect your account.",
           showActions: true,
@@ -337,7 +337,7 @@ function EmailChangeConfirmContent() {
     const baseActions = (
       <>
         {isLoggedIn && (
-          <Button onClick={() => router.push("/account")} className="w-full">
+          <Button onClick={() => router.push("/dashboard/account")} className="w-full">
             <ArrowRight className="w-4 h-4 mr-2" />
             Go to Account Settings
           </Button>
@@ -357,7 +357,7 @@ function EmailChangeConfirmContent() {
         <div className="space-y-3">
           {error === "link_expired" && (
             <Button
-              onClick={() => router.push("/account")}
+              onClick={() => router.push("/dashboard/account")}
               className="w-full"
               variant="outline"
             >
@@ -368,7 +368,7 @@ function EmailChangeConfirmContent() {
 
           {error === "invalid_link" && (
             <Button
-              onClick={() => router.push("/account")}
+              onClick={() => router.push("dashboard/account")}
               className="w-full"
               variant="outline"
             >
@@ -448,14 +448,14 @@ function EmailChangeConfirmContent() {
     ) {
       return (
         <div className="space-y-3">
-          {state.message && state.message.includes("OTHER email") && (
+          {/* {state.message && state.message.includes("OTHER email") && (
             <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg text-center">
               <p className="text-sm text-blue-700 dark:text-blue-300">
                 📧 One more step! Check your other email inbox for the second
                 confirmation link.
               </p>
             </div>
-          )}
+          )} */}
           {baseActions}
           <div className="text-xs text-muted-foreground text-center">
             {state.message && state.message.includes("OTHER email")

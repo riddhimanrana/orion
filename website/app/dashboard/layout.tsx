@@ -1,12 +1,20 @@
-import type { Metadata } from "next";
-import { generateMetadata, PAGE_METADATA } from "@/lib/metadata";
-
-export const metadata: Metadata = generateMetadata(PAGE_METADATA.dashboard);
+import {
+  SidebarProvider,
+  SidebarInset,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }

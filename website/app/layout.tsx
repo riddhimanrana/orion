@@ -3,12 +3,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserProvider } from "@/hooks/use-user";
-import { NavbarWrapper } from "@/components/NavbarWrapper";
-import { CleanFooter } from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { generateMetadata, PAGE_METADATA } from "@/lib/metadata";
 import { Analytics } from "@vercel/analytics/next";
 import { GlobalScrollHandler } from "@/components/global-scroll-handler";
+import NavbarClientWrapper from "@/components/NavbarClientWrapper";
+import FooterClientWrapper from "@/components/FooterClientWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,11 +33,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
       <html lang="en" suppressHydrationWarning>
@@ -52,13 +48,11 @@ export default function RootLayout({
           >
             <GlobalScrollHandler />
             <UserProvider>
-              <NavbarWrapper />
-              {/* Spacer div to push content below the fixed navbar */}
-              <div className="h-16"></div>
+              <NavbarClientWrapper />
               {children}
               <Toaster richColors />
               <Analytics />
-              <CleanFooter />
+              <FooterClientWrapper />
             </UserProvider>
           </ThemeProvider>
         </body>

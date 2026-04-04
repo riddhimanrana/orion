@@ -33,7 +33,9 @@ export function P2PStatusIndicator() {
           }
         }
         setStatus("disconnected");
-      } catch (error) {
+      } catch (err) {
+        // Log the error for debugging and keep existing fallback behavior
+        console.error("P2P health check failed:", err);
         setStatus("disconnected");
       }
     };

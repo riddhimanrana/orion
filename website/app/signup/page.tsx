@@ -5,28 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { SiGithub } from "react-icons/si";
-import {
-  Loader2,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Mail,
-  CheckCircle,
-  ArrowLeft,
-  User,
-} from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import { signUpSchema, type SignUpFormData } from "@/lib/auth-schemas";
 import {
@@ -36,6 +20,8 @@ import {
   resendEmailVerification,
 } from "./actions";
 import { checkUserEmailStatus } from "@/utils/supabase/checkUserEmailStatus";
+import { ShootingStars } from "@/components/ui/shooting-stars";
+import { StarsBackground } from "@/components/ui/stars-background";
 
 function SignUpPageContent() {
   const [loading, setLoading] = useState<string | null>(null);
@@ -67,7 +53,6 @@ function SignUpPageContent() {
           description: result.error,
         });
       } else if (result && "success" in result && result.url) {
-        // Redirect to OAuth provider
         window.location.href = result.url;
         return;
       }
@@ -89,7 +74,6 @@ function SignUpPageContent() {
           description: result.error,
         });
       } else if (result && "success" in result && result.url) {
-        // Redirect to OAuth provider
         window.location.href = result.url;
         return;
       }
@@ -105,14 +89,13 @@ function SignUpPageContent() {
   const handleEmailSignUp = async (data: SignUpFormData) => {
     setLoading("email");
     try {
-      // Step 1: Check account status using the Supabase RPC
+      // Check account status
       try {
         const { user_exists, email_confirmed } = await checkUserEmailStatus(data.email);
         if (user_exists) {
           if (email_confirmed) {
             toast.error("Email already registered", {
-              description:
-                "This email is already registered and confirmed.",
+              description: "This email is already registered and confirmed.",
               action: {
                 label: "Sign In",
                 onClick: () => (window.location.href = "/login"),
@@ -120,8 +103,7 @@ function SignUpPageContent() {
             });
           } else {
             toast.warning("Email not confirmed", {
-              description:
-                "This email is already registered but not confirmed.",
+              description: "This email is already registered but not confirmed.",
               action: {
                 label: "Resend Verification",
                 onClick: () => handleResendVerification(data.email),
@@ -148,7 +130,6 @@ function SignUpPageContent() {
         return;
       }
 
-      // Step 2: If not exists, proceed with signup
       const result = await signUpWithEmail(data, redirectTo || undefined);
 
       if (result && "error" in result) {
@@ -158,8 +139,7 @@ function SignUpPageContent() {
           });
         } else if (result.error.includes("weak password")) {
           toast.error("Password too weak", {
-            description:
-              "Please choose a stronger password with at least 8 characters, including uppercase, lowercase, and numbers.",
+            description: "Please choose a stronger password with at least 8 characters.",
           });
         } else {
           toast.error("Sign up failed", {
@@ -200,7 +180,6 @@ function SignUpPageContent() {
           description: result.message,
         });
 
-        // Start cooldown
         setResendCooldown(60);
         const interval = setInterval(() => {
           setResendCooldown((prev) => {
@@ -228,118 +207,119 @@ function SignUpPageContent() {
   // Show email confirmation screen
   if (emailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-white dark:bg-black">
-        <div className="w-full max-w-md">
-          <Card className="border-border/50 shadow-lg">
-            <CardHeader className="text-center space-y-4">
-              <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                <Mail className="w-8 h-8 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl">Check your email</CardTitle>
-                <CardDescription className="mt-2">
-                  We&apos;ve sent a confirmation link to{" "}
-                  <span className="font-medium text-foreground">
-                    {sentEmail}
-                  </span>
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4 text-center">
-              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mx-auto" />
-                <p className="text-sm font-medium">
-                  Account created successfully
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Click the confirmation link in your email to activate your
-                  account
-                </p>
-              </div>
+      <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden dark:bg-neutral-950 dark:text-white">
+        {/* Star Background Effects */}
+        <ShootingStars />
+        <StarsBackground />
 
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Didn&apos;t receive the email? Check your spam folder.
-                </p>
+        <div className="absolute top-6 left-6 z-10">
+          <button
+            onClick={() => setEmailSent(false)}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground dark:text-neutral-400 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+        </div>
 
-                <Button
-                  variant="outline"
-                  onClick={() => handleResendVerification(sentEmail)}
-                  disabled={resendLoading || resendCooldown > 0}
-                  className="w-full"
-                >
-                  {resendLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : resendCooldown > 0 ? (
-                    `Resend in ${resendCooldown}s`
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4 mr-2" />
-                      Resend verification email
-                    </>
-                  )}
+        <div className="relative z-10 flex items-center justify-center min-h-screen p-6">
+          <div className="w-full max-w-md text-center">
+            <div className="mb-8">
+              <div className="w-16 h-16 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-4">
+                <Mail className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-2xl font-bold mb-2 text-foreground dark:text-white">Check your email</h1>
+              <p className="text-muted-foreground dark:text-neutral-400">
+                We&apos;ve sent a verification link to{" "}
+                <span className="text-foreground dark:text-white font-medium">{sentEmail}</span>
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <Button
+                onClick={() => handleResendVerification(sentEmail)}
+                disabled={resendLoading || resendCooldown > 0}
+                variant="outline"
+                className="w-full"
+              >
+                {resendLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Mail className="w-4 h-4 mr-2" />
+                )}
+                {resendCooldown > 0
+                  ? `Resend in ${resendCooldown}s`
+                  : "Resend verification email"}
+              </Button>
+
+              <Link href="/login">
+                <Button variant="ghost" className="w-full">
+                  Back to sign in
                 </Button>
-
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setEmailSent(false);
-                    setSentEmail("");
-                    setResendCooldown(0);
-                  }}
-                  className="w-full"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to sign up
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Get started</h1>
-          <p className="text-muted-foreground mt-2">
-            Create your Orion account to begin
-          </p>
-        </div>
+    <div className="min-h-screen bg-background text-foreground flex flex-col relative overflow-hidden dark:bg-neutral-950 dark:text-white">
+      {/* Star Background Effects */}
+      <ShootingStars />
+      <StarsBackground />
 
-        <Card className="border-border/50 shadow-lg">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl">Create account</CardTitle>
-            <CardDescription>
-              Choose your preferred sign-up method
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      {/* Go Home Button */}
+      <div className="absolute top-6 left-6 z-30">
+        <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground dark:text-neutral-400 dark:hover:text-white transition-colors pointer-events-auto">
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Home
+        </Link>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 flex items-center justify-center min-h-screen p-6">
+        <div className="w-full max-w-md">
+          {/* Logo and Title */}
+          <div className="text-center mb-8">
+            <div className="mb-6">
+              <Image 
+                src="/orion.svg" 
+                alt="Orion" 
+                width={48}
+                height={48}
+                className="mx-auto"
+              />
+            </div>
+            <h1 className="text-3xl font-semibold mb-2 text-foreground dark:text-white">Create an Orion account</h1>
+            <p className="text-muted-foreground dark:text-neutral-400">
+              Already have an account?{" "}
+              <Link href="/login" className="font-medium text-primary hover:text-primary/80 dark:text-white dark:hover:text-white/60 ease-in-out duration-200">
+                Log in
+              </Link>
+            </p>
+          </div>
+
+          {/* Auth Form */}
+          <div className="space-y-6">
             {/* OAuth Providers */}
             <div className="space-y-3">
               <Button
                 variant="outline"
-                className="w-full h-11 font-medium"
-                onClick={handleGitHubSignUp}
-                disabled={loading !== null}
-              >
-                {loading === "github" ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <SiGithub className="w-5 h-5" />
-                )}
-                Continue with GitHub
-              </Button>
-
-              <Button
-                variant="outline"
-                className="w-full h-11 font-medium"
+                className="w-full h-11 bg-background/50 border-border text-foreground hover:bg-muted dark:bg-neutral-800/50 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700/50"
                 onClick={handleGoogleSignUp}
                 disabled={loading !== null}
               >
@@ -367,16 +347,28 @@ function SignUpPageContent() {
                 )}
                 Continue with Google
               </Button>
+
+              <Button
+                variant="outline"
+                className="w-full h-11 bg-background/50 border-border text-foreground hover:bg-muted dark:bg-neutral-800/50 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700/50"
+                onClick={handleGitHubSignUp}
+                disabled={loading !== null}
+              >
+                {loading === "github" ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <SiGithub className="w-5 h-5" />
+                )}
+                Continue with GitHub
+              </Button>
             </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <Separator />
+                <div className="w-full border-t border-border dark:border-neutral-700"></div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-neutral-900 px-2 text-muted-foreground">
-                  Or continue with email
-                </span>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-background dark:bg-neutral-950 px-4 text-muted-foreground dark:text-neutral-400">or</span>
               </div>
             </div>
 
@@ -392,32 +384,26 @@ function SignUpPageContent() {
                   type="text"
                   placeholder="Enter your full name"
                   {...form.register("fullName")}
-                  className={
-                    form.formState.errors.fullName ? "border-destructive" : ""
-                  }
+                  className={` ${form.formState.errors.fullName ? "border-red-500" : ""}`}
                 />
                 {form.formState.errors.fullName && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-red-400 text-sm">
                     {form.formState.errors.fullName.message}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="name@example.com"
                   {...form.register("email")}
-                  className={
-                    form.formState.errors.email ? "border-destructive" : ""
-                  }
+                  className={`${form.formState.errors.email ? "border-red-500" : ""}`}
                 />
                 {form.formState.errors.email && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-red-400 text-sm">
                     {form.formState.errors.email.message}
                   </p>
                 )}
@@ -429,67 +415,53 @@ function SignUpPageContent() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a password"
+                    placeholder="••••••••"
                     {...form.register("password")}
-                    className={
-                      form.formState.errors.password
-                        ? "border-destructive pr-10"
-                        : "pr-10"
-                    }
+                    className={` ${form.formState.errors.password ? "border-red-500" : ""}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-white"
                   >
                     {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="w-4 h-4" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </button>
                 </div>
                 {form.formState.errors.password && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-red-400 text-sm">
                     {form.formState.errors.password.message}
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Must be at least 8 characters with uppercase, lowercase, and
-                  numbers
-                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm password</Label>
+                <Label htmlFor="confirmPassword" className="">Confirm password</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm your password"
+                    placeholder="••••••••"
                     {...form.register("confirmPassword")}
-                    className={
-                      form.formState.errors.confirmPassword
-                        ? "border-destructive pr-10"
-                        : "pr-10"
-                    }
+                    className={` ${form.formState.errors.confirmPassword ? "border-red-500" : ""}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-white"
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="w-4 h-4" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="w-4 h-4" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </button>
                 </div>
                 {form.formState.errors.confirmPassword && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-red-400 text-sm">
                     {form.formState.errors.confirmPassword.message}
                   </p>
                 )}
@@ -497,44 +469,29 @@ function SignUpPageContent() {
 
               <Button
                 type="submit"
-                className="w-full h-11 font-medium"
+                className="w-full h-11 "
                 disabled={loading !== null}
               >
                 {loading === "email" ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    Creating account...
-                  </>
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <>
-                    <User className="w-5 h-5 mr-2" />
-                    Create account
-                  </>
+                  "Create account"
                 )}
               </Button>
             </form>
+          </div>
 
-            <div className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link
-                href="/login"
-                className="font-medium text-primary hover:underline"
-              >
-                Sign in
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="mt-8 text-center text-xs text-muted-foreground">
-          By creating an account, you agree to our{" "}
-          <Link href="/terms" className="hover:underline">
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" className="hover:underline">
-            Privacy Policy
-          </Link>
+          {/* Terms */}
+          <div className="mt-8 text-center text-xs text-muted-foreground dark:text-neutral-400">
+            By creating an account, you agree to our{" "}
+            <Link href="/terms" className="hover:text-primary dark:hover:text-blue-400">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="hover:text-primary dark:hover:text-blue-400">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       </div>
     </div>

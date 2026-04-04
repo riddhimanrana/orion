@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUser } from "@/hooks/use-user";
 import { Loading } from "@/components/ui/loading";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -247,26 +248,29 @@ export default function ActivityPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pt-8">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Activity Monitor</h1>
-            <p className="text-xl text-muted-foreground">
-              Track your visual perception API usage, sync history, and device
-              activity
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button variant="outline" size="sm">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
+    <>
+      <DashboardHeader />
+      <div className="flex flex-1 flex-col">
+        <div className="@container/main flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-2">Activity Monitor</h1>
+                <p className="text-xl text-muted-foreground">
+                  Track your visual perception API usage, sync history, and device
+                  activity
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+                <Button variant="outline" size="sm">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
           </div>
         </div>
 
@@ -814,7 +818,9 @@ export default function ActivityPage() {
             </Card>
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

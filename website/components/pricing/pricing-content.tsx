@@ -50,7 +50,7 @@ export function PricingContent() {
       ],
       cta: "Enable in Account",
       ctaVariant: "default" as const,
-      ctaLink: "/account",
+      ctaLink: "/dashboard/account",
     },
   ];
 

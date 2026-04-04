@@ -93,7 +93,7 @@ export async function unlinkOAuthProvider(provider: "google" | "github") {
     throw new Error(`Failed to unlink ${provider}: ${error.message}`);
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return { success: true };
 }
 
@@ -152,7 +152,7 @@ export async function changeUserEmail(newEmail: string) {
     }
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return {
     success: true,
     message:
@@ -191,7 +191,7 @@ export async function updateUserProfile(formData: FormData) {
     throw new Error(`Failed to update profile: ${error.message}`);
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return { success: true, message: "Profile updated successfully" };
 }
 
@@ -358,7 +358,7 @@ export async function setUserPassword(password: string) {
     console.warn("Could not refresh session:", refreshError.message);
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return { success: true, message: "Password set successfully" };
 }
 
@@ -433,7 +433,7 @@ export async function changeUserPassword(
     throw new Error(`Failed to update password: ${error.message}`);
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return { success: true, message: "Password updated successfully" };
 }
 
@@ -574,7 +574,7 @@ export async function updateProfilePicturePreference(
     );
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return { success: true, message: "Profile picture preference updated" };
 }
 
@@ -674,7 +674,7 @@ export async function toggleSubscriptionTier(): Promise<{
     throw new Error(`Failed to update subscription: ${error.message}`);
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   revalidatePath("/dashboard");
 
   return {
@@ -752,7 +752,7 @@ export async function revokeDevicePair(pairId: string) {
     throw new Error("Failed to revoke pair.");
   }
 
-  revalidatePath("/account");
+  revalidatePath("/dashboard/account");
   return { success: true };
 }
 
@@ -764,7 +764,7 @@ export async function revokeDevicePairForm(formData: FormData) {
 
   try {
     await revokeDevicePair(pairId);
-    revalidatePath("/account");
+    revalidatePath("/dashboard/account");
   } catch (error) {
     console.error("Failed to revoke pair:", error);
     throw error;

@@ -86,7 +86,7 @@ export async function updateSession(request: NextRequest) {
   const publicRoutes = ["/", "/pricing", "/features", "/get-started"];
 
   const authRoutes = ["/login", "/signup"];
-  const protectedRoutes = ["/dashboard", "/account", "/activity"];
+  const protectedRoutes = ["/dashboard"];
 
   const isExactMatch = (path: string, routes: string[]) => {
     return routes.includes(path);

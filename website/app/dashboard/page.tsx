@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@/hooks/use-user";
 import { useSubscription } from "@/hooks/use-subscription";
+import { DashboardHeader } from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import {
@@ -178,31 +179,29 @@ export default function DashboardPage() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-4xl font-bold mb-2 flex items-center gap-2 ">
-            {(() => {
-              const hour = new Date().getHours();
-              if (hour < 12) return "Good morning,";
-              if (hour < 18) return "Good afternoon,";
-              return "Good evening,";
-            })()}{" "}
-            {user?.user_metadata?.full_name?.split(" ")[0] || "user"}
-            {subscriptionTier === "pro" && (
-              <Crown className="h-8 w-8 text-amber-500" />
-            )}
-          </h2>
-          <p className="text-xl text-muted-foreground">
-            Manage your Orion Live account, devices, and subscription.
-            {/* {subscriptionTier === "pro" && (
-              <span className="ml-2 text-amber-600 font-medium">
-                Orion Pro Member
-              </span>
-            )} */}
-          </p>
-        </div>
+    <>
+      <DashboardHeader />
+      <div className="flex flex-1 flex-col">
+        <div className="@container/main flex flex-1 flex-col gap-2">
+          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 px-4 lg:px-6">
+            {/* Welcome Section */}
+            <div className="mb-8">
+              <h2 className="text-4xl font-bold mb-2 flex items-center gap-2">
+                {(() => {
+                  const hour = new Date().getHours();
+                  if (hour < 12) return "Good morning,";
+                  if (hour < 18) return "Good afternoon,";
+                  return "Good evening,";
+                })()}{" "}
+                {user?.user_metadata?.full_name?.split(" ")[0] || "user"}
+                {/* {subscriptionTier === "pro" && (
+                  <Crown className="h-8 w-8 text-amber-500" />
+                )} */}
+              </h2>
+              <p className="text-xl text-muted-foreground">
+                Manage your Orion Live account, devices, and subscription.
+              </p>
+            </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -597,7 +596,9 @@ export default function DashboardPage() {
             </Card>
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

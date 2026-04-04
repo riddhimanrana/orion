@@ -176,7 +176,7 @@ export default function GetStartedPage() {
                   connection.
                 </p>
                 <Button className="w-full" variant="outline" asChild>
-                  <Link href="/account">Go to Account</Link>
+                  <Link href="/dashboard/account">Go to Account</Link>
                 </Button>
               </CardContent>
             </Card>

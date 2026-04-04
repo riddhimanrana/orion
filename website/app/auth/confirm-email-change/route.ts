@@ -12,14 +12,14 @@ export async function GET(request: NextRequest) {
   // Handle error cases first
   if (error) {
     return NextResponse.redirect(
-      `${origin}/account/change-email-confirm?error=confirmation_failed&message=${encodeURIComponent(error)}`,
+      `${origin}/dashboard/account/change-email-confirm?error=confirmation_failed&message=${encodeURIComponent(error)}`,
     );
   }
 
   // Validate required parameters - either code or token_hash should be present
   if (!code && !token_hash) {
     return NextResponse.redirect(
-      `${origin}/account/change-email-confirm?error=invalid_link`,
+      `${origin}/dashboard/account/change-email-confirm?error=invalid_link`,
     );
   }
 
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       }
 
       return NextResponse.redirect(
-        `${origin}/account/change-email-confirm?error=${errorParam}&type=${type}`,
+        `${origin}/dashboard/account/change-email-confirm?error=${errorParam}&type=${type}`,
       );
     }
 
@@ -72,18 +72,18 @@ export async function GET(request: NextRequest) {
       // For email changes, we'll show a success message
       // The confirmation page will handle displaying the appropriate next steps
       return NextResponse.redirect(
-        `${origin}/account/change-email-confirm?success=email_confirmed&email=${encodedEmail}`,
+        `${origin}/dashboard/account/change-email-confirm?success=email_confirmed&email=${encodedEmail}`,
       );
     } else {
       // No user data, but no error - show generic success
       return NextResponse.redirect(
-        `${origin}/account/change-email-confirm?success=confirmation_processed`,
+        `${origin}/dashboard/account/change-email-confirm?success=confirmation_processed`,
       );
     }
   } catch (error) {
     console.error("Unexpected error during email change confirmation:", error);
     return NextResponse.redirect(
-      `${origin}/account/change-email-confirm?error=unexpected_error`,
+      `${origin}/dashboard/account/change-email-confirm?error=unexpected_error`,
     );
   }
 }

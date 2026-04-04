@@ -13,7 +13,7 @@ import {
   getDefaultProfilePictureSource,
   updateProfilePicturePreference,
   type ProfilePictureSource,
-} from "@/app/account/actions";
+} from "@/app/dashboard/account/actions";
 
 interface ProfilePictureSelectorProps {
   user: {

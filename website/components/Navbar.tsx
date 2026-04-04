@@ -16,6 +16,8 @@ import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { ModeToggle } from "./ThemeToggle";
 import { useUser } from "@/hooks/use-user";
+import { UserAvatar } from "@/components/UserAvatar";
+import { SiGithub } from "react-icons/si";
 
 interface NavigationProps {
   className?: string;
@@ -27,8 +29,8 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
   const pathname = usePathname();
 
   const isActive = (path: string) => {
-    if (path === '/') {
-      return pathname === '/';
+    if (path === "/") {
+      return pathname === "/";
     }
     return pathname.startsWith(path);
   };
@@ -40,7 +42,7 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
         className,
       )}
     >
-      <div className="w-full  mx-auto px-3 sm:px-4 lg:px-8">
+      <div className="w-full mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 min-w-0">
           {/* Logo - Left aligned */}
           <Link
@@ -70,9 +72,9 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     href="/"
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors",
-                      isActive('/') 
-                        ? "text-black dark:text-white font-semibold" 
-                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      isActive("/")
+                        ? "text-black dark:text-white font-semibold"
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white",
                     )}
                   >
                     Home
@@ -86,9 +88,9 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     href="/get-started"
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors",
-                      isActive('/get-started') 
-                        ? "text-black dark:text-white font-semibold" 
-                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      isActive("/get-started")
+                        ? "text-black dark:text-white font-semibold"
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white",
                     )}
                   >
                     Get Started
@@ -102,9 +104,9 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     href="/features"
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors",
-                      isActive('/features') 
-                        ? "text-black dark:text-white font-semibold" 
-                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      isActive("/features")
+                        ? "text-black dark:text-white font-semibold"
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white",
                     )}
                   >
                     Features
@@ -118,9 +120,9 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     href="/pricing"
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors",
-                      isActive('/pricing') 
-                        ? "text-black dark:text-white font-semibold" 
-                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      isActive("/pricing")
+                        ? "text-black dark:text-white font-semibold"
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white",
                     )}
                   >
                     Pricing
@@ -134,9 +136,9 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     href="/faq"
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors",
-                      isActive('/faq') 
-                        ? "text-black dark:text-white font-semibold" 
-                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      isActive("/faq")
+                        ? "text-black dark:text-white font-semibold"
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white",
                     )}
                   >
                     FAQ
@@ -150,55 +152,48 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                     href="/research"
                     className={cn(
                       "px-4 py-2 text-sm font-medium transition-colors",
-                      isActive('/research') 
-                        ? "text-black dark:text-white font-semibold" 
-                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                      isActive("/research")
+                        ? "text-black dark:text-white font-semibold"
+                        : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white",
                     )}
                   >
                     Research
                   </Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
-
-              {user && (
-                <NavigationMenuItem>
-                  <NavigationMenuLink asChild>
-                    <Link
-                      href="/dashboard"
-                      className={cn(
-                        "px-4 py-2 text-sm font-medium transition-colors",
-                        isActive('/dashboard') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
-                      )}
-                    >
-                      Dashboard
-                    </Link>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              )}
             </NavigationMenuList>
           </NavigationMenu>
 
           {/* Right side - Auth buttons and theme toggle */}
           <div className="hidden lg:flex items-center space-x-3">
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
-              >
-                Login
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button
-                size="sm"
-                className="bg-black dark:bg-white text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
-              >
-                Sign Up
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Link href="/dashboard">
+                  <Button size="sm" variant="secondary" className="text-sm">
+                    Continue to Dashboard
+                  </Button>
+                </Link>
+                <UserAvatar user={user} size="md" />
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-black/80 dark:text-white/80 hover:text-black dark:hover:text-white"
+                  >
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="https://github.com/riddhimanrana/orion">
+                  <Button size="sm" aria-label="View repository on GitHub">
+                    <SiGithub className="w-4 h-4" />
+                    <span>View on GitHub</span>
+                  </Button>
+                </Link>
+              </>
+            )}
             <ModeToggle />
           </div>
 
@@ -243,20 +238,70 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                 transition={{ duration: 0.3, delay: 0.1 }}
                 className="px-3 sm:px-4 py-6 space-y-6 w-full"
               >
-                {/* Navigation Links */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.12 }}
+                  className="space-y-3 pb-4 border-b border-black/10 dark:border-white/10"
+                >
+                  {user ? (
+                    <div className="flex items-center space-x-3 p-3 bg-black/5 dark:bg-white/5 rounded-lg">
+                      <UserAvatar user={user} size="md" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-black dark:text-white">
+                          {user.user_metadata?.full_name || user.email}
+                        </p>
+                        <Link href="/dashboard">
+                          <Button
+                            size="sm"
+                            className="w-full mt-2 bg-black dark:bg-white text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            Continue to Dashboard
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <Link href="/login">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="w-full mb-3 text-black dark:text-white border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 "
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Log in
+                        </Button>
+                      </Link>
+                      <Link href="https://github.com/riddhimanrana/orion">
+                        <Button
+                          size="lg"
+                          className="w-full bg-black dark:bg-white text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          <SiGithub />
+                          View on GitHub
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                </motion.div>
+
+                {/* Navigation Links (moved below auth) */}
                 <div className="space-y-4 w-full">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 }}
+                    transition={{ delay: 0.3 }}
                   >
                     <Link
                       href="/"
                       className={cn(
                         "block text-lg font-medium transition-colors",
-                        isActive('/') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        isActive("/")
+                          ? "text-black dark:text-white font-semibold"
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70",
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
@@ -267,15 +312,15 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.15 }}
+                    transition={{ delay: 0.35 }}
                   >
                     <Link
                       href="/get-started"
                       className={cn(
                         "block text-lg font-medium transition-colors",
-                        isActive('/get-started') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        isActive("/get-started")
+                          ? "text-black dark:text-white font-semibold"
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70",
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
@@ -286,15 +331,15 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.4 }}
                   >
                     <Link
                       href="/features"
                       className={cn(
                         "block text-lg font-medium transition-colors",
-                        isActive('/features') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        isActive("/features")
+                          ? "text-black dark:text-white font-semibold"
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70",
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
@@ -305,15 +350,15 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 }}
+                    transition={{ delay: 0.45 }}
                   >
                     <Link
                       href="/pricing"
                       className={cn(
                         "block text-lg font-medium transition-colors",
-                        isActive('/pricing') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        isActive("/pricing")
+                          ? "text-black dark:text-white font-semibold"
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70",
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
@@ -324,15 +369,15 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
+                    transition={{ delay: 0.5 }}
                   >
                     <Link
                       href="/faq"
                       className={cn(
                         "block text-lg font-medium transition-colors",
-                        isActive('/faq') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        isActive("/faq")
+                          ? "text-black dark:text-white font-semibold"
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70",
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
@@ -343,71 +388,22 @@ export const CleanNavigation = ({ className }: NavigationProps) => {
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.35 }}
+                    transition={{ delay: 0.55 }}
                   >
                     <Link
                       href="/research"
                       className={cn(
                         "block text-lg font-medium transition-colors",
-                        isActive('/research') 
-                          ? "text-black dark:text-white font-semibold" 
-                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
+                        isActive("/research")
+                          ? "text-black dark:text-white font-semibold"
+                          : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70",
                       )}
                       onClick={() => setMenuOpen(false)}
                     >
                       Research
                     </Link>
                   </motion.div>
-
-                  {user && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 }}
-                    >
-                      <Link
-                        href="/dashboard"
-                        className={cn(
-                          "block text-lg font-medium transition-colors",
-                          isActive('/dashboard') 
-                            ? "text-black dark:text-white font-semibold" 
-                            : "text-black dark:text-white hover:text-black/70 dark:hover:text-white/70"
-                        )}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                    </motion.div>
-                  )}
                 </div>
-
-                {/* Auth Buttons */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="space-y-3 pt-4 border-t border-black/10 dark:border-white/10"
-                >
-                  <Link href="/login">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="w-full mb-3 text-black dark:text-white border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 "
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Login
-                    </Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button
-                      size="lg"
-                      className="w-full bg-black dark:bg-white text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Button>
-                  </Link>
-                </motion.div>
               </motion.div>
             </motion.div>
           )}

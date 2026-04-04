@@ -19,7 +19,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { changeUserEmail } from "@/app/account/actions";
+import { changeUserEmail } from "@/app/dashboard/account/actions";
 import { useRouter } from "next/navigation";
 
 interface EmailChangeFormProps {
@@ -153,7 +153,7 @@ export default function EmailChangeForm({
         });
 
         // Redirect to confirmation page
-        router.push("/account/change-email-confirm");
+        router.push("/dashboard/account/change-email-confirm");
       }
     } catch (error) {
       const errorMessage =

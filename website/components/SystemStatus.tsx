@@ -65,7 +65,7 @@ export const SystemStatus = ({ className }: SystemStatusProps) => {
   };
 
   const config = getStatusConfig();
-  const StatusIcon = config.icon;
+  // const StatusIcon = config.icon;
 
   return (
     <a
