@@ -75,20 +75,31 @@ async function main() {
   console.log(`Service: ${service.name} (${service.id})`);
   console.log(`Plan: ${service.plan || "unknown"}`);
 
-  const createArgs = ["deploys", "create", service.id];
+  const createArgs = ["deploys", "create", service.id, "--confirm"];
   if (CLEAR_CACHE) createArgs.push("--clear-cache");
 
-  const deploy = runRender(createArgs, { json: true });
-  console.log(`Created deploy: ${deploy.id}`);
-  console.log(`Initial status: ${deploy.status}`);
-  if (deploy.deploy?.livePreview) {
-    console.log(`Live preview: ${deploy.deploy.livePreview}`);
+  if (WAIT_FOR_COMPLETION) {
+    createArgs.push("--wait");
+  }
+
+  const createOut = runRender(createArgs, { json: false });
+  if (String(createOut || "").trim().length > 0) {
+    console.log(String(createOut).trim());
   }
 
   if (!WAIT_FOR_COMPLETION) {
     console.log("Skipping wait (RENDER_WAIT_FOR_COMPLETION=false)");
     return;
   }
+
+  const initialDeploys = runRender(["deploys", "list", service.id], { json: true });
+  const deploy = Array.isArray(initialDeploys) ? initialDeploys[0] : null;
+  if (!deploy) {
+    throw new Error("Could not resolve latest deploy after create");
+  }
+
+  console.log(`Latest deploy: ${deploy.id}`);
+  console.log(`Status: ${deploy.status}`);
 
   const start = Date.now();
   while (Date.now() - start < MAX_WAIT_MS) {
