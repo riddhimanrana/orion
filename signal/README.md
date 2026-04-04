@@ -51,11 +51,52 @@ Run a full auth + connectivity diagnostic against deployed services:
 npm run verify:connections
 ```
 
+The diagnostics script validates:
+
+- `GET /health`
+- auth guards on `GET /v1/ice`, `GET /v1/diag`, `GET /v1/account-usage`
+- authenticated checks (when `SIGNAL_BEARER_TOKEN` is provided)
+
 Optional environment variables:
 
 - `SIGNAL_BASE_URL` (default: `https://signal.orionlive.ai`)
 - `ORION_API_BASE_URL` (default: `https://orionlive.ai`)
-- `SIGNAL_BEARER_TOKEN` (enables authenticated `/v1/ice` + `/v1/diag` checks)
+- `SIGNAL_BEARER_TOKEN` (enables authenticated `/v1/ice` + `/v1/diag` + `/v1/account-usage` checks)
 - `RENDER_API_KEY` + `RENDER_SERVICE_ID` (enables Render API status check)
+
+## Render deploy + status
+
+Deploy the signal service with Render CLI and wait for completion:
+
+```bash
+npm run render:deploy
+```
+
+Show workspace/service/deploy status plus signal API usage snapshot:
+
+```bash
+npm run render:status
+```
+
+Optional environment variables:
+
+- `RENDER_SERVICE_ID` (preferred)
+- `RENDER_SERVICE_NAME` (default: `Orion Signal Server`)
+- `RENDER_WAIT_FOR_COMPLETION` (`true` by default)
+- `RENDER_DEPLOY_CLEAR_CACHE` (`false` by default)
+
+## Account usage + cost estimate endpoint
+
+Authenticated endpoint:
+
+- `GET /v1/account-usage`
+
+This returns per-user signaling usage counters and estimated cost from process-lifetime counters.
+
+Pricing env vars (optional):
+
+- `BILLING_RELAY_GB_USD` (default `0.12`)
+- `BILLING_ICE_REQUEST_USD` (default `0.002`)
+- `BILLING_CONNECTION_MIN_USD` (default `0.0005`)
 
 The server will start on `ws://localhost:3001` by default.

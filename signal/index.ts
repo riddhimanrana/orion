@@ -28,6 +28,15 @@ const ICE_RATE_WINDOW_SEC = process.env.ICE_RATE_WINDOW_SEC
 const ICE_RATE_MAX = process.env.ICE_RATE_MAX
   ? parseInt(process.env.ICE_RATE_MAX, 10)
   : 20;
+const BILLING_RELAY_GB_USD = process.env.BILLING_RELAY_GB_USD
+  ? parseFloat(process.env.BILLING_RELAY_GB_USD)
+  : 0.12;
+const BILLING_ICE_REQUEST_USD = process.env.BILLING_ICE_REQUEST_USD
+  ? parseFloat(process.env.BILLING_ICE_REQUEST_USD)
+  : 0.002;
+const BILLING_CONNECTION_MIN_USD = process.env.BILLING_CONNECTION_MIN_USD
+  ? parseFloat(process.env.BILLING_CONNECTION_MIN_USD)
+  : 0.0005;
 
 if (!JWT_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing required environment variables");
@@ -56,16 +65,28 @@ type PairPacketStats = {
   lastRelayAt: number | null;
 };
 
+type UserUsageStats = {
+  packetsRelayed: number;
+  relayedByType: Record<PacketType, number>;
+  bytesRelayed: number;
+  iceIssued: number;
+  connectionsStarted: number;
+  connectionMs: number;
+  lastSeenAt: number | null;
+};
+
 interface ClientMeta {
   userId: string;
   pairId: string;
   deviceId: string;
+  connectedAtMs: number;
 }
 
 // --- In-memory state ---
 const rooms = new Map<string, WebSocket[]>();
 const serverStartedAtMs = Date.now();
 const packetStatsByPair = new Map<string, PairPacketStats>();
+const usageByUser = new Map<string, UserUsageStats>();
 const iceRateState = new Map<string, { windowStart: number; count: number }>();
 
 function ensurePairStats(pairId: string): PairPacketStats {
@@ -115,6 +136,53 @@ function aggregatePacketStats() {
   }
 
   return { totals, bytesRelayed, pairCount };
+}
+
+function ensureUserUsage(userId: string): UserUsageStats {
+  let usage = usageByUser.get(userId);
+  if (!usage) {
+    usage = {
+      packetsRelayed: 0,
+      relayedByType: {
+        offer: 0,
+        answer: 0,
+        ice: 0,
+        bye: 0,
+        mode: 0,
+      },
+      bytesRelayed: 0,
+      iceIssued: 0,
+      connectionsStarted: 0,
+      connectionMs: 0,
+      lastSeenAt: null,
+    };
+    usageByUser.set(userId, usage);
+  }
+  return usage;
+}
+
+function buildCostEstimate(usage: UserUsageStats) {
+  const relayGb = usage.bytesRelayed / 1024 ** 3;
+  const relayCostUsd = relayGb * BILLING_RELAY_GB_USD;
+  const iceCostUsd = usage.iceIssued * BILLING_ICE_REQUEST_USD;
+  const connectionMinutes = usage.connectionMs / 60_000;
+  const connectionCostUsd = connectionMinutes * BILLING_CONNECTION_MIN_USD;
+  const totalUsd = relayCostUsd + iceCostUsd + connectionCostUsd;
+
+  return {
+    relayGb,
+    connectionMinutes,
+    relayCostUsd,
+    iceCostUsd,
+    connectionCostUsd,
+    totalUsd,
+    rates: {
+      relayGbUsd: BILLING_RELAY_GB_USD,
+      iceRequestUsd: BILLING_ICE_REQUEST_USD,
+      connectionMinuteUsd: BILLING_CONNECTION_MIN_USD,
+    },
+    note: "Estimated signaling cost from process-lifetime usage counters.",
+  };
 }
 
 function wsMeta(ws: WebSocket): ClientMeta | undefined {
@@ -270,6 +338,90 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (path === "/v1/account-usage") {
+    try {
+      const authHeader = req.headers["authorization"] || "";
+      let token: string | undefined;
+      if (authHeader.toLowerCase().startsWith("bearer ")) {
+        token = authHeader.slice(7).trim();
+      } else if (parsed.searchParams.get("token")) {
+        token = parsed.searchParams.get("token") || undefined;
+      }
+
+      if (!token) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing token" }));
+        return;
+      }
+
+      const payload = jwt.verify(token, JWT_SECRET!);
+      if (typeof payload === "string") throw new Error("Invalid token payload");
+
+      const { pairId, deviceId, userId } = payload as {
+        pairId: string;
+        deviceId: string;
+        userId: string;
+      };
+
+      if (!pairId || !deviceId || !userId) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid token claims" }));
+        return;
+      }
+
+      const { data: pair, error } = await supabase
+        .from("device_pairs")
+        .select("id, status, user_id, device_a_id, device_b_id")
+        .eq("id", pairId)
+        .single();
+
+      if (error || !pair) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid pair" }));
+        return;
+      }
+
+      if (pair.user_id !== userId) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Unauthorized pair" }));
+        return;
+      }
+
+      const usage = ensureUserUsage(userId);
+      const pairStats = ensurePairStats(pairId);
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          authenticated: true,
+          userId,
+          pairId,
+          usage: {
+            packetsRelayed: usage.packetsRelayed,
+            relayedByType: usage.relayedByType,
+            bytesRelayed: usage.bytesRelayed,
+            iceIssued: usage.iceIssued,
+            connectionsStarted: usage.connectionsStarted,
+            connectionMs: usage.connectionMs,
+            lastSeenAt: usage.lastSeenAt,
+          },
+          pairTransfer: {
+            byType: pairStats.relayedByType,
+            bytesRelayed: pairStats.bytesRelayed,
+            lastRelayAt: pairStats.lastRelayAt,
+          },
+          estimatedCostUsd: buildCostEstimate(usage),
+        }),
+      );
+      return;
+    } catch (err) {
+      console.error("/v1/account-usage auth error:", err);
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Unauthorized" }));
+      return;
+    }
+  }
+
   if (path === "/v1/ice") {
     try {
       const authHeader = req.headers["authorization"] || "";
@@ -351,6 +503,9 @@ const server = http.createServer(async (req, res) => {
       const user = `${userId}:${pairId}:${deviceId}`;
       const { username, credential } = makeTurnCredentials(user, TURN_TTL);
       const now = Math.floor(Date.now() / 1000);
+      const userUsage = ensureUserUsage(userId);
+      userUsage.iceIssued += 1;
+      userUsage.lastSeenAt = Date.now();
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
@@ -435,7 +590,7 @@ server.on("upgrade", async (req: IncomingMessage, socket, head) => {
     if (!isMember) return rejectUpgrade(socket, 403, "Forbidden");
 
     wss.handleUpgrade(req, socket as any, head, (ws) => {
-      setWsMeta(ws, { userId, pairId, deviceId });
+      setWsMeta(ws, { userId, pairId, deviceId, connectedAtMs: Date.now() });
       wss.emit("connection", ws, req);
     });
   } catch {
@@ -446,6 +601,9 @@ server.on("upgrade", async (req: IncomingMessage, socket, head) => {
 wss.on("connection", (ws) => {
   const meta = wsMeta(ws)!;
   const { userId, pairId, deviceId } = meta;
+  const userUsage = ensureUserUsage(userId);
+  userUsage.connectionsStarted += 1;
+  userUsage.lastSeenAt = Date.now();
 
   if (!rooms.has(pairId)) rooms.set(pairId, []);
   const clients = rooms.get(pairId)!;
@@ -514,8 +672,14 @@ wss.on("connection", (ws) => {
       const stats = ensurePairStats(pairId);
       const typed = parsedMessage.t as PacketType;
       stats.relayedByType[typed] += 1;
-      stats.bytesRelayed += Buffer.byteLength(message.toString(), "utf8");
+      const relayedBytes = Buffer.byteLength(message.toString(), "utf8");
+      stats.bytesRelayed += relayedBytes;
       stats.lastRelayAt = Date.now();
+
+      userUsage.packetsRelayed += 1;
+      userUsage.relayedByType[typed] += 1;
+      userUsage.bytesRelayed += relayedBytes;
+      userUsage.lastSeenAt = Date.now();
 
       if (parsedMessage.t === "bye") {
         roomClients.forEach((client) => {
@@ -534,6 +698,11 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log(`Device ${deviceId} disconnected from room ${pairId}`);
+    const connectedAt = meta.connectedAtMs || Date.now();
+    const durationMs = Math.max(0, Date.now() - connectedAt);
+    userUsage.connectionMs += durationMs;
+    userUsage.lastSeenAt = Date.now();
+
     const roomClients = rooms.get(pairId);
     if (roomClients) {
       const updatedClients = roomClients.filter((client) => client !== ws);

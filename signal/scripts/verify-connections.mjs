@@ -9,7 +9,7 @@
  * Optional env vars:
  *   SIGNAL_BASE_URL=https://signal.orionlive.ai
  *   ORION_API_BASE_URL=https://orionlive.ai
- *   SIGNAL_BEARER_TOKEN=<jwt>              # enables authenticated /v1/ice and /v1/diag checks
+ *   SIGNAL_BEARER_TOKEN=<jwt>              # enables authenticated /v1/ice, /v1/diag, /v1/account-usage checks
  *   RENDER_API_KEY=<render token>          # enables Render API check
  *   RENDER_SERVICE_ID=<render service id>  # required with RENDER_API_KEY
  */
@@ -54,21 +54,24 @@ async function checkSignalHealth() {
 async function checkUnauthenticatedProtection() {
   const ice = await jsonFetch(`${SIGNAL_BASE_URL}/v1/ice`);
   const diag = await jsonFetch(`${SIGNAL_BASE_URL}/v1/diag`);
+  const accountUsage = await jsonFetch(`${SIGNAL_BASE_URL}/v1/account-usage`);
 
   const iceOk = ice.res.status === 401;
   const diagOk = diag.res.status === 401;
+  const usageOk = accountUsage.res.status === 401;
 
   printResult("/v1/ice requires auth", iceOk, `status=${ice.res.status}`);
   printResult("/v1/diag requires auth", diagOk, `status=${diag.res.status}`);
+  printResult("/v1/account-usage requires auth", usageOk, `status=${accountUsage.res.status}`);
 
-  if (!iceOk || !diagOk) {
+  if (!iceOk || !diagOk || !usageOk) {
     throw new Error("Auth guard check failed for one or more signal endpoints");
   }
 }
 
 async function checkAuthenticatedEndpoints() {
   if (!SIGNAL_BEARER_TOKEN) {
-    console.log("ℹ️ Skipping authenticated /v1/ice and /v1/diag checks (SIGNAL_BEARER_TOKEN not set)");
+    console.log("ℹ️ Skipping authenticated /v1/ice, /v1/diag, /v1/account-usage checks (SIGNAL_BEARER_TOKEN not set)");
     return;
   }
 
@@ -79,14 +82,24 @@ async function checkAuthenticatedEndpoints() {
 
   const ice = await jsonFetch(`${SIGNAL_BASE_URL}/v1/ice`, { headers });
   const diag = await jsonFetch(`${SIGNAL_BASE_URL}/v1/diag`, { headers });
+  const accountUsage = await jsonFetch(`${SIGNAL_BASE_URL}/v1/account-usage`, { headers });
 
   const iceOk = ice.res.status === 200 && Array.isArray(ice.body?.urls);
   const diagOk = diag.res.status === 200 && diag.body?.authenticated === true;
+  const usageOk =
+    accountUsage.res.status === 200 &&
+    accountUsage.body?.authenticated === true &&
+    accountUsage.body?.estimatedCostUsd?.totalUsd !== undefined;
 
   printResult("Authenticated /v1/ice", iceOk, `status=${ice.res.status}`);
   printResult("Authenticated /v1/diag", diagOk, `status=${diag.res.status}, roomClients=${diag.body?.room?.connectedClients ?? "?"}`);
+  printResult(
+    "Authenticated /v1/account-usage",
+    usageOk,
+    `status=${accountUsage.res.status}, estUsd=${accountUsage.body?.estimatedCostUsd?.totalUsd ?? "?"}`,
+  );
 
-  if (!iceOk || !diagOk) {
+  if (!iceOk || !diagOk || !usageOk) {
     throw new Error("Authenticated endpoint check failed");
   }
 }

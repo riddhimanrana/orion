@@ -5,9 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "bun --watch index.ts",
-    "build": "tsc",
+    "build": "npm exec -- tsc",
     "start": "node dist/index.js",
-    "verify:connections": "node ./scripts/verify-connections.mjs"
+    "verify:connections": "node ./scripts/verify-connections.mjs",
+    "render:deploy": "node ./scripts/render-deploy.mjs",
+    "render:status": "node ./scripts/render-status.mjs"
   },
   "dependencies": {
     "jsonwebtoken": "^9.0.2",
