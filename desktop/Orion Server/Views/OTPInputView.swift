@@ -32,7 +32,7 @@ struct OTPInputView: View {
                                 .stroke(focusedField == 0 && index == code.count ? Color.accentColor : Color.gray.opacity(0.5), lineWidth: 2)
                                 .frame(width: 40, height: 50)
                                 .background(Color(NSColor.controlBackgroundColor))
-                            
+
                             if index < code.count {
                                 let charIndex = code.index(code.startIndex, offsetBy: index)
                                 Text(String(code[charIndex]))

@@ -16,7 +16,7 @@ struct MainDashboard: View {
     @EnvironmentObject var webRTCManager: WebRTCManager
     @EnvironmentObject var signalingClient: SignalingClient
     @EnvironmentObject var userViewModel: UserProfileViewModel
-    
+
     @State private var remoteVideoTrack: RTCVideoTrack?
 
     var body: some View {
@@ -25,7 +25,8 @@ struct MainDashboard: View {
             VStack {
                 if let track = remoteVideoTrack {
                     RTCVideoView(videoTrack: track)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(NSColor.windowBackgroundColor))
+                        .clipped()
                 } else {
                     ZStack {
                         Color(NSColor.windowBackgroundColor)
@@ -34,7 +35,7 @@ struct MainDashboard: View {
                     }
                 }
             }
-            .frame(minWidth: 500, idealWidth: 800, maxWidth: .infinity)
+            .frame(minWidth: 500, idealWidth: 800, maxWidth: .infinity, maxHeight: .infinity)
 
             // Sidebar: Status and controls
             SidebarView()
@@ -55,22 +56,29 @@ struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             // User Profile Section
-            HStack {
+            HStack(spacing: 12) {
                 MonogramAvatar(initials: userViewModel.getInitials(from: userViewModel.fullName))
                     .frame(width: 40, height: 40)
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(userViewModel.fullName).font(.headline)
                     Text(userViewModel.email).font(.caption).foregroundColor(.secondary)
                 }
             }
-            
+
             // Connection Status Section
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Connection Status").font(.headline).padding(.bottom, 5)
                 StatusRow(label: "Signaling", status: signalingClient.connectionState.description, color: signalingStatusColor)
                 StatusRow(label: "WebRTC", status: webRTCStatusString, color: webRTCStatusColor)
+                StatusRow(label: "ICE Mode", status: webRTCManager.iceStatus.usingTURN ? "TURN (relay)" : "STUN/Direct", color: webRTCManager.iceStatus.usingTURN ? .orange : .gray)
+                StatusRow(label: "ICE Types", status: "L: \(webRTCManager.iceStatus.localType) • R: \(webRTCManager.iceStatus.remoteType) • \(webRTCManager.iceStatus.transport)", color: .gray)
+                if let ttl = webRTCManager.ephemeralTTLRemaining {
+                    StatusRow(label: "ICE Creds", status: "Ephemeral (\(ttl)s)", color: ttl > 30 ? .green : .yellow)
+                }
+                StatusRow(label: "DataChannel", status: dataChannelStateText, color: dataChannelStatusColor)
+                StatusRow(label: "Ping RTT", status: pingRTTText, color: .blue)
             }
-            
+
             // Logs Section
             VStack(alignment: .leading) {
                 Text("Logs").font(.headline).padding(.bottom, 5)
@@ -84,17 +92,18 @@ struct SidebarView: View {
                 .background(Color(NSColor.textBackgroundColor))
                 .cornerRadius(8)
             }
-            
+
             Spacer()
         }
         .padding()
     }
-    
+
+    // MARK: - Sidebar helpers
     private var signalingStatusColor: Color {
         switch signalingClient.connectionState {
-        case .connected: .green
-        case .connecting: .yellow
-        case .disconnected: .red
+        case .connected: return .green
+        case .connecting: return .yellow
+        case .disconnected: return .red
         }
     }
 
@@ -114,12 +123,26 @@ struct SidebarView: View {
 
     private var webRTCStatusColor: Color {
         switch webRTCManager.connectionState {
-        case .connected, .completed: .green
-        case .checking: .yellow
-        case .new, .disconnected, .failed, .closed, .count: .red
-        @unknown default:
-            .gray
+        case .connected, .completed: return .green
+        case .checking: return .yellow
+        case .new, .disconnected, .failed, .closed, .count: return .red
+        @unknown default: return .gray
         }
+    }
+
+    private var dataChannelStateText: String {
+        // Placeholder until WebRTCManager exposes a compatible property
+        return "N/A"
+    }
+
+    private var dataChannelStatusColor: Color {
+        // Placeholder color until WebRTCManager exposes a compatible property
+        return .gray
+    }
+
+    private var pingRTTText: String {
+        // Placeholder until WebRTCManager exposes a compatible property
+        return "N/A"
     }
 }
 
@@ -131,56 +154,47 @@ struct StatusRow: View {
 
     var body: some View {
         HStack {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
             Text(label)
+                .font(.subheadline)
             Spacer()
-            HStack(spacing: 5) {
-                Circle().fill(color).frame(width: 8, height: 8)
-                Text(status)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.2))
-            .cornerRadius(8)
+            Text(status)
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-    }
-}
-
-// MARK: - WebRTC Video View Representable
-struct RTCVideoView: NSViewRepresentable {
-    var videoTrack: RTCVideoTrack
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.black.cgColor
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        // Note: RTCMTLVideoView might not be available in all WebRTC versions
-        // This is a placeholder implementation
-        // You may need to implement custom video rendering or use RTCEAGLVideoView equivalent
     }
 }
 
 // MARK: - Monogram Avatar
 struct MonogramAvatar: View {
     let initials: String
-    
+
     var body: some View {
         ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.blue, Color.purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            
+            Circle().fill(Color.accentColor.opacity(0.15))
             Text(initials)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white)
+                .font(.headline)
+                .foregroundColor(.accentColor)
         }
+        .aspectRatio(1, contentMode: .fit)
+    }
+}
+
+// MARK: - RTCVideoView (macOS)
+/// A simple NSViewRepresentable that renders an RTCVideoTrack using RTCMTLNSVideoView.
+struct RTCVideoView: NSViewRepresentable {
+    let videoTrack: RTCVideoTrack
+
+    func makeNSView(context: Context) -> RTCMTLNSVideoView {
+        let view = RTCMTLNSVideoView(frame: .zero)
+        return view
+    }
+
+    func updateNSView(_ nsView: RTCMTLNSVideoView, context: Context) {
+        // Remove any previous renderer before adding again to avoid duplicates
+        videoTrack.remove(nsView)
+        videoTrack.add(nsView)
     }
 }

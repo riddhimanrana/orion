@@ -14,10 +14,10 @@ struct SettingsWindow: View {
     @EnvironmentObject var deviceManager: DeviceManager
     @EnvironmentObject var webRTCManager: WebRTCManager
     @EnvironmentObject var signalingClient: SignalingClient
-    
+
     // State for app controls
     @State private var showInMenuBar = "When App is Running"
-    
+
     // State to control the logout confirmation alert
     @State private var showingLogoutAlert = false
     @State private var showingPairingSheet = false
@@ -80,15 +80,15 @@ struct SettingsWindow: View {
                                         .foregroundColor(.red)
                                     }
                                     .padding(12)
-                                    
+
                                     if pair.id != deviceManager.pairedDevices.last?.id {
                                         Divider().padding(.leading, 44)
                                     }
                                 }
                             }
-                            
+
                             Divider()
-                            
+
                             SettingsButtonRow(icon: "link", title: "Pair a New Device") {
                                 showingPairingSheet = true
                             }
@@ -160,7 +160,7 @@ struct SettingsWindow: View {
                             print("Checking for updates...")
                         }
                     }
-                    
+
                     // The Log Out button is in its own section for consistent spacing.
                     SettingsSection {
                         SettingsButtonRow(icon: "rectangle.portrait.and.arrow.right", title: "Log Out", role: .destructive) {
@@ -240,7 +240,7 @@ struct SettingsSection<Content: View>: View {
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
             }
-            
+
             VStack(spacing: 0, content: content)
                 .background(Color(NSColor.controlBackgroundColor))
                 .cornerRadius(10)
@@ -299,12 +299,12 @@ struct SettingsPickerRow<T: Hashable & CustomStringConvertible>: View {
                 .font(.callout)
                 .foregroundColor(.secondary)
                 .frame(width: 20, alignment: .center)
-            
+
             Text(title)
                 .font(.system(size: 13))
-            
+
             Spacer()
-            
+
             Picker("", selection: $selection) {
                 ForEach(options, id: \.self) { option in
                     Text(option.description).tag(option)
@@ -330,9 +330,9 @@ struct SettingsButtonRow: View {
                 Image(systemName: icon)
                     .font(.callout)
                     .frame(width: 20, alignment: .center)
-                
+
                 Text(title)
-                
+
                 Spacer()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -349,7 +349,7 @@ struct SettingsLinkRow: View {
     let title: String
     let subtitle: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {

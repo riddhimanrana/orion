@@ -15,6 +15,7 @@ protocol SignalingClientDelegate: AnyObject {
     func signalingClientDidDisconnect(_ client: SignalingClient)
     func signalingClient(_ client: SignalingClient, didReceiveRemoteSdp sdp: RTCSessionDescription)
     func signalingClient(_ client: SignalingClient, didReceiveCandidate candidate: RTCIceCandidate)
+    func signalingClient(_ client: SignalingClient, didReceiveProcessingMode mode: String)
     func signalingClient(_ client: SignalingClient, didEncounterError error: Error)
 }
 
@@ -22,7 +23,7 @@ enum ConnectionStatus: String, CustomStringConvertible {
     case disconnected
     case connecting
     case connected
-    
+
     var description: String {
         self.rawValue.capitalized
     }
@@ -42,23 +43,45 @@ private struct IceCandidatePayload: Codable {
     let sdpMid: String?
 }
 
+private struct ProcessingModeMessage: Codable {
+    let t: String // "mode"
+    let pairId: String
+    let mode: String // "server" or "hybrid"
+    
+    enum CodingKeys: String, CodingKey {
+        case t, mode
+        case pairId = "pairId"
+    }
+}
+
 // MARK: - Signaling Client
 @MainActor
 class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
     @Published var connectionState: ConnectionStatus = .disconnected
     weak var delegate: SignalingClientDelegate?
-    
+
     private var webSocket: URLSessionWebSocketTask?
     private let serverURL = URL(string: "wss://signal.orionlive.ai")!
     private let apiService: APIService
     private let deviceManager: DeviceManager
     private var pairId: String?
+    private lazy var urlSession: URLSession = {
+        // Use a dedicated URLSession so delegate callbacks fire properly
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+    }()
 
     init(apiService: APIService, deviceManager: DeviceManager) {
         self.apiService = apiService
         self.deviceManager = deviceManager
         super.init()
     }
+
+    // Internal accessors for WebRTC setup
+    func webrtcDeviceId() -> String? { deviceManager.deviceId }
+    func webrtcAPI() -> APIService { apiService }
 
     func connect() {
         guard connectionState == .disconnected, let deviceId = deviceManager.deviceId else {
@@ -67,19 +90,31 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
         }
         print("SignalingClient: Connecting...")
         self.connectionState = .connecting
-        
+
         Task {
             do {
+                print("SignalingClient: Fetching WebRTC token…")
                 let token = try await apiService.fetchWebRTCToken(deviceId: deviceId)
+                print("SignalingClient: Got token (len=\(token.count)). Decoding pairId…")
                 self.pairId = try decodePairId(from: token)
+                print("SignalingClient: pairId=\(self.pairId ?? "nil")")
                 
-                let urlRequest = URLRequest(url: URL(string: "\(serverURL.absoluteString)?token=\(token)")!)
-                
-                webSocket = URLSession.shared.webSocketTask(with: urlRequest)
-                webSocket?.delegate = self
+                // Build URL safely with query items to avoid invalid URL crashes
+                var comps = URLComponents(url: serverURL, resolvingAgainstBaseURL: false)
+                comps?.queryItems = [URLQueryItem(name: "token", value: token)]
+                guard let wsURL = comps?.url else {
+                    throw NSError(domain: "SignalingClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to construct signaling URL"])
+                }
+
+                let urlRequest = URLRequest(url: wsURL)
+
+                webSocket = urlSession.webSocketTask(with: urlRequest)
+                print("SignalingClient: Opening WebSocket to \(wsURL.absoluteString)…")
                 webSocket?.resume()
+                print("SignalingClient: WebSocket task resumed.")
                 listenForMessages()
             } catch {
+                print("SignalingClient: connect() error: \(error)")
                 handleError(error)
             }
         }
@@ -91,7 +126,7 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
         webSocket = nil
         self.connectionState = .disconnected
     }
-    
+
     func sendSdp(_ sdp: RTCSessionDescription) {
         let sdpType = RTCSessionDescription.string(for: sdp.type)
         let message = SignalingMessage(t: sdpType, pairId: self.pairId ?? "", sdp: sdp.sdp, ice: nil)
@@ -126,7 +161,7 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
         webSocket?.receive { [weak self] result in
             Task { @MainActor in
                 guard let self = self else { return }
-                
+
                 switch result {
                 case .success(let message):
                     self.handleMessage(message)
@@ -137,21 +172,21 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
             }
         }
     }
-    
+
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) {
         guard let data = message.data else { return }
-        
-        do {
-            let decodedMessage = try JSONDecoder().decode(SignalingMessage.self, from: data)
+
+        // First try to decode as a standard SignalingMessage
+        if let decodedMessage = try? JSONDecoder().decode(SignalingMessage.self, from: data) {
             guard decodedMessage.pairId == self.pairId else { return }
-            
+
             switch decodedMessage.t {
             case "offer", "answer":
                 guard let sdpString = decodedMessage.sdp else { return }
                 let sdpType = RTCSessionDescription.type(for: decodedMessage.t)
                 let sdp = RTCSessionDescription(type: sdpType, sdp: sdpString)
                 self.delegate?.signalingClient(self, didReceiveRemoteSdp: sdp)
-                
+
             case "ice":
                 guard let ice = decodedMessage.ice else { return }
                 let candidate = RTCIceCandidate(sdp: ice.candidate, sdpMLineIndex: ice.sdpMLineIndex, sdpMid: ice.sdpMid)
@@ -160,24 +195,30 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
             default:
                 break
             }
-        } catch {
-            handleError(error)
+        }
+        // Try to decode as a ProcessingModeMessage
+        else if let modeMessage = try? JSONDecoder().decode(ProcessingModeMessage.self, from: data) {
+            guard modeMessage.pairId == self.pairId else { return }
+            
+            if modeMessage.t == "mode" {
+                self.delegate?.signalingClient(self, didReceiveProcessingMode: modeMessage.mode)
+            }
         }
     }
-    
+
     private func handleError(_ error: Error) {
         print("SignalingClient Error: \(error.localizedDescription)")
         self.connectionState = .disconnected
         delegate?.signalingClient(self, didEncounterError: error)
     }
-    
+
     private func decodePairId(from jwt: String) throws -> String {
         let components = jwt.split(separator: ".")
         guard components.count == 3 else { throw NSError(domain: "JWTError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid token structure"]) }
-        
+
         var base64String = String(components[1])
         base64String = base64String.padding(toLength: ((base64String.count+3)/4)*4, withPad: "=", startingAt: 0)
-        
+
         guard let payloadData = Data(base64Encoded: base64String) else {
             throw NSError(domain: "JWTError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid base64 in token payload"])
         }
@@ -188,7 +229,7 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
         }
         throw NSError(domain: "JWTError", code: 3, userInfo: [NSLocalizedDescriptionKey: "pairId not found in token"])
     }
-    
+
     // MARK: - URLSessionWebSocketDelegate
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
         Task { @MainActor in
@@ -197,7 +238,7 @@ class SignalingClient: NSObject, URLSessionWebSocketDelegate, ObservableObject {
             self.delegate?.signalingClientDidConnect(self)
         }
     }
-    
+
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task { @MainActor in
             print("SignalingClient: WebSocket disconnected.")

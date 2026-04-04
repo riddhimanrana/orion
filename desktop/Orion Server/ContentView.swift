@@ -9,26 +9,26 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.colorScheme) var colorScheme
-    
+
     var body: some View {
         VStack(spacing: 40) {
             Spacer()
-            
+
             // Main title and tagline
             VStack(spacing: 16) {
                 Text("Orion Server")
                     .font(.system(size: 48, weight: .bold, design: .default))
                     .foregroundColor(colorScheme == .dark ? .white : .black)
-                
+
                 Text("Real-time visual intelligence\nat speed.")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
-            
+
             Spacer()
-            
+
             // Auth buttons
             VStack(spacing: 16) {
                 // Continue with Google
@@ -55,7 +55,7 @@ struct ContentView: View {
                 .onHover { isHovered in
                     // Add hover effect if needed
                 }
-                
+
                 // Continue with GitHub
                 Button(action: {
                     // TODO: Implement GitHub auth
@@ -73,7 +73,7 @@ struct ContentView: View {
                     .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
-                
+
                 // Sign Up
                 Button(action: {
                     // TODO: Implement sign up
@@ -86,7 +86,7 @@ struct ContentView: View {
                         .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
-                
+
                 // Log In
                 Button(action: {
                     // TODO: Implement log in
@@ -100,7 +100,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

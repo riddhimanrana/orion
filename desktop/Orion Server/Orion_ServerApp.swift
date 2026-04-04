@@ -24,7 +24,7 @@ class P2PManagers: ObservableObject {
     func connect() {
         webRTCManager.connect()
     }
-    
+
     func disconnect() {
         webRTCManager.disconnect()
     }
@@ -37,7 +37,7 @@ struct Orion_ServerApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var userViewModel = UserProfileViewModel()
     @StateObject private var menuBarManager = MenuBarManager()
-    
+
     @State private var deviceManager: DeviceManager?
     @State private var p2pManagers: P2PManagers?
 
@@ -56,7 +56,7 @@ struct Orion_ServerApp: App {
                         if let deviceManager = deviceManager, let p2pManagers = p2pManagers {
                             let dashboard = MainDashboard()
                                 .frame(minWidth: 800, minHeight: 600)
-                            
+
                             dashboard
                                 .environmentObject(deviceManager)
                                 .environmentObject(p2pManagers.apiService)
@@ -77,10 +77,10 @@ struct Orion_ServerApp: App {
                             let newDeviceManager = DeviceManager(supabase: authManager.supabase)
                             self.deviceManager = newDeviceManager
                             await newDeviceManager.registerDeviceIfNeeded(type: "mac")
-                            
+
                             let newP2PManagers = P2PManagers(authManager: authManager, deviceManager: newDeviceManager)
                             self.p2pManagers = newP2PManagers
-                            newP2PManagers.connect()
+                            // Do not auto-connect - wait for iOS app to signal server mode
                         }
 
                         // Fetch user details once the session is available
@@ -132,32 +132,32 @@ struct Orion_ServerApp: App {
                 if authManager.session != nil {
                     Text("Orion Server")
                         .font(.headline)
-                    
+
                     Divider()
-                    
+
                     Button("Open Dashboard") {
                         openWindow(id: "main")
                     }
-                    
+
                     Button("Settings...") {
                         openWindow(id: "settings")
                     }
-                    
+
                     Divider()
-                    
+
                     Button("Quit") {
                         NSApplication.shared.terminate(nil)
                     }
                 } else {
                     Text("Orion Server")
                         .font(.headline)
-                    
+
                     Divider()
-                    
+
                     Button("Open App") {
                         openWindow(id: "main")
                     }
-                    
+
                     Button("Quit") {
                         NSApplication.shared.terminate(nil)
                     }
@@ -194,7 +194,7 @@ struct Orion_ServerApp: App {
                     let newDeviceManager = DeviceManager(supabase: authManager.supabase)
                     self.deviceManager = newDeviceManager
                     await newDeviceManager.registerDeviceIfNeeded(type: "mac")
-                    
+
                     let newP2PManagers = P2PManagers(authManager: authManager, deviceManager: newDeviceManager)
                     self.p2pManagers = newP2PManagers
                 }

@@ -13,7 +13,7 @@ struct UserMenuView: View {
     @Binding var showingSettings: Bool
     let authManager: AuthManager
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // User Info Header
@@ -34,26 +34,26 @@ struct UserMenuView: View {
                     }
                     .frame(width: 40, height: 40)
                     .clipShape(Circle())
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(userViewModel.fullName)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.primary)
-                        
+
                         Text(userViewModel.email)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
-                    
+
                     Spacer()
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-            
+
             Divider()
-            
+
             // Menu Items
             VStack(alignment: .leading, spacing: 0) {
                 MenuItemButton(
@@ -65,7 +65,7 @@ struct UserMenuView: View {
                         showingSettings = true
                     }
                 )
-                
+
                 MenuItemButton(
                     icon: "arrow.right.square.fill",
                     title: "Sign Out",
@@ -93,9 +93,9 @@ struct MenuItemButton: View {
     let shortcut: String?
     var isDestructive: Bool = false
     let action: () -> Void
-    
+
     @State private var isHovered = false
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
@@ -103,13 +103,13 @@ struct MenuItemButton: View {
                     .font(.system(size: 13))
                     .foregroundColor(isDestructive ? .red : .primary)
                     .frame(width: 16)
-                
+
                 Text(title)
                     .font(.system(size: 13))
                     .foregroundColor(isDestructive ? .red : .primary)
-                
+
                 Spacer()
-                
+
                 if let shortcut = shortcut {
                     Text(shortcut)
                         .font(.system(size: 11))

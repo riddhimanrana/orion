@@ -12,12 +12,12 @@ import ServiceManagement
 @MainActor
 class MenuBarManager: ObservableObject {
     @Published var launchAtLogin: Bool = false
-    
+
     init() {
         // Check current launch at login status
         checkLaunchAtLoginStatus()
     }
-    
+
     func checkLaunchAtLoginStatus() {
         // Check if the app is set to launch at login
         if #available(macOS 13.0, *) {
@@ -27,7 +27,7 @@ class MenuBarManager: ObservableObject {
             launchAtLogin = false
         }
     }
-    
+
     func setLaunchAtLogin(enabled: Bool) {
         if #available(macOS 13.0, *) {
             do {
@@ -48,7 +48,7 @@ class MenuBarManager: ObservableObject {
             launchAtLogin = false
         }
     }
-    
+
     func openSettings(userViewModel: UserProfileViewModel, authManager: AuthManager) {
         // Find existing settings window or create new one
         if let settingsWindow = NSApplication.shared.windows.first(where: { $0.title == "Settings" }) {
@@ -57,7 +57,7 @@ class MenuBarManager: ObservableObject {
             // Create a new settings window
             let settingsView = SettingsWindow(userViewModel: userViewModel, authManager: authManager)
             let hostingController = NSHostingController(rootView: settingsView)
-            
+
             let window = NSWindow(contentViewController: hostingController)
             window.title = "Settings"
             window.setContentSize(NSSize(width: 600, height: 500))

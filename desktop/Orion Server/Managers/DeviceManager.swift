@@ -20,7 +20,7 @@ class DeviceManager: ObservableObject {
     }
     @Published var pairedDevices: [DevicePair] = []
     @Published var otherDevices: [Device] = []
-    
+
     private let supabase: SupabaseClient
     private var apiBaseURL: URL {
         // In a real app, this should be configurable.
@@ -39,7 +39,7 @@ class DeviceManager: ObservableObject {
             // Optionally, you could update the `last_seen` timestamp here.
             return
         }
-        
+
         do {
             let name = Host.current().localizedName ?? "Unknown Mac"
             let newDeviceId = try await registerDevice(type: type, name: name)
@@ -57,7 +57,7 @@ class DeviceManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-        
+
         let body = ["type": type, "name": name]
         request.httpBody = try JSONEncoder().encode(body)
 
@@ -80,7 +80,7 @@ class DeviceManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-        
+
         let body = ["device_id": deviceId]
         request.httpBody = try JSONEncoder().encode(body)
 
@@ -91,7 +91,7 @@ class DeviceManager: ObservableObject {
 
         return try JSONDecoder().decode(PairingCodeResponse.self, from: data)
     }
-    
+
     func consumePairingCode(code: String) async throws -> DevicePair {
         guard let deviceId = self.deviceId else { throw URLError(.badURL) }
         let session = try await getAuthSession()
@@ -105,7 +105,7 @@ class DeviceManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-        
+
         let body = ["code": code, "device_id": deviceId]
         request.httpBody = try JSONEncoder().encode(body)
 
@@ -129,7 +129,7 @@ class DeviceManager: ObservableObject {
             let url = apiBaseURL.appendingPathComponent("pairs")
             var request = URLRequest(url: url)
             request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-            
+
             let (data, _) = try await URLSession.shared.data(for: request)
             self.pairedDevices = try createJSONDecoder().decode([DevicePair].self, from: data)
         } catch let decodingError as DecodingError {
@@ -154,7 +154,7 @@ class DeviceManager: ObservableObject {
             print("Error fetching paired devices: \(error.localizedDescription)")
         }
     }
-    
+
     func revokePair(pairId: UUID) async {
         do {
             let session = try await getAuthSession()
@@ -162,7 +162,7 @@ class DeviceManager: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-            
+
             let (_, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 throw URLError(.badServerResponse)
@@ -172,7 +172,7 @@ class DeviceManager: ObservableObject {
             print("Error revoking pair: \(error.localizedDescription)")
         }
     }
-    
+
     // MARK: - Helpers
     private func getAuthSession() async throws -> Session {
         guard let session = try? await supabase.auth.session else {
@@ -180,13 +180,13 @@ class DeviceManager: ObservableObject {
         }
         return session
     }
-    
+
     private func createJSONDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateString = try container.decode(String.self)
-            
+
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
@@ -198,5 +198,5 @@ class DeviceManager: ObservableObject {
         return decoder
     }
 
-    
+
 }

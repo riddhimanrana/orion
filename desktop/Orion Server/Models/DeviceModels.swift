@@ -51,7 +51,7 @@ struct PairedDevice: Codable, Identifiable, Hashable {
 
 struct DeviceRegistrationResponse: Codable {
     let deviceId: UUID
-    
+
     enum CodingKeys: String, CodingKey {
         case deviceId = "device_id"
     }
@@ -60,7 +60,7 @@ struct DeviceRegistrationResponse: Codable {
 struct PairingCodeResponse: Codable {
     let code: String
     let expiresAt: String
-    
+
     enum CodingKeys: String, CodingKey {
         case code
         case expiresAt = "expires_at"
