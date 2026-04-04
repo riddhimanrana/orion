@@ -30,6 +30,17 @@ class SignalingClient: NSObject, ObservableObject {
     private var webSocket: URLSessionWebSocketTask?
     private let serverURL = URL(string: "wss://signal.orionlive.ai")!
     private var pairId: String? // Store the pairId for message validation
+    private var currentToken: String?
+    private var tokenExpiryDate: Date?
+    private var isManualDisconnect = false
+    private var reconnectAttempt = 0
+    private var reconnectTask: Task<Void, Never>?
+    private var heartbeatTask: Task<Void, Never>?
+    private var tokenRefreshTask: Task<Void, Never>?
+
+    private let heartbeatIntervalNs: UInt64 = 25_000_000_000 // 25s
+    private let maxReconnectDelaySeconds: UInt64 = 30
+    private let tokenRefreshLeadTime: TimeInterval = 60
 
     // MARK: - Dependencies
     private let apiService: APIService
@@ -49,6 +60,24 @@ class SignalingClient: NSObject, ObservableObject {
     func webrtcAPI() -> APIService { apiService }
 
     func connect() async {
+        isManualDisconnect = false
+        reconnectTask?.cancel()
+        await connectInternal(forceTokenRefresh: false)
+    }
+
+    func disconnect() {
+        isManualDisconnect = true
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        stopHeartbeat()
+        tokenRefreshTask?.cancel()
+        tokenRefreshTask = nil
+        webSocket?.cancel(with: .normalClosure, reason: nil)
+        webSocket = nil
+        connectionState = .disconnected
+    }
+
+    private func connectInternal(forceTokenRefresh: Bool) async {
         guard connectionState == .disconnected else { return }
 
         self.connectionState = .connecting
@@ -58,7 +87,8 @@ class SignalingClient: NSObject, ObservableObject {
                 throw WSError.connectionFailed
             }
 
-            let token = try await apiService.fetchWebRTCToken(deviceId: deviceId)
+            let token = try await getValidToken(deviceId: deviceId, forceRefresh: forceTokenRefresh)
+            self.currentToken = token
             self.pairId = try decodePairId(from: token)
 
             var urlRequest = URLRequest(url: serverURL.appending(queryItems: [URLQueryItem(name: "token", value: token)]))
@@ -68,14 +98,86 @@ class SignalingClient: NSObject, ObservableObject {
             webSocket?.delegate = self
             webSocket?.resume()
             listenForMessages()
-
         } catch {
             await handleError(error)
         }
     }
 
-    func disconnect() {
-        webSocket?.cancel(with: .normalClosure, reason: nil)
+    private func getValidToken(deviceId: String, forceRefresh: Bool) async throws -> String {
+        if !forceRefresh,
+           let token = currentToken,
+           let expiry = tokenExpiryDate,
+           expiry.timeIntervalSinceNow > tokenRefreshLeadTime {
+            return token
+        }
+
+        let token = try await apiService.fetchWebRTCToken(deviceId: deviceId)
+        self.tokenExpiryDate = extractExpiryDate(from: token)
+        scheduleTokenRefreshIfNeeded()
+        return token
+    }
+
+    private func scheduleReconnect() {
+        guard !isManualDisconnect else { return }
+        guard reconnectTask == nil else { return }
+
+        reconnectTask = Task { [weak self] in
+            guard let self else { return }
+            let exp = min(reconnectAttempt, 5)
+            let delay = min(UInt64(pow(2.0, Double(exp))), maxReconnectDelaySeconds)
+            try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+
+            guard !Task.isCancelled else { return }
+            reconnectAttempt += 1
+            reconnectTask = nil
+            await connectInternal(forceTokenRefresh: true)
+        }
+    }
+
+    private func startHeartbeat() {
+        stopHeartbeat()
+        heartbeatTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: heartbeatIntervalNs)
+                guard !Task.isCancelled else { return }
+                guard connectionState == .connected else { return }
+
+                webSocket?.sendPing { [weak self] error in
+                    if error != nil {
+                        Task { @MainActor in
+                            self?.webSocket?.cancel(with: .goingAway, reason: "heartbeat failed".data(using: .utf8))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopHeartbeat() {
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
+    private func scheduleTokenRefreshIfNeeded() {
+        tokenRefreshTask?.cancel()
+        guard let expiry = tokenExpiryDate else { return }
+
+        let refreshDelay = max(expiry.timeIntervalSinceNow - tokenRefreshLeadTime, 1)
+        tokenRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: UInt64(refreshDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard let deviceId = deviceManager.deviceId else { return }
+
+            do {
+                currentToken = try await apiService.fetchWebRTCToken(deviceId: deviceId)
+                tokenExpiryDate = extractExpiryDate(from: currentToken ?? "")
+                scheduleTokenRefreshIfNeeded()
+            } catch {
+                // If refresh fails, reconnect path will fetch a fresh token.
+            }
+        }
     }
 
     // MARK: - Message Sending
@@ -164,7 +266,10 @@ class SignalingClient: NSObject, ObservableObject {
     private func handleError(_ error: Error) async {
         print("SignalingClient Error: \(error.localizedDescription)")
         self.connectionState = .disconnected
+        stopHeartbeat()
+        webSocket = nil
         self.delegate?.signalingClient(self, didEncounterError: error)
+        scheduleReconnect()
     }
 
     private func decodePairId(from jwt: String) throws -> String {
@@ -178,6 +283,18 @@ class SignalingClient: NSObject, ObservableObject {
         }
         throw WSError.invalidData
     }
+
+    private func extractExpiryDate(from jwt: String) -> Date? {
+        let components = jwt.split(separator: ".")
+        guard components.count == 3 else { return nil }
+        let payloadBase64 = String(components[1]).padding(toLength: ((components[1].count+3)/4)*4, withPad: "=", startingAt: 0)
+        guard let payloadData = Data(base64Encoded: payloadBase64),
+              let payload = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let exp = payload["exp"] as? Double else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: exp)
+    }
 }
 
 // MARK: - URLSessionWebSocketDelegate
@@ -185,16 +302,21 @@ extension SignalingClient: URLSessionWebSocketDelegate {
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
         Task { @MainActor in
             self.connectionState = .connected
+            self.reconnectAttempt = 0
             self.delegate?.signalingClientDidConnect(self)
             // Send current processing mode to paired device
             self.sendProcessingMode(SettingsManager.shared.processingMode)
+            self.startHeartbeat()
         }
     }
 
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task { @MainActor in
             self.connectionState = .disconnected
+            self.stopHeartbeat()
+            self.webSocket = nil
             self.delegate?.signalingClientDidDisconnect(self)
+            self.scheduleReconnect()
         }
     }
 }
