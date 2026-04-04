@@ -1,0 +1,37 @@
+{
+  "observer_detect_with_yolo": {
+    "count": 131,
+    "total_time": 60.495518368057674,
+    "avg_time": 0.46179785013784486,
+    "min_time": 0.34370816600858234,
+    "max_time": 1.2144392080081161
+  },
+  "observer_detect_objects": {
+    "count": 131,
+    "total_time": 60.49814291395887,
+    "avg_time": 0.4618178848393807,
+    "min_time": 0.34372191700094845,
+    "max_time": 1.2144859580002958
+  },
+  "observer_process_video": {
+    "count": 1,
+    "total_time": 69.83238458300184,
+    "avg_time": 69.83238458300184,
+    "min_time": 69.83238458300184,
+    "max_time": 69.83238458300184
+  },
+  "embedder_embed_batch": {
+    "count": 1,
+    "total_time": 2.5114121669903398,
+    "avg_time": 2.5114121669903398,
+    "min_time": 2.5114121669903398,
+    "max_time": 2.5114121669903398
+  },
+  "embedder_embed_detections": {
+    "count": 1,
+    "total_time": 2.5115773330035154,
+    "avg_time": 2.5115773330035154,
+    "min_time": 2.5115773330035154,
+    "max_time": 2.5115773330035154
+  }
+}

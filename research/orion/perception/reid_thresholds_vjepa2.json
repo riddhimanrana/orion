@@ -1,0 +1,70 @@
+{
+  "_comment": "V-JEPA2 Re-ID thresholds (1024-dim embeddings). Tuned for robust indoor/general scene tracking.",
+  "_version": "vjepa2-v3",
+  "_note": "From deep research: Small objects need stricter thresholds to avoid ID switches. Large flat surfaces need very high thresholds.",
+  
+  "person": 0.60,
+  "face": 0.65,
+  "hand": 0.55,
+  
+  "tv": 0.75,
+  "television": 0.75,
+  "monitor": 0.75,
+  "laptop": 0.72,
+  "keyboard": 0.70,
+  "mouse": 0.72,
+  "phone": 0.74,
+  "cell phone": 0.74,
+  "electronic device": 0.65,
+  "remote": 0.75,
+  
+  "chair": 0.68,
+  "couch": 0.70,
+  "sofa": 0.70,
+  "furniture": 0.62,
+  "table": 0.68,
+  "desk": 0.68,
+  "dining table": 0.72,
+  "bed": 0.72,
+  
+  "door": 0.70,
+  "window": 0.70,
+  
+  "refrigerator": 0.82,
+  "toilet": 0.78,
+  "sink": 0.75,
+  "oven": 0.78,
+  "microwave": 0.78,
+  
+  "potted plant": 0.72,
+  "plant": 0.72,
+  "vase": 0.75,
+  
+  "cabinet": 0.72,
+  "shelf": 0.72,
+  
+  "book": 0.74,
+  "text": 0.68,
+  
+  "bottle": 0.76,
+  "cup": 0.76,
+  "mug": 0.76,
+  "wine glass": 0.78,
+  "container": 0.70,
+  "box": 0.72,
+  "bag": 0.70,
+  "backpack": 0.72,
+  "handbag": 0.72,
+  
+  "clock": 0.78,
+  "picture frame": 0.72,
+  "lamp": 0.74,
+  
+  "scissors": 0.80,
+  "toothbrush": 0.80,
+  "fork": 0.78,
+  "knife": 0.78,
+  "spoon": 0.78,
+  
+  "_default": 0.65
+}

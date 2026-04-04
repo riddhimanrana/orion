@@ -1,0 +1,60 @@
+{
+  "objects": [
+    {
+      "id": "obj_001",
+      "class": "laptop",
+      "description": "Silver MacBook laptop on desk",
+      "spans": [
+        {
+          "start_frame": 1,
+          "end_frame": 900,
+          "visibility": "visible",
+          "bbox_keyframes": [
+            {"frame": 1, "bbox": [320, 280, 720, 560]},
+            {"frame": 450, "bbox": [340, 290, 740, 570]},
+            {"frame": 900, "bbox": [330, 285, 730, 565]}
+          ]
+        }
+      ],
+      "total_frames": 900
+    },
+    {
+      "id": "obj_002",
+      "class": "mug",
+      "description": "White ceramic coffee mug",
+      "spans": [
+        {
+          "start_frame": 1,
+          "end_frame": 900,
+          "visibility": "visible",
+          "bbox_keyframes": [
+            {"frame": 1, "bbox": [820, 420, 920, 560]},
+            {"frame": 900, "bbox": [830, 425, 930, 565]}
+          ]
+        }
+      ],
+      "total_frames": 900
+    },
+    {
+      "id": "obj_003",
+      "class": "book",
+      "description": "Red hardcover book lying on desk",
+      "spans": [
+        {
+          "start_frame": 1,
+          "end_frame": 900,
+          "visibility": "visible",
+          "bbox_keyframes": [
+            {"frame": 1, "bbox": [120, 480, 280, 620]},
+            {"frame": 900, "bbox": [125, 485, 285, 625]}
+          ]
+        }
+      ],
+      "total_frames": 900
+    }
+  ],
+  "events": [],
+  "notes": "Simple baseline GT with static objects. No occlusions, state changes, or complex events. Objects remain stationary throughout episode. Sparse keyframe annotations assume linear interpolation.",
+  "annotator": "orion_research_team",
+  "annotation_date": "2025-11-16"
+}

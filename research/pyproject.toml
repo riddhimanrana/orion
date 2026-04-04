@@ -1,0 +1,119 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["tests*", "scripts*", "docs*", "src*"]
+
+[project]
+name = "orion"
+version = "0.2.0"
+description = "Orion v2: Memory-centric video understanding with YOLO-World, V-JEPA2, and semantic filtering"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Riddhiman Rana", email = "riddhiman.rana@gmail.com"},
+    {name = "Aryav Semwal", email = "aryavsemwal17@gmail.com"},
+    {name = "Yogesh Atluru", email = "yatluru@gmail.com"},
+]
+keywords = ["research", "orion", "computer-vision", "transformers", "video-understanding", "re-id"]
+dependencies = [
+    # Core ML frameworks
+    "torch>=2.0.0", "torchvision>=0.15.0",
+    "transformers>=4.47.1", "tokenizers>=0.21.0",
+    "numpy>=1.24.0", "scikit-learn>=1.2.0",
+    
+    # Image/Video processing
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",  # Required for GroundingDINO, DINOv3, VLM backends
+    "pillow-heif",
+    "imageio>=2.30.0",
+    "moviepy==1.0.3",
+    
+    # Detection & Vision models
+    "ultralytics>=8.3.0",  # YOLOWorld fallback
+    "timm>=1.0.0",  # DINOv2/DINOv3 embedder
+    "einops>=0.6.0",
+    
+    # Tracking & Spatial
+    "scipy>=1.10.0",  # Hungarian algorithm in tracker
+    "shapely>=2.0.0",  # Spatial zone geometry
+    "hdbscan",  # Clustering
+    
+    # 3D & Depth
+    "trimesh", "plyfile", "open3d",
+    
+    # Utilities
+    "huggingface-hub>=0.20.0",
+    "safetensors",
+    "tqdm", "rich",
+    "omegaconf",
+    "requests", "typer",
+    
+    # Phase 3: Semantic filtering
+    "sentence-transformers>=2.2.0",  # all-mpnet-base-v2
+    
+    # Phase 5: Validation
+    "google-genai>=0.3.0",  # Gemini validation
+    
+    # Optional but commonly needed
+    "mediapipe>=0.10.14",
+    "evo", "e3nn", "pycolmap",
+]
+
+[project.optional-dependencies]
+# Optional modules (install as needed)
+# NOTE: Keep this syntactically valid for older pip/packaging on Lambda.
+# Install the local Apple/MLX package separately if needed (e.g., `pip install -e ./mlx-vlm`).
+apple = ["mlx-vlm"]
+memgraph = ["pymgclient>=1.0.0"]  # Memgraph driver (Bolt protocol)
+dev = [
+    "pytest>=7.0.0",
+    "jupyter>=1.0.0",
+    "ipywidgets>=8.0.0"
+]
+
+# All extras
+all = ["neo4j>=5.0.0", "pytest>=7.0.0", "jupyter>=1.0.0", "ipywidgets>=8.0.0"]
+
+[project.urls]
+Repository = "https://github.com/riddhimanrana/orion-research"
+Issues = "https://github.com/riddhimanrana/orion-research/issues"
+
+[project.scripts]
+orion = "orion.cli:main"
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = ["E203", "W503", "E501"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "src",
+    "src/**",
+    "docs/_archive",
+    "docs/_archive/**",
+]
+
+[tool.isort]
+profile = "black"
+skip = [
+    "src",
+    "src/**",
+    "docs/_archive",
+    "docs/_archive/**",
+    "build",
+    "dist",
+]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = [
+    "src",
+    "src/**",
+    "docs/_archive",
+    "docs/_archive/**",
+]

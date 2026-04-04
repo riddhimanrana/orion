@@ -1,0 +1,30 @@
+{
+  "assets": [
+    {
+      "name": "fastvlm-0.5b",
+      "target": "fastvlm-0.5b",
+      "runtimes": ["torch"],
+      "huggingface_repo": "apple/FastVLM-0.5B",
+      "primary_file": "config.json",
+      "description": "FastVLM 0.5B multitmodal checkpoint (Hugging Face)."
+    },
+    {
+      "name": "fastvlm-0.5b-mlx",
+      "target": "fastvlm-0.5b-mlx",
+      "runtimes": ["mlx"],
+      "url": "https://ml-site.cdn-apple.com/datasets/fastvlm/llava-fastvithd_0.5b_stage3_llm.fp16.zip",
+      "primary_file": "config.json",
+      "description": "FastVLM 0.5B Apple fp16 model for MLX backend (pre-converted, downloaded from Apple CDN)."
+    },
+
+    {
+      "name": "yolo11x",
+      "target": "yolo11x",
+      "runtimes": ["torch"],
+      "huggingface_repo": "ultralytics/YOLO11",
+      "allow_patterns": ["yolo11x.pt"],
+      "primary_file": "yolo11x.pt",
+      "description": "Ultralytics YOLO11x detector weights (most accurate)."
+    }
+  ]
+}

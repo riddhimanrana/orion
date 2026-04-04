@@ -1,0 +1,10 @@
+[
+    {
+        "video_id": "test_clip",
+        "path": "test.mp4"
+    },
+    {
+        "video_id": "full_video",
+        "path": "video.mp4"
+    }
+]

@@ -1,0 +1,109 @@
+{
+  "total_entities": 11,
+  "entities": [
+    {
+      "id": 0,
+      "class": "refrigerator",
+      "confidence": 0.49445202946662903,
+      "observation_count": 3,
+      "first_frame": 28,
+      "last_frame": 1638,
+      "description": "No description"
+    },
+    {
+      "id": 1,
+      "class": "oven",
+      "confidence": 0.7152330875396729,
+      "observation_count": 3,
+      "first_frame": 784,
+      "last_frame": 882,
+      "description": "No description"
+    },
+    {
+      "id": 2,
+      "class": "sink",
+      "confidence": 0.6538307070732117,
+      "observation_count": 2,
+      "first_frame": 462,
+      "last_frame": 1204,
+      "description": "No description"
+    },
+    {
+      "id": 3,
+      "class": "toilet",
+      "confidence": 0.5861000418663025,
+      "observation_count": 2,
+      "first_frame": 644,
+      "last_frame": 714,
+      "description": "No description"
+    },
+    {
+      "id": 4,
+      "class": "keyboard",
+      "confidence": 0.4531996548175812,
+      "observation_count": 1,
+      "first_frame": 588,
+      "last_frame": 588,
+      "description": "No description"
+    },
+    {
+      "id": 5,
+      "class": "tv",
+      "confidence": 0.5625370144844055,
+      "observation_count": 1,
+      "first_frame": 630,
+      "last_frame": 630,
+      "description": "No description"
+    },
+    {
+      "id": 6,
+      "class": "laptop",
+      "confidence": 0.4188157320022583,
+      "observation_count": 1,
+      "first_frame": 672,
+      "last_frame": 672,
+      "description": "No description"
+    },
+    {
+      "id": 7,
+      "class": "cell phone",
+      "confidence": 0.503541886806488,
+      "observation_count": 1,
+      "first_frame": 756,
+      "last_frame": 756,
+      "description": "No description"
+    },
+    {
+      "id": 8,
+      "class": "umbrella",
+      "confidence": 0.808699905872345,
+      "observation_count": 1,
+      "first_frame": 924,
+      "last_frame": 924,
+      "description": "No description"
+    },
+    {
+      "id": 9,
+      "class": "bed",
+      "confidence": 0.6260032057762146,
+      "observation_count": 1,
+      "first_frame": 1008,
+      "last_frame": 1008,
+      "description": "No description"
+    },
+    {
+      "id": 10,
+      "class": "mouse",
+      "confidence": 0.7727568745613098,
+      "observation_count": 1,
+      "first_frame": 1820,
+      "last_frame": 1820,
+      "description": "No description"
+    }
+  ],
+  "tracking_stats": {
+    "total_tracks": 0,
+    "confirmed_tracks": 0,
+    "id_switches": 0
+  }
+}

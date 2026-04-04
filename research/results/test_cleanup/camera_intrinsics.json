@@ -1,0 +1,10 @@
+{
+  "fx": 1215.0,
+  "fy": 1110.0,
+  "cx": 960.0,
+  "cy": 540.0,
+  "width": 1080,
+  "height": 1920,
+  "preset": "demo_room_iphone15pro_main",
+  "note": "Values derived from selected intrinsics preset or overrides"
+}

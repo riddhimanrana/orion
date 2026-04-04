@@ -1,0 +1,9 @@
+name: orion
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - ffmpeg
+  - pip:
+      - -e .

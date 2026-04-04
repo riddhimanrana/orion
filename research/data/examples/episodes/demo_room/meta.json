@@ -1,0 +1,24 @@
+{
+  "episode_id": "demo_room",
+  "source": "research_demo",
+  "device": {
+    "model": "iPhone 15 Pro",
+    "os_version": "iOS 17.1",
+    "camera": "main_wide"
+  },
+  "video": {
+    "fps": 30.0,
+    "resolution": [1920, 1080],
+    "duration_seconds": 30.0,
+    "codec": "h264"
+  },
+  "capture": {
+    "location": "demo_room",
+    "lighting": "natural_indoor",
+    "date": "2025-11-16",
+    "time": "14:00:00"
+  },
+  "notes": "Demo episode for Phase 0 baseline. Simple room walkthrough with multiple objects on surfaces. Includes a mug, book, and laptop on a desk. No complex occlusions or multi-room scenarios. Used to validate episode/results schema and basic pipeline integration.",
+  "created_at": "2025-11-16T14:00:00Z",
+  "tags": ["demo", "baseline", "indoor", "simple"]
+}

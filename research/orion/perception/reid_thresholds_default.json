@@ -1,0 +1,13 @@
+{
+  "person": 0.70,
+  "tv": 0.82,
+  "keyboard": 0.80,
+  "mouse": 0.82,
+  "chair": 0.78,
+  "couch": 0.78,
+  "refrigerator": 0.82,
+  "toilet": 0.82,
+  "bed": 0.78,
+  "sink": 0.80,
+  "potted plant": 0.80
+}
