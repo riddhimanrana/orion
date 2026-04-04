@@ -25,6 +25,14 @@ class SignalingClient: NSObject, ObservableObject {
 
     // MARK: - Published Properties
     @Published var connectionState: ConnectionStatus = .disconnected
+    @Published private(set) var packetsSent: Int = 0
+    @Published private(set) var packetsReceived: Int = 0
+    @Published private(set) var packetBytesSent: Int = 0
+    @Published private(set) var packetBytesReceived: Int = 0
+    @Published private(set) var lastPacketTypeSent: String?
+    @Published private(set) var lastPacketTypeReceived: String?
+    @Published private(set) var lastSignalHealth: SignalHealthResponse?
+    @Published private(set) var lastSignalDiagnostics: SignalDiagnosticsResponse?
 
     // MARK: - Private Properties
     private var webSocket: URLSessionWebSocketTask?
@@ -37,6 +45,7 @@ class SignalingClient: NSObject, ObservableObject {
     private var reconnectTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private var tokenRefreshTask: Task<Void, Never>?
+    private var diagnosticsTask: Task<Void, Never>?
 
     private let heartbeatIntervalNs: UInt64 = 25_000_000_000 // 25s
     private let maxReconnectDelaySeconds: UInt64 = 30
@@ -72,6 +81,8 @@ class SignalingClient: NSObject, ObservableObject {
         stopHeartbeat()
         tokenRefreshTask?.cancel()
         tokenRefreshTask = nil
+        diagnosticsTask?.cancel()
+        diagnosticsTask = nil
         webSocket?.cancel(with: .normalClosure, reason: nil)
         webSocket = nil
         connectionState = .disconnected
@@ -206,6 +217,9 @@ class SignalingClient: NSObject, ObservableObject {
         guard connectionState == .connected else { return }
         do {
             let data = try JSONEncoder().encode(message)
+            packetsSent += 1
+            packetBytesSent += data.count
+            lastPacketTypeSent = packetType(from: data)
             webSocket?.send(.data(data)) { [weak self] error in
                 if let error = error {
                     Task { [weak self] in
@@ -235,10 +249,13 @@ class SignalingClient: NSObject, ObservableObject {
 
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) async {
         guard let data = message.data else { return }
+        packetsReceived += 1
+        packetBytesReceived += data.count
 
         // First try to decode as a standard SignalingMessage
         if let decodedMessage = try? JSONDecoder().decode(SignalingMessage.self, from: data) {
             guard decodedMessage.pairId == self.pairId else { return }
+            lastPacketTypeReceived = decodedMessage.t
 
             switch decodedMessage.t {
             case "offer", "answer":
@@ -256,6 +273,7 @@ class SignalingClient: NSObject, ObservableObject {
         // Try to decode as a ProcessingModeMessage
         else if let modeMessage = try? JSONDecoder().decode(ProcessingModeMessage.self, from: data) {
             guard modeMessage.pairId == self.pairId else { return }
+            lastPacketTypeReceived = modeMessage.t
             
             if modeMessage.t == "mode" {
                 delegate?.signalingClient(self, didReceiveProcessingMode: modeMessage.mode)
@@ -295,6 +313,32 @@ class SignalingClient: NSObject, ObservableObject {
         }
         return Date(timeIntervalSince1970: exp)
     }
+
+    private func packetType(from data: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return object["t"] as? String
+    }
+
+    private func runSignalDiagnostics(token: String) {
+        diagnosticsTask?.cancel()
+        diagnosticsTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                async let healthTask = apiService.fetchSignalHealth()
+                async let diagTask = apiService.fetchSignalDiagnostics(token: token)
+                let (health, diagnostics) = try await (healthTask, diagTask)
+
+                guard !Task.isCancelled else { return }
+                self.lastSignalHealth = health
+                self.lastSignalDiagnostics = diagnostics
+            } catch {
+                // Best-effort diagnostics: connection should proceed even if diagnostics endpoint fails.
+                print("Signaling diagnostics check failed: \(error.localizedDescription)")
+            }
+        }
+    }
 }
 
 // MARK: - URLSessionWebSocketDelegate
@@ -307,6 +351,9 @@ extension SignalingClient: URLSessionWebSocketDelegate {
             // Send current processing mode to paired device
             self.sendProcessingMode(SettingsManager.shared.processingMode)
             self.startHeartbeat()
+            if let token = self.currentToken {
+                self.runSignalDiagnostics(token: token)
+            }
         }
     }
 
