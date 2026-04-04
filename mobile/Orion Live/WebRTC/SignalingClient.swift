@@ -33,6 +33,7 @@ class SignalingClient: NSObject, ObservableObject {
     @Published private(set) var lastPacketTypeReceived: String?
     @Published private(set) var lastSignalHealth: SignalHealthResponse?
     @Published private(set) var lastSignalDiagnostics: SignalDiagnosticsResponse?
+    @Published private(set) var lastSignalAccountUsage: SignalAccountUsageResponse?
 
     // MARK: - Private Properties
     private var webSocket: URLSessionWebSocketTask?
@@ -328,11 +329,13 @@ class SignalingClient: NSObject, ObservableObject {
             do {
                 async let healthTask = apiService.fetchSignalHealth()
                 async let diagTask = apiService.fetchSignalDiagnostics(token: token)
-                let (health, diagnostics) = try await (healthTask, diagTask)
+                async let usageTask = apiService.fetchSignalAccountUsage(token: token)
+                let (health, diagnostics, accountUsage) = try await (healthTask, diagTask, usageTask)
 
                 guard !Task.isCancelled else { return }
                 self.lastSignalHealth = health
                 self.lastSignalDiagnostics = diagnostics
+                self.lastSignalAccountUsage = accountUsage
             } catch {
                 // Best-effort diagnostics: connection should proceed even if diagnostics endpoint fails.
                 print("Signaling diagnostics check failed: \(error.localizedDescription)")
