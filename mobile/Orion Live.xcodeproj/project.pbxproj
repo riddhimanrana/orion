@@ -26,11 +26,11 @@
 		8439DE382E2F155700C3850B /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 8439DE372E2F155700C3850B /* Storage */; };
 		8439DE3A2E2F155700C3850B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8439DE392E2F155700C3850B /* Supabase */; };
 		844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 844535F22DFAB1CC00F0BC04 /* Starscream */; };
+		845445742E5421AA003F9283 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845445732E5421AA003F9283 /* ChatView.swift */; };
 		8494C5112E516A9C004AB96F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8494C50C2E516A9C004AB96F /* Assets.xcassets */; };
 		8494C5122E516A9C004AB96F /* LogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4EF2E516A9C004AB96F /* LogModels.swift */; };
 		8494C5132E516A9C004AB96F /* DebugTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C5022E516A9C004AB96F /* DebugTabView.swift */; };
 		8494C5142E516A9C004AB96F /* Quotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4F92E516A9C004AB96F /* Quotes.swift */; };
-		8494C5152E516A9C004AB96F /* CompatibilityCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C5012E516A9C004AB96F /* CompatibilityCheckView.swift */; };
 		8494C5162E516A9C004AB96F /* Orion_LiveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C50F2E516A9C004AB96F /* Orion_LiveApp.swift */; };
 		8494C5172E516A9C004AB96F /* DeviceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4ED2E516A9C004AB96F /* DeviceModels.swift */; };
 		8494C5182E516A9C004AB96F /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C4E52E516A9C004AB96F /* CameraManager.swift */; };
@@ -66,8 +66,18 @@
 		8494C5372E516A9C004AB96F /* WebRTCManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8494C50A2E516A9C004AB96F /* WebRTCManager.swift */; };
 		8496D2132E4ED8A000639DA5 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 8496D2122E4ED8A000639DA5 /* WebRTC */; };
 		84A5FDC42E31AE7F00DCD819 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 84A5FDC32E31AE7F00DCD819 /* LaunchScreen.storyboard */; };
+		84BDDA732E7E33C400525C7E /* OrionLiveIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 84BDDA722E7E33C400525C7E /* OrionLiveIcon.icon */; };
+		84ED6BDE2E753F9800A282EF /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ED6BDD2E753F9800A282EF /* ChatMessage.swift */; };
+		84FA5A592E7768910028330E /* ServerStatusPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FA5A582E7768900028330E /* ServerStatusPill.swift */; };
+		84FA5A5B2E7768980028330E /* StatusPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FA5A5A2E7768980028330E /* StatusPill.swift */; };
+		84FA5A5D2E7768C00028330E /* ProcessingModePill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FA5A5C2E7768C00028330E /* ProcessingModePill.swift */; };
+		84FA5AE62E776E670028330E /* BatteryMonitoringManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FA5AE52E776E670028330E /* BatteryMonitoringManager.swift */; };
+		84FA5BCA2E779D480028330E /* CPUUsageMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FA5BC92E779D480028330E /* CPUUsageMonitor.swift */; };
 		84FEC2302E00E4E400362F8A /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC22F2E00E4E400362F8A /* .gitignore */; };
 		84FEC2352E00E56C00362F8A /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 84FEC2342E00E56900362F8A /* LICENSE */; };
+		85AAAA012E78B00000ABCDEF /* ToastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85AAAA002E78B00000ABCDEF /* ToastManager.swift */; };
+		85AAAB012E78C00000ABCDEF /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85AAAB002E78C00000ABCDEF /* NetworkMonitor.swift */; };
+		85AABB012E79C00000ABCDEF /* VoiceInputOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85AABB002E79C00000ABCDEF /* VoiceInputOverlay.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,6 +107,7 @@
 /* Begin PBXFileReference section */
 		84080BB92E28474600F965A1 /* FastVLM.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = FastVLM.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		84270E592DFAAB5D00AF2664 /* Orion Live.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Orion Live.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		845445732E5421AA003F9283 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		8494C4DF2E516A9C004AB96F /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		8494C4E12E516A9C004AB96F /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
 		8494C4E22E516A9C004AB96F /* KeyframePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyframePipeline.swift; sourceTree = "<group>"; };
@@ -123,7 +134,6 @@
 		8494C4FE2E516A9C004AB96F /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
 		8494C4FF2E516A9C004AB96F /* CameraSwitcherOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraSwitcherOverlay.swift; sourceTree = "<group>"; };
 		8494C5002E516A9C004AB96F /* CameraTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraTabView.swift; sourceTree = "<group>"; };
-		8494C5012E516A9C004AB96F /* CompatibilityCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilityCheckView.swift; sourceTree = "<group>"; };
 		8494C5022E516A9C004AB96F /* DebugTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugTabView.swift; sourceTree = "<group>"; };
 		8494C5032E516A9C004AB96F /* DevicePairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePairingView.swift; sourceTree = "<group>"; };
 		8494C5042E516A9C004AB96F /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
@@ -138,9 +148,19 @@
 		8494C5382E516AAC004AB96F /* Orion_Live.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Orion_Live.entitlements; sourceTree = "<group>"; };
 		8494C5392E516ABC004AB96F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		84A5FDC32E31AE7F00DCD819 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		84BDDA722E7E33C400525C7E /* OrionLiveIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = OrionLiveIcon.icon; sourceTree = "<group>"; };
+		84ED6BDD2E753F9800A282EF /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		84FA5A582E7768900028330E /* ServerStatusPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStatusPill.swift; sourceTree = "<group>"; };
+		84FA5A5A2E7768980028330E /* StatusPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPill.swift; sourceTree = "<group>"; };
+		84FA5A5C2E7768C00028330E /* ProcessingModePill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingModePill.swift; sourceTree = "<group>"; };
+		84FA5AE52E776E670028330E /* BatteryMonitoringManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryMonitoringManager.swift; sourceTree = "<group>"; };
+		84FA5BC92E779D480028330E /* CPUUsageMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUUsageMonitor.swift; sourceTree = "<group>"; };
 		84FEC22F2E00E4E400362F8A /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		84FEC2312E00E54D00362F8A /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		84FEC2342E00E56900362F8A /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		85AAAA002E78B00000ABCDEF /* ToastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastManager.swift; sourceTree = "<group>"; };
+		85AAAB002E78C00000ABCDEF /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		85AABB002E79C00000ABCDEF /* VoiceInputOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputOverlay.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -290,13 +310,17 @@
 		8494C4FD2E516A9C004AB96F /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				84FA5AE52E776E670028330E /* BatteryMonitoringManager.swift */,
 				8494C4F62E516A9C004AB96F /* Bbox.swift */,
 				8494C4F72E516A9C004AB96F /* Constants.swift */,
 				8494C4F82E516A9C004AB96F /* Logger.swift */,
+				84FA5BC92E779D480028330E /* CPUUsageMonitor.swift */,
 				8494C4F92E516A9C004AB96F /* Quotes.swift */,
 				8494C4FA2E516A9C004AB96F /* RTCIceConnectionState+Extensions.swift */,
 				8494C4FB2E516A9C004AB96F /* SettingsManager.swift */,
 				8494C4FC2E516A9C004AB96F /* SystemCompatibilityManager.swift */,
+				85AAAA002E78B00000ABCDEF /* ToastManager.swift */,
+				85AAAB002E78C00000ABCDEF /* NetworkMonitor.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -304,15 +328,19 @@
 		8494C5082E516A9C004AB96F /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				84FA5A5A2E7768980028330E /* StatusPill.swift */,
+				84FA5A582E7768900028330E /* ServerStatusPill.swift */,
+				84FA5A5C2E7768C00028330E /* ProcessingModePill.swift */,
+				845445732E5421AA003F9283 /* ChatView.swift */,
 				8494C4FE2E516A9C004AB96F /* AccountView.swift */,
 				8494C4FF2E516A9C004AB96F /* CameraSwitcherOverlay.swift */,
 				8494C5002E516A9C004AB96F /* CameraTabView.swift */,
-				8494C5012E516A9C004AB96F /* CompatibilityCheckView.swift */,
 				8494C5022E516A9C004AB96F /* DebugTabView.swift */,
 				8494C5032E516A9C004AB96F /* DevicePairingView.swift */,
 				8494C5042E516A9C004AB96F /* LoginView.swift */,
 				8494C5052E516A9C004AB96F /* SettingsTabView.swift */,
 				8494C5072E516A9C004AB96F /* StartView.swift */,
+				85AABB002E79C00000ABCDEF /* VoiceInputOverlay.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -338,9 +366,11 @@
 				8494C5082E516A9C004AB96F /* Views */,
 				8494C50B2E516A9C004AB96F /* WebRTC */,
 				8494C50C2E516A9C004AB96F /* Assets.xcassets */,
+				84BDDA722E7E33C400525C7E /* OrionLiveIcon.icon */,
 				8494C50D2E516A9C004AB96F /* ContentView.swift */,
 				8494C50E2E516A9C004AB96F /* FastVLMModel.swift */,
 				8494C50F2E516A9C004AB96F /* Orion_LiveApp.swift */,
+				84ED6BDD2E753F9800A282EF /* ChatMessage.swift */,
 			);
 			path = "Orion Live";
 			sourceTree = "<group>";
@@ -485,6 +515,7 @@
 				84A5FDC42E31AE7F00DCD819 /* LaunchScreen.storyboard in Resources */,
 				8494C5112E516A9C004AB96F /* Assets.xcassets in Resources */,
 				84FEC2302E00E4E400362F8A /* .gitignore in Resources */,
+				84BDDA732E7E33C400525C7E /* OrionLiveIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -505,12 +536,12 @@
 				8494C5122E516A9C004AB96F /* LogModels.swift in Sources */,
 				8494C5132E516A9C004AB96F /* DebugTabView.swift in Sources */,
 				8494C5142E516A9C004AB96F /* Quotes.swift in Sources */,
-				8494C5152E516A9C004AB96F /* CompatibilityCheckView.swift in Sources */,
 				8494C5162E516A9C004AB96F /* Orion_LiveApp.swift in Sources */,
 				8494C5172E516A9C004AB96F /* DeviceModels.swift in Sources */,
 				8494C5182E516A9C004AB96F /* CameraManager.swift in Sources */,
 				8494C5192E516A9C004AB96F /* DeviceManager.swift in Sources */,
 				8494C51A2E516A9C004AB96F /* ContentView.swift in Sources */,
+				84FA5A5B2E7768980028330E /* StatusPill.swift in Sources */,
 				8494C51B2E516A9C004AB96F /* RTCIceConnectionState+Extensions.swift in Sources */,
 				8494C51C2E516A9C004AB96F /* APIService.swift in Sources */,
 				8494C51D2E516A9C004AB96F /* Logger.swift in Sources */,
@@ -520,6 +551,8 @@
 				8494C5212E516A9C004AB96F /* CameraView.swift in Sources */,
 				8494C5222E516A9C004AB96F /* FastVLMModel.swift in Sources */,
 				8494C5232E516A9C004AB96F /* LoginView.swift in Sources */,
+				84ED6BDE2E753F9800A282EF /* ChatMessage.swift in Sources */,
+				84FA5AE62E776E670028330E /* BatteryMonitoringManager.swift in Sources */,
 				8494C5242E516A9C004AB96F /* CameraSwitcherOverlay.swift in Sources */,
 				8494C5252E516A9C004AB96F /* yolo11n.mlpackage in Sources */,
 				8494C5262E516A9C004AB96F /* KeyframeVideoCapturer.swift in Sources */,
@@ -530,15 +563,22 @@
 				8494C52B2E516A9C004AB96F /* Bbox.swift in Sources */,
 				8494C52C2E516A9C004AB96F /* DevicePairingView.swift in Sources */,
 				8494C52D2E516A9C004AB96F /* FrameAnalysisLog.swift in Sources */,
+				84FA5BCA2E779D480028330E /* CPUUsageMonitor.swift in Sources */,
 				8494C52F2E516A9C004AB96F /* SignalingClient.swift in Sources */,
 				8494C5302E516A9C004AB96F /* NetworkDetection.swift in Sources */,
+				84FA5A592E7768910028330E /* ServerStatusPill.swift in Sources */,
+				845445742E5421AA003F9283 /* ChatView.swift in Sources */,
 				8494C5312E516A9C004AB96F /* ObjectDetector.swift in Sources */,
 				8494C5322E516A9C004AB96F /* WebSocketManager.swift in Sources */,
+				84FA5A5D2E7768C00028330E /* ProcessingModePill.swift in Sources */,
 				8494C5332E516A9C004AB96F /* SettingsTabView.swift in Sources */,
 				8494C5342E516A9C004AB96F /* SettingsManager.swift in Sources */,
 				8494C5352E516A9C004AB96F /* AccountView.swift in Sources */,
 				8494C5362E516A9C004AB96F /* KeyframePipeline.swift in Sources */,
 				8494C5372E516A9C004AB96F /* WebRTCManager.swift in Sources */,
+				85AAAA012E78B00000ABCDEF /* ToastManager.swift in Sources */,
+				85AAAB012E78C00000ABCDEF /* NetworkMonitor.swift in Sources */,
+				85AABB012E79C00000ABCDEF /* VoiceInputOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -557,9 +597,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = TB6CA879K5;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -593,9 +633,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = TB6CA879K5;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
@@ -660,6 +700,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -683,6 +724,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -723,6 +765,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = TB6CA879K5;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -739,6 +782,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -747,14 +791,17 @@
 		84270E7B2DFAAB5F00AF2664 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = OrionLiveIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Orion_Live.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 0.1.0;
-				DEVELOPMENT_TEAM = TB6CA879K5;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Orion Live";
@@ -787,14 +834,17 @@
 		84270E7C2DFAAB5F00AF2664 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = OrionLiveIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Orion_Live.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 0.1.0;
-				DEVELOPMENT_TEAM = TB6CA879K5;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Orion Live";
@@ -869,16 +919,16 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift-examples";
 			requirement = {
-				kind = exactVersion;
-				version = 2.21.2;
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.21.2;
 			};
 		};
 		8423D9132E0A69B500463407 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/huggingface/swift-transformers";
 			requirement = {
-				kind = exactVersion;
-				version = 0.1.18;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.18;
 			};
 		};
 		8439DE2E2E2F155700C3850B /* XCRemoteSwiftPackageReference "supabase-swift" */ = {

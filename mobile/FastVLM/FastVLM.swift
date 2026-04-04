@@ -9,6 +9,7 @@
 import CoreImage
 import CoreML
 import Foundation
+import Dispatch
 import MLX
 import MLXFast
 import MLXLMCommon
@@ -74,6 +75,10 @@ private enum Language {
 
         @ModuleInfo(key: "rotary_emb") var rotaryEmbedding: RoPE
 
+        public required nonisolated override init() {
+            fatalError("Use init(_:) with configuration")
+        }
+
         public init(_ args: FastVLMConfiguration.TextConfiguration) {
             let dim = args.hiddenSize
             self.heads = args.attentionHeads
@@ -88,25 +93,31 @@ private enum Language {
 
             if let v = args.ropeScaling?["mrope_section"], let array = v.asInts() {
                 // mrope_section = np.cumsum(mrope_section * 2)[:-1].tolist()
-                self.mropeSection = sequence(state: (0, array.makeIterator())) { state in
-                    if let v = state.1.next() {
-                        // note the *2
-                        state.0 += v * 2
-                        return state.0
-                    } else {
-                        return nil
-                    }
-                }.dropLast()
+                self.mropeSection = Array(
+                    sequence(state: (0, array.makeIterator())) { state in
+                        if let v = state.1.next() {
+                            // note the *2
+                            state.0 += v * 2
+                            return state.0
+                        } else {
+                            return nil
+                        }
+                    }.dropLast()
+                )
             } else {
                 fatalError("rope_scaling['mrope_section'] must be an array of integers")
             }
 
             self._rotaryEmbedding.wrappedValue = RoPE(
                 dimensions: headDim, traditional: args.ropeTraditional, base: args.ropeTheta)
+            super.init()
         }
 
+
         public func callAsFunction(
-            _ x: MLXArray, mask: MLXArray? = nil, cache: KVCache?
+            _ x: MLXArray,
+            mask: MLXFast.ScaledDotProductAttentionMaskMode? = nil,
+            cache: KVCache?
         ) -> MLXArray {
             let (B, L) = (x.dim(0), x.dim(1))
 
@@ -120,7 +131,6 @@ private enum Language {
             values = values.reshaped(B, L, kvHeads, headDim).transposed(0, 2, 1, 3)
 
             let offset = cache?.offset ?? 0
-            let mask = mask?[0..., 0 ..< keys.dim(-2)]
 
             queries = rotaryEmbedding(queries, offset: offset)
             keys = rotaryEmbedding(keys, offset: offset)
@@ -130,7 +140,8 @@ private enum Language {
             }
 
             let output = MLXFast.scaledDotProductAttention(
-                queries: queries, keys: keys, values: values, scale: scale, mask: mask
+                queries: queries, keys: keys, values: values, scale: scale,
+                mask: mask ?? .none
             )
             .transposed(0, 2, 1, 3)
             .reshaped(B, L, -1)
@@ -145,11 +156,17 @@ private enum Language {
         @ModuleInfo(key: "down_proj") var down: Linear
         @ModuleInfo(key: "up_proj") var up: Linear
 
+        public required nonisolated override init() {
+            fatalError("Use init(dimensions:hiddenDimensions:)")
+        }
+
         public init(dimensions: Int, hiddenDimensions: Int) {
             self._gate.wrappedValue = Linear(dimensions, hiddenDimensions, bias: false)
             self._down.wrappedValue = Linear(hiddenDimensions, dimensions, bias: false)
             self._up.wrappedValue = Linear(dimensions, hiddenDimensions, bias: false)
+            super.init()
         }
+
 
         public func callAsFunction(_ x: MLXArray) -> MLXArray {
             down(silu(gate(x)) * up(x))
@@ -164,6 +181,10 @@ private enum Language {
         @ModuleInfo(key: "input_layernorm") var inputLayerNorm: RMSNorm
         @ModuleInfo(key: "post_attention_layernorm") var postAttentionLayerNorm: RMSNorm
 
+        public required nonisolated override init() {
+            fatalError("Use init(_:) with configuration")
+        }
+
         public init(_ args: FastVLMConfiguration.TextConfiguration) {
             self._attention.wrappedValue = Attention(args)
             self.mlp = MLP(dimensions: args.hiddenSize, hiddenDimensions: args.intermediateSize)
@@ -171,10 +192,14 @@ private enum Language {
                 dimensions: args.hiddenSize, eps: args.rmsNormEps)
             self._postAttentionLayerNorm.wrappedValue = RMSNorm(
                 dimensions: args.hiddenSize, eps: args.rmsNormEps)
+            super.init()
         }
 
+
         public func callAsFunction(
-            _ x: MLXArray, mask: MLXArray? = nil, cache: KVCache?
+            _ x: MLXArray,
+            mask: MLXFast.ScaledDotProductAttentionMaskMode? = nil,
+            cache: KVCache?
         ) -> MLXArray {
             var r = attention(inputLayerNorm(x), mask: mask, cache: cache)
             let h = x + r
@@ -191,6 +216,10 @@ private enum Language {
         fileprivate let layers: [FastVLMDecoderLayer]
         fileprivate let norm: RMSNorm
 
+        public required nonisolated override init() {
+            fatalError("Use init(_:) with configuration")
+        }
+
         public init(_ args: FastVLMConfiguration.TextConfiguration) {
             precondition(args.vocabularySize > 0)
 
@@ -202,7 +231,9 @@ private enum Language {
                     FastVLMDecoderLayer(args)
                 }
             self.norm = RMSNorm(dimensions: args.hiddenSize, eps: args.rmsNormEps)
+            super.init()
         }
+
 
         public func callAsFunction(
             _ inputs: MLXArray?, cache: [KVCache]? = nil, inputEmbedding: MLXArray? = nil
@@ -232,6 +263,10 @@ private enum Language {
 
         var kvHeads: [Int]
 
+        public required nonisolated override init() {
+            fatalError("Use init(_:) with configuration")
+        }
+
         public init(_ args: FastVLMConfiguration.TextConfiguration) {
             self.model = Qwen2Model(args)
 
@@ -240,7 +275,9 @@ private enum Language {
             }
 
             self.kvHeads = (0 ..< args.hiddenLayers).map { _ in args.kvHeads }
+            super.init()
         }
+
 
         public func callAsFunction(
             _ inputs: MLXArray?, cache: [KVCache]? = nil, inputEmbedding: MLXArray? = nil
@@ -316,7 +353,9 @@ private enum Vision {
 
         let model = VisionModelCoreML()
 
-        public override init() {}
+        public required nonisolated override init() {
+            super.init()
+        }
 
         public func callAsFunction(_ hiddenStates: MLXArray, gridThw: [THW]) -> MLXArray {
             model.encode(hiddenStates)
@@ -339,6 +378,26 @@ public class FastVLMProcessor: UserInputProcessor {
         self.config = FastVLMProcessorConfiguration()
         self.imageProcessingConfig = config
         self.tokenizer = tokenizer
+    }
+
+    // Minimal helper to convert Prompt into the ["role","content"] array our template expects.
+    private func messages(from prompt: UserInput.Prompt) -> [[String: String]] {
+        switch prompt {
+        case .text(let text):
+            return [["role": "user", "content": text]]
+        case .messages(let msgs):
+            // Coerce Any values to strings if possible
+            return msgs.map { msg in
+                [
+                    "role": (msg["role"] as? String) ?? "user",
+                    "content": (msg["content"] as? String) ?? ""
+                ]
+            }
+        case .chat(let chatMessages):
+            // Fallback: flatten to a single user message by joining contents
+            let content = chatMessages.map(\.content).joined(separator: "\n")
+            return [["role": "user", "content": content]]
+        }
     }
 
     public func preprocess(image: CIImage, processing: UserInput.Processing?) throws -> (
@@ -364,7 +423,7 @@ public class FastVLMProcessor: UserInputProcessor {
     }
 
     public func prepare(prompt: UserInput.Prompt, imageTHW: THW?) -> String {
-        var messages = prompt.asMessages()
+        var messages = messages(from: prompt)
         if messages[0]["role"] != "system" {
             messages.insert(["role": "system", "content": "You are a helpful assistant."], at: 0)
         }
@@ -391,16 +450,17 @@ public class FastVLMProcessor: UserInputProcessor {
 
         messages[lastIndex]["content"] = lastMessage
 
-        return
+        return (
             messages
-            .map {
-                "<|im_start|>\($0["role"] ?? "user")\n\($0["content"] ?? "")<|im_end|>"
-            }
-            .joined(separator: "\n")
+                .map { message in
+                    "<|im_start|>\(message["role"] ?? "user")\n\(message["content"] ?? "")<|im_end|>"
+                }
+                .joined(separator: "\n")
             + "\n<|im_start|>assistant\n"
+        )
     }
 
-    public func prepare(input: UserInput) throws -> LMInput {
+    public func prepare(input: UserInput) async throws -> LMInput {
         if input.images.isEmpty {
             // just a straight text prompt
             let prompt = prepare(prompt: input.prompt, imageTHW: nil)
@@ -414,7 +474,7 @@ public class FastVLMProcessor: UserInputProcessor {
 
         let (pixels, thw) = try preprocess(
             image: input.images[0].asCIImage(), processing: input.processing)
-        let image = LMInput.ProcessedImage(pixels: pixels, imageGridThw: [thw])
+        let image = LMInput.ProcessedImage(pixels: pixels, frames: [thw])
 
         let prompt = prepare(prompt: input.prompt, imageTHW: thw)
         let promptTokens = tokenizer.encode(text: prompt)
@@ -434,6 +494,10 @@ private class FastVLMMultiModalProjector: Module, UnaryLayer {
     @ModuleInfo(key: "gelu") var gelu: GELU
     @ModuleInfo(key: "linear_2") var linear2: Linear
 
+    public required nonisolated override init() {
+        fatalError("Use init(_:) with configuration")
+    }
+
     public init(_ config: FastVLMConfiguration) {
         self._linear0.wrappedValue = Linear(
             config.visionConfiguration.hiddenSize,
@@ -444,7 +508,9 @@ private class FastVLMMultiModalProjector: Module, UnaryLayer {
             config.textConfiguration.hiddenSize,
             config.textConfiguration.hiddenSize,
             bias: true)
+        super.init()
     }
+
 
     public func callAsFunction(_ x: MLXArray) -> MLXArray {
         var x = linear0(x)
@@ -468,14 +534,15 @@ public class FastVLM: Module, VLMModel, KVCacheDimensionProvider {
     }
 
     static public func register(modelFactory: VLMModelFactory) {
-        modelFactory.typeRegistry.registerModelType("llava_qwen2") { url in
-            let configuration = try JSONDecoder().decode(
+        modelFactory.typeRegistry.registerModelType("llava_qwen2") { @Sendable url in
+            let configuration: FastVLMConfiguration = try JSONDecoder().decode(
                 FastVLMConfiguration.self, from: Data(contentsOf: url))
             return FastVLM(configuration)
         }
 
-        modelFactory.processorRegistry.registerProcessorType("LlavaProcessor") { url, tokenizer in
-            let configuration = try JSONDecoder().decode(
+        modelFactory.processorRegistry.registerProcessorType("LlavaProcessor") {
+            @Sendable url, tokenizer in
+            let configuration: FastVLMPreProcessorConfiguration = try JSONDecoder().decode(
                 FastVLMPreProcessorConfiguration.self, from: Data(contentsOf: url))
             return FastVLMProcessor(configuration, tokenizer: tokenizer)
         }
@@ -492,7 +559,11 @@ public class FastVLM: Module, VLMModel, KVCacheDimensionProvider {
     public var kvHeads: [Int] { languageModel.kvHeads }
 
     public func loraLinearLayers() -> MLXLMCommon.LoRALinearLayers {
-        languageModel.model.layers.map { ($0.attention, ["q_proj", "v_proj"]) }
+        languageModel.model.layers.map { ($0.attention, ["q_proj", "v_proj"])}
+    }
+
+    public required nonisolated override init() {
+        fatalError("Use init(_:) with configuration")
     }
 
     public init(_ config: FastVLMConfiguration) {
@@ -500,6 +571,7 @@ public class FastVLM: Module, VLMModel, KVCacheDimensionProvider {
         self._visionModel.wrappedValue = Vision.VisionModel()
         self._languageModel.wrappedValue = Language.LanguageModel(config.textConfiguration)
         self._multiModalProjector.wrappedValue = FastVLMMultiModalProjector(config)
+        super.init()
     }
 
     private func inputEmbeddings(inputIds: MLXArray, pixelValues: MLXArray?, gridThw: [THW]?)
@@ -537,10 +609,10 @@ public class FastVLM: Module, VLMModel, KVCacheDimensionProvider {
         return inputEmbeds
     }
 
-    public func prepare(_ input: LMInput, cache: [any KVCache], windowSize: Int?) throws
-        -> PrepareResult
+    public func prepare (_ input: LMInput, cache: [KVCache], windowSize: Int?)
+        throws -> PrepareResult
     {
-        let gridThw = input.image?.imageGridThw
+        let gridThw = input.image?.frames
 
         let dtype = DType.float32
         let pixels = input.image?.pixels.asType(dtype)
@@ -553,7 +625,7 @@ public class FastVLM: Module, VLMModel, KVCacheDimensionProvider {
         return .logits(result)
     }
 
-    public func callAsFunction(_ inputs: MLXArray, cache: [any KVCache]?) -> MLXArray {
+    public func callAsFunction(_ inputs: MLXArray, cache: [KVCache]?) -> MLXArray {
         languageModel(inputs, cache: cache).logits
     }
 
@@ -678,6 +750,14 @@ public struct FastVLMPreProcessorConfiguration: Codable, Sendable {
         case imageStd = "image_std"
         case size
         case cropSize = "crop_size"
+    }
+
+    public init(from decoder: any Swift.Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.imageMean = try container.decode([CGFloat].self, forKey: .imageMean)
+        self.imageStd = try container.decode([CGFloat].self, forKey: .imageStd)
+        self.size = try container.decode(Size.self, forKey: .size)
+        self.cropSize = try container.decode(CropSize.self, forKey: .cropSize)
     }
 }
 

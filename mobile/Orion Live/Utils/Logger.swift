@@ -8,6 +8,7 @@
 //
 import Foundation
 import os.log
+import Combine
 
 /// Logging categories
 enum AppLogCategory: String, CaseIterable {
@@ -16,6 +17,7 @@ enum AppLogCategory: String, CaseIterable {
     case detection = "Detection"
     case vision = "Vision"
     case ui = "UI"
+    case battery = "Battery"
     case general = "General"
 }
 
@@ -43,6 +45,14 @@ class Logger {
     
     /// OS Logger instances
     private var loggers: [AppLogCategory: OSLog] = [:]
+    
+    /// In-app log publisher for real-time UI streaming
+    let logPublisher = PassthroughSubject<AppLogEntry, Never>()
+    
+    /// Ring buffer of recent logs for UI
+    private let maxBufferedLogs = 500
+    private var bufferedLogs: [AppLogEntry] = []
+    private let bufferQueue = DispatchQueue(label: "com.orion.logger.buffer", qos: .utility)
     
     /// Debug logging enabled
     private let debugEnabled = DebugConfig.enableNetworkLogs ||
@@ -103,6 +113,27 @@ class Logger {
         #if DEBUG
         print(fullMessage)
         #endif
+        
+        // Publish to in-app stream and buffer for UI
+        let entry = AppLogEntry(
+            timestamp: Date(),
+            category: category,
+            level: level,
+            message: message,
+            metadata: metadata
+        )
+        // Buffer off-main to avoid blocking
+        bufferQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.bufferedLogs.append(entry)
+            if self.bufferedLogs.count > self.maxBufferedLogs {
+                self.bufferedLogs.removeFirst(self.bufferedLogs.count - self.maxBufferedLogs)
+            }
+            // Publish on main for UI consumers
+            DispatchQueue.main.async {
+                self.logPublisher.send(entry)
+            }
+        }
     }
     
     /// Log network activity
@@ -128,6 +159,11 @@ class Logger {
     /// Log UI activity
     func ui(_ message: String, level: LogLevel = .debug) {
         log(message, level: level, category: AppLogCategory.ui)
+    }
+    
+    /// Log battery activity
+    func battery(_ message: String, level: LogLevel = .info) {
+        log(message, level: level, category: AppLogCategory.battery)
     }
     
     /// Log performance metrics
@@ -239,4 +275,27 @@ func logError(
         function: function,
         line: line
     )
+}
+
+// MARK: - UI-facing log entry model
+struct AppLogEntry: Identifiable, Hashable {
+    let id = UUID()
+    let timestamp: Date
+    let category: AppLogCategory
+    let level: LogLevel
+    let message: String
+    let metadata: String
+    
+    var timeString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm:ss a"
+        return formatter.string(from: timestamp)
+    }
+}
+
+// MARK: - Convenience accessors for buffered logs
+extension Logger {
+    func recentLogs() -> [AppLogEntry] {
+        return bufferQueue.sync { bufferedLogs }
+    }
 }

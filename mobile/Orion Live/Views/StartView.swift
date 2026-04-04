@@ -8,11 +8,13 @@
 //
 import SwiftUI
 import Combine
+import WebRTC
 
 struct StartView: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var objectDetector: ObjectDetector
-    @EnvironmentObject var webSocketManager: WebSocketManager
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
     @Binding var isCameraActive: Bool
     var onStart: (@escaping () -> Void) -> Void
 
@@ -70,7 +72,6 @@ struct StartView: View {
                     .padding()
                     .onAppear(perform: startTypewriterEffect)
 
-
                 Spacer()
 
                 // Start Button
@@ -81,10 +82,9 @@ struct StartView: View {
                         haptic.impactOccurred()
                         startLoading()
                     }) {
-                        Image(systemName: "bolt.fill")
-                            .font(.system(size: 60, weight: .bold))
+                        OrionEyeView(size: 60)
                             .foregroundColor(colorScheme == .dark ? .black : .white)
-                            .padding(45)
+                            .padding(33)
                             .background(
                                 Circle()
                                     .fill(colorScheme == .dark ? Color.white : Color.black)
@@ -117,6 +117,16 @@ struct StartView: View {
                 }
                 .transition(.opacity)
             }
+        }
+        // Place pills as an inset just above home indicator/bottom bar
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                ServerStatusPill()
+                Spacer(minLength: 16)
+                ProcessingModePill()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
         }
         .onReceive(Just(isCameraActive)) { newIsCameraActive in
             if newIsCameraActive {
@@ -229,7 +239,6 @@ struct StartView: View {
         }
         triggerHyperspeed()
         objectDetector.loadModel()
-        webSocketManager.connect()
 
         // Observe model readiness
         var modelCancellable: AnyCancellable? = nil
@@ -243,8 +252,144 @@ struct StartView: View {
     }
 }
 
-struct StartView_Previews: PreviewProvider {
-    static var previews: some View {
-        StartView(isCameraActive: .constant(false), onStart: { completion in completion() })
+struct OrionEyeView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var size: CGFloat
+
+    // Horizontal look target in the range [-1, 1]
+    @State private var lookOffset: CGFloat = -1.0
+    @State private var lookTask: Task<Void, Never>? = nil
+
+    // Vertical placement: push the pupil up toward the top of the eye
+    private var verticalOffset: CGFloat { -size * 0.14 }
+
+    // Geometry helpers to keep the pupil inside the ring even when offset upward
+    private var innerRadius: CGFloat { size * 0.48 } // matches sclera 0.96 * size
+    private var pupilRadius: CGFloat { size * 0.175 } // matches pupil 0.35 * size
+
+    // Max horizontal travel allowed at this vertical offset so the pupil stays inside the circle
+    private var maxHorizontalTravel: CGFloat {
+        let y = abs(verticalOffset)
+        let r = innerRadius
+        // available half-width at this y inside the circle
+        let halfChord = max(0, sqrt(max(0, r * r - y * y)))
+        // subtract pupil radius and a tiny margin
+        return max(0, halfChord - pupilRadius - size * 0.02)
+    }
+
+    var body: some View {
+        let ringColor = (colorScheme == .dark ? Color.white : Color.black)
+        let scleraColor = (colorScheme == .dark ? Color.black : Color.white)
+
+        ZStack {
+            // Outer ring
+            Circle()
+                .stroke(ringColor.opacity(0.9), lineWidth: max(2, size * 0.05))
+                .frame(width: size, height: size)
+                .shadow(color: ringColor.opacity(0.25), radius: size * 0.08, x: 0, y: size * 0.04)
+
+            // Sclera (background of the eye)
+            Circle()
+                .fill(scleraColor)
+                .frame(width: size * 0.96, height: size * 0.96)
+
+            // Iris + Pupil group that moves together
+            ZStack {
+                // Keep only the pupil for a minimalist look
+                Circle()
+                    .fill(ringColor)
+                    .frame(width: size * 0.38, height: size * 0.38)
+            }
+            // Natural left-right movement constrained to the upper arc
+            .offset(x: lookOffset * maxHorizontalTravel, y: verticalOffset)
+        }
+        .frame(width: size, height: size)
+        .onAppear {
+            // Kick off a natural, human-like look loop with varying saccades and dwells
+            if lookTask == nil {
+                lookTask = Task { await lookLoop() }
+            }
+        }
+        .onDisappear {
+            lookTask?.cancel()
+            lookTask = nil
+        }
+        .accessibilityLabel("Orion Eye")
+        .accessibilityAddTraits(.isImage)
+    }
+
+    // MARK: - Natural Look Loop
+    private func lookLoop() async {
+        // Start by looking to the right to signal life
+        await animate(to: 1.0, response: 0.55, damping: 0.85)
+        await sleepRandom(0.5, 1.2)
+
+        while !Task.isCancelled {
+            // Choose a new target with some bias toward edges for cuteness
+            let candidates: [CGFloat] = [-1.0, -0.6, -0.2, 0.0, 0.3, 0.7, 1.0]
+            let weights: [Double] = [0.22, 0.14, 0.08, 0.08, 0.14, 0.16, 0.18]
+            let next = weightedRandom(from: candidates, weights: weights)
+
+            // Quick saccade to the next point with a soft spring
+            await animate(to: next, response: .random(in: 0.35...0.65), damping: 0.88)
+
+            // Dwell (linger) a bit, like a human gaze
+            await sleepRandom(0.35, 1.0)
+
+            // Tiny micro-adjustment for life-like motion (no more than 8% of range)
+            if Bool.random() {
+                let micro = max(-1, min(1, next + CGFloat.random(in: -0.08...0.08)))
+                await animate(to: micro, response: .random(in: 0.28...0.5), damping: 0.9)
+                await sleepRandom(0.2, 0.6)
+            }
+        }
+    }
+
+    @MainActor
+    private func animate(to value: CGFloat, response: Double, damping: Double) async {
+        await withCheckedContinuation { continuation in
+            withAnimation(.spring(response: response, dampingFraction: damping, blendDuration: 0.2)) {
+                lookOffset = value
+            }
+            // Roughly wait the animation response time before continuing
+            DispatchQueue.main.asyncAfter(deadline: .now() + response) {
+                continuation.resume()
+            }
+        }
+    }
+
+    private func sleepRandom(_ a: Double, _ b: Double) async {
+        let delay = Double.random(in: a...b)
+        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+    }
+
+    private func weightedRandom<T>(from values: [T], weights: [Double]) -> T {
+        let total = weights.reduce(0, +)
+        let r = Double.random(in: 0..<total)
+        var sum = 0.0
+        for (i, w) in weights.enumerated() {
+            sum += w
+            if r < sum { return values[i] }
+        }
+        return values.last! // Fallback
     }
 }
+
+struct StartView_Previews: PreviewProvider {
+    static var previews: some View {
+        let authManager = AuthManager()
+        let deviceManager = DeviceManager(supabase: authManager.supabase)
+        let apiService = APIService(supabase: authManager.supabase)
+        let signalingClient = SignalingClient(apiService: apiService, deviceManager: deviceManager)
+        let webRTCManager = WebRTCManager(signalingClient: signalingClient)
+        let webSocketManager = WebSocketManager()
+        let objectDetector = ObjectDetector()
+        
+        StartView(isCameraActive: .constant(false), onStart: { completion in completion() })
+            .environmentObject(objectDetector)
+            .environmentObject(webSocketManager)
+            .environmentObject(webRTCManager)
+            .environmentObject(signalingClient)
+    }
+}
+

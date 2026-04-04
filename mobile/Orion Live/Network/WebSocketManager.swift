@@ -4,7 +4,7 @@ import Combine
 
 
 // WebSocket connection status
-enum ConnectionStatus {
+enum ConnectionStatus: Equatable {
     case disconnected
     case connecting
     case connected
@@ -17,6 +17,11 @@ enum ConnectionStatus {
         }
     }
 }
+
+// In Swift 6, using actor-isolated conformances across isolation domains triggers
+// 'isolated-conformances' diagnostics. Mark this conformance as preconcurrency
+// to keep it nonisolated and compatible with existing call sites.
+// removed invalid preconcurrency annotation
 
 // WebSocket manager errors
 enum WSError: Error, Equatable {
@@ -176,10 +181,15 @@ class WebSocketManager: ObservableObject {
     private var networkMonitor: NWPathMonitor?
     private var isCleaningUp = false // Add flag to prevent operations during cleanup
     
+    // Connection tracking for smarter error handling
+    private var connectionAttempts = 0
+    private var lastConnectionAttempt: Date?
+    private var hasShownNetworkError = false
+    
     init() {
         self.currentHost = UserDefaults.standard.string(forKey: UserDefaultsKeys.serverHost) ?? ServerConfig.host
         self.currentPort = UserDefaults.standard.object(forKey: UserDefaultsKeys.serverPort) as? Int ?? ServerConfig.port
-        self.processingMode = UserDefaults.standard.string(forKey: UserDefaultsKeys.processingMode) ?? "split"
+        self.processingMode = UserDefaults.standard.string(forKey: UserDefaultsKeys.processingMode) ?? "hybrid" // Default to hybrid
         
         log("WebSocketManager initialized. Server: ws://\(currentHost):\(currentPort)/ios")
         startNetworkMonitoring()
@@ -190,7 +200,7 @@ class WebSocketManager: ObservableObject {
     }
 
     func connect() {
-        guard status == .disconnected else {
+        guard readStatus() == .disconnected else {
             log("Connect called but status is not disconnected: \(status)")
             return
         }
@@ -198,9 +208,17 @@ class WebSocketManager: ObservableObject {
         guard let urlToConnect = serverURL else {
             log("Cannot connect: Server URL is invalid")
             onError?(.invalidURL)
+            // Show user-friendly error for invalid server configuration
+            Task { @MainActor in
+                ToastManager.shared.showToast(message: "Server configuration error: Invalid URL", type: .error)
+            }
             DispatchQueue.main.async { self.status = .disconnected }
             return
         }
+        
+        // Track connection attempts
+        connectionAttempts += 1
+        lastConnectionAttempt = Date()
         
         DispatchQueue.main.async { self.status = .connecting }
         wsTask = session.webSocketTask(with: urlToConnect)
@@ -257,8 +275,16 @@ class WebSocketManager: ObservableObject {
     }
     
     private func sendMessage<T: ClientToServerMessage>(_ message: T) {
-        guard status == .connected else {
-            onError?(.connectionFailed)
+        // If we're not connected, try to connect first instead of immediately showing error
+        guard readStatus() == .connected else {
+            // Only show error if we've actually tried to connect and failed multiple times
+            if connectionAttempts >= 3 && hasShownNetworkError == false {
+                hasShownNetworkError = true
+                onError?(.connectionFailed)
+                Task { @MainActor in
+                    ToastManager.shared.showNetworkError()
+                }
+            }
             return
         }
         
@@ -306,21 +332,42 @@ class WebSocketManager: ObservableObject {
                 let closeCode = (error as? WSError) == .connectionFailed ? nil : nsError.code
                 let reason = (error as? WSError) == .connectionFailed ? nil : nsError.localizedFailureReason
                 self.log("Receive error: \(error.localizedDescription), domain: \(nsError.domain), code: \(closeCode ?? 0), reason: \(reason ?? "N/A")")
-                if self.status != .disconnected && !self.isCleaningUp {
-                    DispatchQueue.main.async { 
-                        if !self.isCleaningUp {
-                            self.status = .disconnected 
+                DispatchQueue.main.async {
+                    guard !self.isCleaningUp else { return }
+                    if self.status != .disconnected {
+                        self.status = .disconnected
+                        self.lastRoundTripTime = nil
+                        self.onError?(.connectionFailed)
+
+                        // Show user-friendly error message only if we haven't shown one recently
+                        if self.connectionAttempts >= 2 && !self.hasShownNetworkError {
+                            self.hasShownNetworkError = true
+                            Task { @MainActor in
+                                if self.isNetworkUnavailable(nsError) {
+                                    ToastManager.shared.showNetworkError()
+                                } else {
+                                    ToastManager.shared.showToast(message: "Server connection lost: Attempting to reconnect...", type: .warning)
+                                }
+                            }
                         }
-                    }
-                    self.onError?(.connectionFailed)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + SettingsManager.shared.reconnectDelay) {
-                        if self.status == .disconnected && !self.isCleaningUp { 
-                            self.connect() 
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + SettingsManager.shared.reconnectDelay) {
+                            if self.status == .disconnected && !self.isCleaningUp {
+                                self.connect()
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    // Thread-safe read of status that respects main-actor isolation in SwiftUI environments
+    private func readStatus() -> ConnectionStatus {
+        if Thread.isMainThread { return status }
+        var value = status
+        DispatchQueue.main.sync { value = self.status }
+        return value
     }
     
     private func handleMessage(_ text: String) {
@@ -339,7 +386,12 @@ class WebSocketManager: ObservableObject {
             }
             
             DispatchQueue.main.async {
-                if self.status != .connected { self.status = .connected }
+                if self.status != .connected { 
+                    self.status = .connected 
+                    // Reset error tracking when successfully connected
+                    self.connectionAttempts = 0
+                    self.hasShownNetworkError = false
+                }
             }
             
             switch messageType {
@@ -400,6 +452,10 @@ class WebSocketManager: ObservableObject {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self = self, !self.isCleaningUp else { return }
             if path.status == .satisfied {
+                // Network is available - reset error tracking and try to connect if disconnected
+                DispatchQueue.main.async {
+                    self.hasShownNetworkError = false
+                }
                 if self.status == .disconnected { 
                     DispatchQueue.main.async {
                         if !self.isCleaningUp {
@@ -408,10 +464,18 @@ class WebSocketManager: ObservableObject {
                     }
                 }
             } else {
+                // Network is unavailable - show error only if we were previously connected
                 if self.status != .disconnected { 
                     DispatchQueue.main.async {
                         if !self.isCleaningUp {
                             self.disconnect()
+                            // Show network error only when we lose an active connection
+                            if !self.hasShownNetworkError {
+                                self.hasShownNetworkError = true
+                                Task { @MainActor in
+                                    ToastManager.shared.showNetworkError()
+                                }
+                            }
                         }
                     }
                 }
@@ -423,6 +487,13 @@ class WebSocketManager: ObservableObject {
     
     private func log(_ message: String) {
         if Self.enableLogging { Logger.shared.network("WebSocketManager: \(message)") }
+    }
+    
+    private func isNetworkUnavailable(_ error: NSError) -> Bool {
+        return error.domain.contains("NSURLError") || 
+               error.localizedDescription.lowercased().contains("network") ||
+               error.localizedDescription.lowercased().contains("internet") ||
+               error.localizedDescription.lowercased().contains("offline")
     }
     
     deinit {

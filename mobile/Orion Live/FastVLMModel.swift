@@ -35,7 +35,7 @@ class FastVLMModel: ObservableObject {
     @Published public var promptTime: String = ""
     @Published public var evaluationState = EvaluationState.idle
 
-    private enum LoadState { case idle, loaded(ModelContainer) }
+    private enum LoadState { case idle, loading, loaded(ModelContainer), failed(Error) }
     private var loadState = LoadState.idle
 
     enum EvaluationState: String, CaseIterable { case idle = "Idle", processingPrompt = "Processing Prompt", generatingResponse = "Generating Response" }
@@ -61,19 +61,39 @@ class FastVLMModel: ObservableObject {
     }
 
     init() {
+        // Only register the factory, don't load anything heavy
         FastVLM.register(modelFactory: VLMModelFactory.shared)
+        self.modelInfo = "Ready to load"
     }
 
     private func _load() async throws -> ModelContainer {
         switch loadState {
         case .idle:
-            MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
-            let modelContainer = try await VLMModelFactory.shared.loadContainer(configuration: modelConfiguration)
-            self.modelInfo = "Loaded"
-            loadState = .loaded(modelContainer)
-            return modelContainer
+            loadState = .loading
+            self.modelInfo = "Loading..."
+            do {
+                let t0 = CFAbsoluteTimeGetCurrent()
+                MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
+                let modelContainer = try await VLMModelFactory.shared.loadContainer(configuration: modelConfiguration)
+                self.modelInfo = "Loaded"
+                loadState = .loaded(modelContainer)
+                let elapsed = (CFAbsoluteTimeGetCurrent() - t0)
+                logInfo(String(format: "FastVLM load completed in %.2f s", elapsed), category: .vision)
+                return modelContainer
+            } catch {
+                loadState = .failed(error)
+                throw error
+            }
+        case .loading:
+            // If already loading, wait for it to complete
+            while case .loading = loadState {
+                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            }
+            return try await _load() // Recursive call after loading completes
         case .loaded(let modelContainer):
             return modelContainer
+        case .failed(let error):
+            throw error
         }
     }
 
@@ -93,9 +113,13 @@ class FastVLMModel: ObservableObject {
         }
 
         running = true
-        defer { running = false }
+        defer {
+            running = false
+            Task { @MainActor in self.evaluationState = .idle }
+        }
 
         do {
+            logInfo("VLM generation started", category: .vision)
             let modelContainer = try await _load()
             let userInput = UserInput(prompt: .text(prompt), images: [.ciImage(CIImage(cvPixelBuffer: image))])
 
@@ -106,9 +130,14 @@ class FastVLMModel: ObservableObject {
                 Task { @MainActor in self.evaluationState = .processingPrompt }
                 let input = try await context.processor.prepare(input: userInput)
 
+                var switchedToGenerating = false
                 let generateResult = try MLXLMCommon.generate(input: input, parameters: generateParameters, context: context) { tokens in
                     Task {
                         await state.markFirstToken(llmStartTime: llmStart)
+                    }
+                    if !switchedToGenerating {
+                        switchedToGenerating = true
+                        Task { @MainActor in self.evaluationState = .generatingResponse }
                     }
                     if tokens.count % displayEveryNTokens == 0 {
                         let text = context.tokenizer.decode(tokens: tokens)
@@ -125,6 +154,8 @@ class FastVLMModel: ObservableObject {
             let totalTime = Date().timeIntervalSince(llmStart)
             let finalPromptDuration = await state.promptDuration
 
+            logInfo(String(format: "VLM generation finished. TTFT: %.0f ms, tokens: %d, total: %.2f s (%.1f tok/s)", finalPromptDuration * 1000, finalTokenCount, totalTime, totalTime > 0 ? Double(finalTokenCount)/totalTime : 0), category: .vision)
+
             return VLMResult(
                 description: finalOutput,
                 timeToFirstToken: finalPromptDuration,
@@ -134,6 +165,7 @@ class FastVLMModel: ObservableObject {
 
         } catch {
             logError(error, category: .vision)
+            Task { @MainActor in self.evaluationState = .idle }
             return VLMResult(description: "Error: \(error.localizedDescription)", timeToFirstToken: 0, totalGenerationTime: 0, tokensGenerated: 0)
         }
     }

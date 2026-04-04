@@ -23,28 +23,32 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            // Tab 1: Camera Feed
+            // Tab 1: Home (Camera)
             CameraTabView(
                 wsManager: webSocketManager, // Use the environment object instead of creating a new one
                 latestAnalysis: $latestAnalysis,
                 analysisTimestamp: $analysisTimestamp
             )
                 .tabItem {
-                    Label("Camera", systemImage: "camera.fill")
+                    Label("Home", systemImage: "house.fill")
                 }
 
+            // Tab 2: Chat
+            ChatView()
+                .tabItem {
+                    Label("Chat", systemImage: "message.fill")
+                }
+
+            // Tab 3: Debug
             DebugTabView()
                 .tabItem {
                     Label("Debug", systemImage: "ladybug.fill")
                 }
             
+            // Tab 4: Settings (Now includes Account)
             SettingsTabView()
                 .tabItem {
                     Label("Settings", systemImage: "gear")
-                }
-            AccountView()
-                .tabItem {
-                    Label("Account", systemImage: "person.crop.circle")
                 }
         }
         .onAppear {
@@ -56,6 +60,8 @@ struct ContentView: View {
                 self.alertMessage = "Camera Error: \(cameraError)"
                 self.showErrorAlert = true
                 Logger.shared.log("CameraManager published error: \(cameraError)", level: .error, category: .camera)
+                // Also show toast for immediate feedback
+                ToastManager.shared.showToast(message: "Camera Error: \(cameraError)", type: .error)
             }
         }
         .alert("Application Alert", isPresented: $showErrorAlert) {

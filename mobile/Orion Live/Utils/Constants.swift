@@ -125,6 +125,7 @@ struct PerformanceMetrics {
     var memoryUsage: Double = 0
     var batteryLevel: Float = 0
     var temperature: Float = 0
+    var thermalState: ProcessInfo.ThermalState = .nominal
     
     static let empty = PerformanceMetrics()
 }

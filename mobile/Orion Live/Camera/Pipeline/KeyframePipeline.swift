@@ -18,6 +18,7 @@ class KeyframePipeline: NSObject, ObservableObject {
 
     private var captureTrigger: Timer?
     private let interval: TimeInterval = 3.0
+    private var stageStart: Date?
 
     private weak var cameraManager: CameraManager?
     private weak var webRTCManager: WebRTCManager?
@@ -36,6 +37,7 @@ class KeyframePipeline: NSObject, ObservableObject {
 
     func start() {
         guard state == .idle else { return }
+        Logger.shared.camera("Keyframe pipeline started", level: .info)
         requestNextKeyframe()
     }
 
@@ -43,6 +45,7 @@ class KeyframePipeline: NSObject, ObservableObject {
         captureTrigger?.invalidate()
         captureTrigger = nil
         state = .idle
+        Logger.shared.camera("Keyframe pipeline stopped", level: .info)
     }
 
     func serverDidAcknowledgeFrame() {
@@ -60,22 +63,37 @@ class KeyframePipeline: NSObject, ObservableObject {
                 self?.captureFrame()
             }
         }
+        Logger.shared.camera("Scheduled next keyframe in \(String(format: "%.1f", interval))s", level: .debug)
     }
 
     private func captureFrame() {
         guard state == .idle else { return }
         state = .capturing
+        stageStart = Date()
+        Logger.shared.camera("Capturing frame...", level: .debug)
     }
 
     func processCapturedFrame(_ sampleBuffer: CMSampleBuffer) {
         guard state == .capturing else { return }
         state = .encoding
+        if let start = stageStart {
+            let elapsed = Date().timeIntervalSince(start) * 1000
+            Logger.shared.camera("Capture stage took \(String(format: "%.1f", elapsed)) ms", level: .info)
+        }
+        stageStart = Date()
+        Logger.shared.camera("Encoding frame...", level: .debug)
         videoEncoder?.encode(sampleBuffer: sampleBuffer)
     }
 
     private func sendEncodedFrame(_ sampleBuffer: CMSampleBuffer) {
         guard state == .encoding else { return }
         state = .sending
+        if let start = stageStart {
+            let elapsed = Date().timeIntervalSince(start) * 1000
+            Logger.shared.camera("Encoding stage took \(String(format: "%.1f", elapsed)) ms", level: .info)
+        }
+        stageStart = Date()
+        Logger.shared.camera("Sending keyframe over WebRTC...", level: .debug)
         webRTCManager?.sendKeyframe(sampleBuffer: sampleBuffer)
         state = .waitingForAck
     }
@@ -86,6 +104,11 @@ extension KeyframePipeline: WebRTCManagerDelegate {
     nonisolated func webRTCManager(_ manager: WebRTCManager, didReceiveAck: Bool) {
         Task { @MainActor in
             if didReceiveAck {
+                if let start = stageStart {
+                    let elapsed = Date().timeIntervalSince(start) * 1000
+                    Logger.shared.camera("Send+ACK stage took \(String(format: "%.1f", elapsed)) ms", level: .info)
+                }
+                Logger.shared.camera("Server acknowledged keyframe", level: .debug)
                 self.serverDidAcknowledgeFrame()
             }
         }

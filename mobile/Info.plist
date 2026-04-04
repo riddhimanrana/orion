@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Orion needs access to your microphone to capture your voice for real-time transcription.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Orion uses speech recognition to transcribe your voice into text in real time.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -19,5 +23,17 @@
 	<string>https://svltefplctinykebecyv.supabase.co</string>
 	<key>UIAppFonts</key>
 	<array/>
+
+	<!-- ICE/TURN configuration for WebRTC -->
+	<key>TURN_URLS</key>
+	<array>
+		<string>turn:turn.orionlive.ai:3478?transport=udp</string>
+		<string>turn:turn.orionlive.ai:3478?transport=tcp</string>
+		<string>turns:turn.orionlive.ai:5349?transport=tcp</string>
+	</array>
+	<key>TURN_USERNAME</key>
+	<string></string>
+	<key>TURN_PASSWORD</key>
+	<string></string>
 </dict>
 </plist>

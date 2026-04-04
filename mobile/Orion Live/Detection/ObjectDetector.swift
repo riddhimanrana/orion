@@ -67,6 +67,8 @@ class ObjectDetector: ObservableObject {
             completion([])
             return
         }
+        let startTime = CFAbsoluteTimeGetCurrent()
+        Logger.shared.detection("YOLO11n detection started", level: .debug)
         
         let request = VNCoreMLRequest(model: model) { [weak self] request, error in
             guard let self = self else { return }
@@ -78,6 +80,8 @@ class ObjectDetector: ObservableObject {
             }
             
             let detections = self.processResults(request.results)
+            let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+            Logger.shared.detection("YOLO11n detection finished in \(String(format: "%.1f", elapsed)) ms, found \(detections.count) objects", level: .info)
             completion(detections)
         }
         

@@ -93,22 +93,24 @@ struct AccountView: View {
     @State private var showingSignOutAlert = false
 
     var body: some View {
-        NavigationView {
-            VStack {
+        NavigationStack {
+            Group {
                 if viewModel.isLoading {
                     ProgressView()
-                        .onAppear {
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .task {
                             if let user = authManager.session?.user {
-                                Task {
-                                    await viewModel.fetchAccountDetails(for: user)
-                                }
+                                await viewModel.fetchAccountDetails(for: user)
+                            } else {
+                                viewModel.isLoading = false
                             }
                         }
                 } else {
                     ScrollView {
-                        VStack(spacing: 20) {
+                        VStack(spacing: 16) {
                             // Profile Header
-                            VStack {
+                            VStack(spacing: 12) {
                                 AsyncImage(url: viewModel.profilePictureURL) { image in
                                     image.resizable()
                                         .aspectRatio(contentMode: .fill)
@@ -125,31 +127,45 @@ struct AccountView: View {
                                 .clipShape(Circle())
                                 .shadow(radius: 5)
 
-                                Text(viewModel.fullName)
-                                    .font(.title).bold()
-                                    .padding(.top, 8)
+                                VStack(spacing: 4) {
+                                    Text(viewModel.fullName)
+                                        .font(.title).bold()
+                                        .multilineTextAlignment(.center)
 
-                                Text(viewModel.email)
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
+                                    Text(viewModel.email)
+                                        .font(.body)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
                             }
-                            .padding(.vertical, 20)
+                            .padding(.top, 8)
+                            .padding(.bottom, 4)
 
                             // Account Details Section
-                            VStack(alignment: .leading, spacing: 15) {
+                            VStack(alignment: .leading, spacing: 12) {
                                 Text("Account Details")
                                     .font(.headline)
                                     .padding(.horizontal)
 
+                                // Connection Status
+                                if authManager.isOffline {
+                                    InfoRow(icon: "wifi.slash", label: "Status", value: "Offline")
+                                        .foregroundColor(.red)
+                                } else {
+                                    InfoRow(icon: "wifi", label: "Status", value: "Connected")
+                                        .foregroundColor(.green)
+                                }
+
                                 InfoRow(icon: "crown.fill", label: "Plan", value: viewModel.subscriptionTier, isPro: viewModel.subscriptionTier == "Pro")
                                 InfoRow(icon: "calendar", label: "Member Since", value: viewModel.memberSince)
                             }
-                            .padding()
+                            .padding(12)
                             .background(Color(UIColor.secondarySystemBackground))
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                             // Actions Section
-                            VStack(alignment: .leading, spacing: 15) {
+                            VStack(alignment: .leading, spacing: 12) {
                                 Text("Actions")
                                     .font(.headline)
                                     .padding(.horizontal)
@@ -163,7 +179,7 @@ struct AccountView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(PlainButtonStyle()) // Use PlainButtonStyle to remove default button styling
+                                .buttonStyle(.plain)
                                 .foregroundColor(.primary)
 
                                 Divider()
@@ -173,24 +189,33 @@ struct AccountView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .contentShape(Rectangle())
                                 }
-                                .buttonStyle(PlainButtonStyle()) // Use PlainButtonStyle to remove default button styling
+                                .buttonStyle(.plain)
                                 .foregroundColor(.red)
                             }
-                            .padding()
+                            .padding(12)
                             .background(Color(UIColor.secondarySystemBackground))
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
-                        .padding()
+                        .padding(.horizontal)
+                        .padding(.vertical, 16)
                     }
                 }
             }
-            .navigationTitle("My Account")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Account")
+            .toolbarTitleDisplayMode(.inline)
             .alert("Log out of Orion Live as \(viewModel.email)?", isPresented: $showingSignOutAlert) {
                 Button("Cancel", role: .cancel) { }
                 Button("Log Out", role: .destructive) {
                     Task {
                         await authManager.signOut()
+                    }
+                }
+            }
+            .onChange(of: authManager.session?.user.id) { _, _ in
+                Task {
+                    if let user = authManager.session?.user {
+                        viewModel.isLoading = true
+                        await viewModel.fetchAccountDetails(for: user)
                     }
                 }
             }

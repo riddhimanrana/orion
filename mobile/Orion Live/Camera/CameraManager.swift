@@ -139,7 +139,10 @@ class CameraManager: NSObject, ObservableObject {
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         Task { @MainActor in
+            // Continue keyframe pipeline for analytics/ACK experiments
             self.keyframePipeline?.processCapturedFrame(sampleBuffer)
+            // Feed raw frames into WebRTC video source to stream live video to the Mac
+            self.webRTCManager?.sendKeyframe(sampleBuffer: sampleBuffer)
         }
     }
 }

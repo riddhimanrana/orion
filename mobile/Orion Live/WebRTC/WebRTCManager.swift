@@ -10,11 +10,22 @@ import Foundation
 import WebRTC
 import Combine
 
+struct ICEStatusSnapshot {
+    var usingTURN: Bool = false
+    var localType: String = "unknown"
+    var remoteType: String = "unknown"
+    var transport: String = "unknown"
+}
+
 @MainActor
 class WebRTCManager: NSObject, ObservableObject {
 
     @Published var connectionState: RTCIceConnectionState = .new
     @Published var signalingState: RTCSignalingState = .stable
+    @Published var dataChannelState: RTCDataChannelState = .closed
+    @Published var iceStatus: ICEStatusSnapshot = ICEStatusSnapshot()
+    @Published var ephemeralTTLRemaining: Int? = nil
+    @Published var iceUsage: ICEUsage? = nil
     @Published private(set) var lastPingRTT: TimeInterval? = nil
 
     private var peerConnection: RTCPeerConnection?
@@ -38,7 +49,7 @@ class WebRTCManager: NSObject, ObservableObject {
 
     func connect() async {
         guard peerConnection == nil else { return }
-        print("WebRTCManager: Starting connection...")
+        Logger.shared.network("WebRTC: Starting connection", level: .info)
         self.signalingClient.delegate = self
         setupPeerConnection()
         await signalingClient.connect()
@@ -51,7 +62,8 @@ class WebRTCManager: NSObject, ObservableObject {
         peerConnection = nil
         signalingClient.disconnect()
         self.connectionState = .closed
-        print("WebRTCManager: Disconnected.")
+        self.dataChannelState = .closed
+        Logger.shared.network("WebRTC: Disconnected", level: .info)
     }
 
     func sendPing() {
@@ -59,6 +71,11 @@ class WebRTCManager: NSObject, ObservableObject {
         pingStartTime = Date()
         let message = RTCDataBuffer(data: "ping".data(using: .utf8)!, isBinary: false)
         dataChannel?.sendData(message)
+    }
+
+    // Backward-compatible alias used by DebugTabView
+    func sendPingP2P() {
+        sendPing()
     }
 
     private func setupPeerConnection() {
@@ -91,6 +108,7 @@ class WebRTCManager: NSObject, ObservableObject {
         config.maxPacketLifeTime = 100
         self.dataChannel = peerConnection?.dataChannel(forLabel: "control", configuration: config)
         self.dataChannel?.delegate = self
+        self.dataChannelState = self.dataChannel?.readyState ?? .closed
     }
 }
 
@@ -98,7 +116,7 @@ class WebRTCManager: NSObject, ObservableObject {
 extension WebRTCManager: SignalingClientDelegate {
     nonisolated func signalingClientDidConnect(_ client: SignalingClient) {
         Task { @MainActor in
-            print("WebRTCManager: Signaling connected. Creating offer...")
+            Logger.shared.network("Signaling connected. Creating offer...", level: .info)
             let constraints = RTCMediaConstraints(mandatoryConstraints: ["OfferToReceiveVideo": "true"], optionalConstraints: nil)
             guard let pc = self.peerConnection else { return }
 
@@ -107,7 +125,7 @@ extension WebRTCManager: SignalingClientDelegate {
                 try await pc.setLocalDescription(offer)
                 self.signalingClient.sendSdp(sdp: offer.sdp, type: "offer")
             } catch {
-                print("Error creating offer: \(error)")
+                Logger.shared.network("Error creating offer: \(error.localizedDescription)", level: .error)
             }
         }
     }
@@ -118,7 +136,7 @@ extension WebRTCManager: SignalingClientDelegate {
             do {
                 try await self.peerConnection?.setRemoteDescription(rtcSdp)
             } catch {
-                print("Error setting remote description: \(error)")
+                Logger.shared.network("Error setting remote description: \(error.localizedDescription)", level: .error)
             }
         }
     }
@@ -129,8 +147,14 @@ extension WebRTCManager: SignalingClientDelegate {
             do {
                 try await self.peerConnection?.add(rtcCandidate)
             } catch {
-                print("Error adding received ICE candidate: \(error)")
+                Logger.shared.network("Error adding ICE candidate: \(error.localizedDescription)", level: .error)
             }
+        }
+    }
+
+    nonisolated func signalingClient(_ client: SignalingClient, didReceiveProcessingMode mode: String) {
+        Task { @MainActor in
+            Logger.shared.network("Received remote processing mode: \(mode)", level: .info)
         }
     }
 
@@ -169,6 +193,7 @@ extension WebRTCManager: RTCPeerConnectionDelegate {
         Task { @MainActor in
             self.dataChannel = dataChannel
             dataChannel.delegate = self
+            self.dataChannelState = dataChannel.readyState
         }
     }
 
@@ -186,7 +211,10 @@ extension WebRTCManager: RTCPeerConnectionDelegate {
 // MARK: - RTCDataChannelDelegate
 extension WebRTCManager: RTCDataChannelDelegate {
     nonisolated func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
-        print("iOS: Data channel state changed to: \(dataChannel.readyState)")
+        Task { @MainActor in
+            self.dataChannelState = dataChannel.readyState
+            Logger.shared.network("Data channel state: \(dataChannel.readyState)", level: .info)
+        }
     }
 
     nonisolated func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {

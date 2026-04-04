@@ -10,6 +10,41 @@
 import SwiftUI
 import Combine
 
+// Fallback stub for environments where the overlay file isn't indexed (e.g., some analyzers on macOS)
+#if !canImport(UIKit)
+struct VoiceInputOverlay: View { var body: some View { EmptyView() } }
+#endif
+
+// Wrapper to avoid direct dependency on external file during analysis
+private struct InlineVoiceInputOverlay: View {
+    @State private var isActive = false
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("Ask Orion anything…")
+                .font(.body)
+                .foregroundStyle(.primary.opacity(0.7))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { isActive.toggle() } }) {
+                Image(systemName: isActive ? "mic.fill" : "mic")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(isActive ? .white : .primary)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(isActive ? Color.blue : Color.clear))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isActive ? "Stop voice input" : "Start voice input")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: 10)
+    }
+}
+
 struct CameraTabView: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var cameraManager: CameraManager
@@ -23,6 +58,7 @@ struct CameraTabView: View {
     @State private var showingSettingsSheet = false
     @State private var showingCameraSwitcher = false
     @State private var isDisconnecting = false
+    @State private var showingVoiceInput = true // Always visible by default
     // @State private var showSceneAnalysis = false // Temporarily disabled
 
     // Namespace for smooth camera switcher animation
@@ -49,7 +85,7 @@ struct CameraTabView: View {
                                 connectionStatusView
                                 disconnectButton
                                 Spacer()
-                                // The camera switcher is now in its own VStack for positioning
+                                // Camera switcher is in its own VStack for positioning
                             }
                             .padding(.top, (safeAreaTopInset == 0 ? -35 : safeAreaTopInset - 35))
                             .padding(.horizontal)
@@ -71,13 +107,18 @@ struct CameraTabView: View {
 
                             VStack {
                                 Spacer()
+                                
                                 // Bottom overlay with detection stats
                                 if !cameraManager.lastDetections.isEmpty {
                                     detectionStatsView
                                         .padding(.horizontal)
-                                        .padding(.bottom, 20)
+                                        .padding(.bottom, 8) // Reduced padding to make room for voice bar
                                 }
                             }
+                            
+                            // Apple Intelligence Voice Input Overlay - prominent hovering bar
+                            VoiceInputOverlay(isVisible: $showingVoiceInput)
+                                .allowsHitTesting(true)
                         }
                         .navigationBarHidden(true)
                     }
@@ -150,9 +191,7 @@ struct CameraTabView: View {
     // MARK: - Camera Switcher Button
     private var cameraSwitchButton: some View {
         Button(action: {
-            withAnimation(.interpolatingSpring(stiffness: 300, damping: 20)) {
-                showingCameraSwitcher.toggle()
-            }
+            showingCameraSwitcher.toggle()
         }) {
             // The button now shows the current zoom/camera state
             if let option = cameraManager.currentCameraOption, !showingCameraSwitcher {
@@ -186,7 +225,6 @@ struct CameraTabView: View {
             Circle()
                 .fill(webSocketStatusColor)
                 .frame(width: 10, height: 10)
-                .animation(.easeInOut, value: wsManager.status)
 
             Text(webSocketStatusText)
                 .font(.caption.weight(.medium))

@@ -10,5 +10,6 @@
 #ifndef FastVLM_h
 #define FastVLM_h
 
+#import <Orion_Live/Orion_Live.h>
 
 #endif /* FastVLM_h */

@@ -14,6 +14,7 @@ import Combine
 protocol SignalingClientDelegate: AnyObject {
     func signalingClient(_ client: SignalingClient, didReceiveRemoteSdp sdp: String, type: String)
     func signalingClient(_ client: SignalingClient, didReceiveCandidate candidate: String, sdpMLineIndex: Int32, sdpMid: String?)
+    func signalingClient(_ client: SignalingClient, didReceiveProcessingMode mode: String)
     func signalingClientDidConnect(_ client: SignalingClient)
     func signalingClientDidDisconnect(_ client: SignalingClient)
     func signalingClient(_ client: SignalingClient, didEncounterError error: Error)
@@ -42,6 +43,10 @@ class SignalingClient: NSObject, ObservableObject {
         self.deviceManager = deviceManager
         super.init()
     }
+
+    // Internal accessors for WebRTC setup
+    func webrtcDeviceId() -> String? { deviceManager.deviceId }
+    func webrtcAPI() -> APIService { apiService }
 
     func connect() async {
         guard connectionState == .disconnected else { return }
@@ -85,6 +90,16 @@ class SignalingClient: NSObject, ObservableObject {
         sendMessage(message)
     }
 
+    func sendBye() {
+        let message = SignalingMessage(t: "bye", pairId: self.pairId ?? "", sdp: nil, ice: nil)
+        sendMessage(message)
+    }
+    
+    func sendProcessingMode(_ mode: String) {
+        let message = ProcessingModeMessage(t: "mode", pairId: self.pairId ?? "", mode: mode)
+        sendMessage(message)
+    }
+
     private func sendMessage<T: Encodable>(_ message: T) {
         guard connectionState == .connected else { return }
         do {
@@ -119,8 +134,8 @@ class SignalingClient: NSObject, ObservableObject {
     private func handleMessage(_ message: URLSessionWebSocketTask.Message) async {
         guard let data = message.data else { return }
 
-        do {
-            let decodedMessage = try JSONDecoder().decode(SignalingMessage.self, from: data)
+        // First try to decode as a standard SignalingMessage
+        if let decodedMessage = try? JSONDecoder().decode(SignalingMessage.self, from: data) {
             guard decodedMessage.pairId == self.pairId else { return }
 
             switch decodedMessage.t {
@@ -135,8 +150,14 @@ class SignalingClient: NSObject, ObservableObject {
             default:
                 break
             }
-        } catch {
-            await handleError(error)
+        }
+        // Try to decode as a ProcessingModeMessage
+        else if let modeMessage = try? JSONDecoder().decode(ProcessingModeMessage.self, from: data) {
+            guard modeMessage.pairId == self.pairId else { return }
+            
+            if modeMessage.t == "mode" {
+                delegate?.signalingClient(self, didReceiveProcessingMode: modeMessage.mode)
+            }
         }
     }
 
@@ -165,6 +186,8 @@ extension SignalingClient: URLSessionWebSocketDelegate {
         Task { @MainActor in
             self.connectionState = .connected
             self.delegate?.signalingClientDidConnect(self)
+            // Send current processing mode to paired device
+            self.sendProcessingMode(SettingsManager.shared.processingMode)
         }
     }
 
@@ -204,4 +227,15 @@ struct IceCandidatePayload: Codable {
     let candidate: String
     let sdpMLineIndex: Int32
     let sdpMid: String?
+}
+
+struct ProcessingModeMessage: Codable {
+    let t: String // "mode"
+    let pairId: String
+    let mode: String // "server" or "hybrid"
+    
+    enum CodingKeys: String, CodingKey {
+        case t, mode
+        case pairId = "pairId"
+    }
 }

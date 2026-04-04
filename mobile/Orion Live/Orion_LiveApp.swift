@@ -22,14 +22,16 @@ struct OrionApp: App {
     @StateObject private var webRTCManager: WebRTCManager
     @StateObject private var signalingClient: SignalingClient
     @StateObject private var apiService: APIService
+    @StateObject private var batteryMonitoringManager: BatteryMonitoringManager
+    @StateObject private var networkMonitor: NetworkMonitor
 
-    // Lazily initialize model-related objects
+    // Lazily initialize model-related objects asynchronously
     @State private var objectDetector: ObjectDetector?
     @State private var fastVLMModel: FastVLMModel?
-    @State private var showCompatibilityCheck = false
+    @State private var isInitializingModels = false
 
     init() {
-        // Initialize all managers first
+        // Initialize lightweight managers first
         let auth = AuthManager()
         let device = DeviceManager(supabase: auth.supabase)
         let api = APIService(supabase: auth.supabase)
@@ -50,29 +52,70 @@ struct OrionApp: App {
         // App-level managers
         _appState = StateObject(wrappedValue: AppStateManager())
         _compatibilityManager = StateObject(wrappedValue: SystemCompatibilityManager())
+    _batteryMonitoringManager = StateObject(wrappedValue: BatteryMonitoringManager())
+    _networkMonitor = StateObject(wrappedValue: NetworkMonitor())
 
-        // Now that all managers are initialized, inject dependencies
-        camera.setup(webRTCManager: webrtc)
-        wsManager.setCameraManager(camera)
-
-        // Setup cleanup handler for sign out
-        auth.onSignOut = { [weak wsManager, weak webrtc, weak signaling, weak camera] in
-            print("Cleaning up managers before sign out...")
-            // Explicitly cleanup managers to break retain cycles
-            wsManager?.cleanup()
-            webrtc?.disconnect()
-            signaling?.disconnect()
-            camera?.stopStreaming()
-        }
-
-        // Configure app appearance
+        // Configure app appearance (lightweight)
         configureAppearance()
 
-        // Setup logging
+        // Setup logging (lightweight)
         setupLogging()
 
         // Log app launch
         logInfo("Orion Vision launched", category: .general)
+        
+        // Setup manager dependencies immediately but asynchronously
+        setupManagerDependencies(camera: camera, wsManager: wsManager, webrtc: webrtc, signaling: signaling, auth: auth)
+    }
+    
+    // Separate heavy initialization from app startup
+    private func setupManagerDependencies(camera: CameraManager, wsManager: WebSocketManager, webrtc: WebRTCManager, signaling: SignalingClient, auth: AuthManager) {
+        // Defer heavy setup until after UI is shown - use lower priority
+        Task(priority: .background) {
+            // Add a small delay to let the UI render first
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            
+            await MainActor.run {
+                // Now that all managers are initialized, inject dependencies
+                camera.setup(webRTCManager: webrtc)
+                wsManager.setCameraManager(camera)
+
+                // Setup cleanup handler for sign out
+                auth.onSignOut = { [weak wsManager, weak webrtc, weak signaling, weak camera] in
+                    print("Cleaning up managers before sign out...")
+                    // Explicitly cleanup managers to break retain cycles
+                    wsManager?.cleanup()
+                    webrtc?.disconnect()
+                    signaling?.disconnect()
+                    camera?.stopStreaming()
+                }
+            }
+        }
+    }
+    
+    // Initialize heavy ML models asynchronously in background
+    private func initializeModelsAsync() async {
+        guard !isInitializingModels else { return }
+        
+        await MainActor.run {
+            isInitializingModels = true
+        }
+        
+        // Initialize models in background
+        async let objectDetectorInit: ObjectDetector = ObjectDetector()
+        
+        async let fastVLMInit: FastVLMModel = await MainActor.run {
+            FastVLMModel()
+        }
+        
+        let (detector, vlmModel) = await (objectDetectorInit, fastVLMInit)
+        
+        await MainActor.run {
+            self.objectDetector = detector
+            self.fastVLMModel = vlmModel
+            self.isInitializingModels = false
+            logInfo("ML models initialized successfully", category: .vision)
+        }
     }
 
     var body: some Scene {
@@ -87,6 +130,8 @@ struct OrionApp: App {
                 .environmentObject(webRTCManager)
                 .environmentObject(signalingClient)
                 .environmentObject(apiService)
+                .environmentObject(batteryMonitoringManager)
+                .environmentObject(networkMonitor)
                 .environmentObject(objectDetector ?? ObjectDetector()) // Provide a default instance
                 .environmentObject(fastVLMModel ?? FastVLMModel()) // Provide a default instance
                 .onOpenURL { url in
@@ -102,18 +147,11 @@ struct OrionApp: App {
                     }
                 }
                 .onAppear {
-                    // Show compatibility check on first launch or if not yet shown
-                    let hasShownCompatibilityCheck = UserDefaults.standard.bool(forKey: "hasShownCompatibilityCheck")
-                    if !hasShownCompatibilityCheck {
-                        showCompatibilityCheck = true
+                    // Initialize ML models after a short delay to allow UI to render
+                    Task {
+                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                        await initializeModelsAsync()
                     }
-                }
-                .sheet(isPresented: $showCompatibilityCheck) {
-                    CompatibilityCheckView()
-                        .environmentObject(compatibilityManager)
-                        .onDisappear {
-                            UserDefaults.standard.set(true, forKey: "hasShownCompatibilityCheck")
-                        }
                 }
                 // Enable/disable idle timer when streaming starts/stops (iOS17+ style)
                 .onChange(of: appState.isStreaming) { _, newStreaming in
@@ -135,6 +173,16 @@ struct OrionApp: App {
                 ) { _ in
                     appState.handleForegroundTransition()
                 }
+                // Show connectivity toasts on state changes
+                .onChange(of: networkMonitor.isConnected) { _, connected in
+                    if connected {
+                        ToastManager.shared.showToast(message: "Back online", type: .success)
+                        authManager.isOffline = false
+                    } else {
+                        ToastManager.shared.showNetworkError()
+                        authManager.isOffline = true
+                    }
+                }
         }
     }
     
@@ -144,15 +192,18 @@ struct OrionApp: App {
             AppLoadingView()
         } else if authManager.session == nil {
             LoginView()
+                .withToast()
         } else {
             ContentView()
+                .withToast()
                 .onAppear {
-                    if objectDetector == nil { objectDetector = ObjectDetector() }
-                    if fastVLMModel == nil { fastVLMModel = FastVLMModel() }
-
-                    // Connect signaling and WebRTC
-                    Task { await signalingClient.connect() }
-                    Task { await webRTCManager.connect() }
+                    // Defer network connections to avoid blocking startup
+                    Task {
+                        // Wait a bit for UI to settle before connecting
+                        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                        await signalingClient.connect()
+                        await webRTCManager.connect()
+                    }
 
                     #if DEBUG
                     WebSocketManager.enableLogging = DebugConfig.enableNetworkLogs
@@ -171,51 +222,51 @@ struct OrionApp: App {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 120, height: 120)
-                    .offset(y: 10) // Position exactly 10 points below center
+                    // .offset(y: 10) // Position exactly 10 points below center
             }
         }
     }
 
     private func configureAppearance() {
         // Configure navigation bar for dark theme
-        let navBarAppearance = UINavigationBarAppearance()
-        navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = .systemBackground
-        navBarAppearance.titleTextAttributes = [
-            .foregroundColor: UIColor.label
-        ]
-        navBarAppearance.largeTitleTextAttributes = [
-            .foregroundColor: UIColor.label
-        ]
-
-        UINavigationBar.appearance().standardAppearance = navBarAppearance
-        UINavigationBar.appearance().compactAppearance = navBarAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
-
-        // Configure tab bar with proper iOS styling
-        let tabBarAppearance = UITabBarAppearance()
-        tabBarAppearance.configureWithOpaqueBackground()
-        tabBarAppearance.backgroundColor = .systemBackground
-
-        // Configure normal state
-        tabBarAppearance.stackedLayoutAppearance.normal.iconColor = .systemGray
-        tabBarAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.systemGray
-        ]
-
-        // Configure selected state
-        tabBarAppearance.stackedLayoutAppearance.selected.iconColor = .systemBlue
-        tabBarAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor.systemBlue
-        ]
-
-        // Apply tab bar appearance
-        UITabBar.appearance().standardAppearance = tabBarAppearance
-        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-
-        // Configure tab bar tint colors
-        UITabBar.appearance().tintColor = .systemBlue
-        UITabBar.appearance().unselectedItemTintColor = .systemGray
+//        let navBarAppearance = UINavigationBarAppearance()
+//        navBarAppearance.configureWithOpaqueBackground()
+//        navBarAppearance.backgroundColor = .systemBackground
+//        navBarAppearance.titleTextAttributes = [
+//            .foregroundColor: UIColor.label
+//        ]
+//        navBarAppearance.largeTitleTextAttributes = [
+//            .foregroundColor: UIColor.label
+//        ]
+//
+//        UINavigationBar.appearance().standardAppearance = navBarAppearance
+//        UINavigationBar.appearance().compactAppearance = navBarAppearance
+//        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
+//
+//        // Configure tab bar with proper iOS styling
+//        let tabBarAppearance = UITabBarAppearance()
+//        tabBarAppearance.configureWithOpaqueBackground()
+//        tabBarAppearance.backgroundColor = .systemBackground
+//
+//        // Configure normal state
+//        tabBarAppearance.stackedLayoutAppearance.normal.iconColor = .systemGray
+//        tabBarAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+//            .foregroundColor: UIColor.systemGray
+//        ]
+//
+//        // Configure selected state
+//        tabBarAppearance.stackedLayoutAppearance.selected.iconColor = .systemBlue
+//        tabBarAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+//            .foregroundColor: UIColor.systemBlue
+//        ]
+//
+//        // Apply tab bar appearance
+//        UITabBar.appearance().standardAppearance = tabBarAppearance
+//        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+//
+//        // Configure tab bar tint colors
+//        UITabBar.appearance().tintColor = .systemBlue
+//        UITabBar.appearance().unselectedItemTintColor = .systemGray
     }
 
     private func setupLogging() {
@@ -311,3 +362,4 @@ class PerformanceMonitor {
 }
 
 /// Shared debug flags
+

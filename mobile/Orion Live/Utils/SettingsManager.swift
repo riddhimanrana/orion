@@ -42,6 +42,29 @@ class SettingsManager: ObservableObject {
         didSet { UserDefaults.standard.set(showDetectionLabels, forKey: UserDefaultsKeys.showLabels) }
     }
 
+    // Chat
+    @Published var showChatStats: Bool {
+        didSet { UserDefaults.standard.set(showChatStats, forKey: "showChatStats") }
+    }
+
+    // LLM Routing
+    // Values: "google", "openai", "proxy", "local"
+    @Published var llmProvider: String {
+        didSet { UserDefaults.standard.set(llmProvider, forKey: "llmProvider") }
+    }
+    // Model identifier string passed to providers (e.g., "gemini-2.5-flash-lite", "gpt-4o-mini", "gemma-3b")
+    @Published var llmModel: String {
+        didSet { UserDefaults.standard.set(llmModel, forKey: "llmModel") }
+    }
+    // URL for your hosted proxy/gateway (e.g., https://ai.orionlive.ai/v1/chat)
+    @Published var llmProxyURL: String {
+        didSet { UserDefaults.standard.set(llmProxyURL, forKey: "llmProxyURL") }
+    }
+    // URL for local Orion Server chat endpoint (e.g., http://orion-server.local:8787/v1/chat)
+    @Published var llmLocalURL: String {
+        didSet { UserDefaults.standard.set(llmLocalURL, forKey: "llmLocalURL") }
+    }
+
     // Debug Options
     @Published var enableNetworkLogging: Bool {
         didSet {
@@ -78,6 +101,25 @@ class SettingsManager: ObservableObject {
         // Camera & Detection
         self.showDetectionBoxes = UserDefaults.standard.bool(forKey: "showDetectionBoxes")
         self.showDetectionLabels = UserDefaults.standard.bool(forKey: UserDefaultsKeys.showLabels)
+
+        // Chat
+        self.showChatStats = UserDefaults.standard.bool(forKey: "showChatStats")
+
+        // LLM Routing defaults from Info.plist where possible
+        let info = Bundle.main.infoDictionary ?? [:]
+        let providerDefault = (info["AI_PROVIDER"] as? String)?.lowercased() ?? "proxy"
+        let providerValue = UserDefaults.standard.string(forKey: "llmProvider") ?? providerDefault
+        let modelDefault = (info["AI_MODEL"] as? String) ?? (providerValue == "google" ? "gemini-2.5-flash-lite" : "gpt-4.1-mini")
+        let modelValue = UserDefaults.standard.string(forKey: "llmModel") ?? modelDefault
+        let proxyDefault = (info["AI_PROXY_URL"] as? String) ?? "https://ai.orionlive.ai/v1/chat"
+        let proxyValue = UserDefaults.standard.string(forKey: "llmProxyURL") ?? proxyDefault
+        let localDefault = (info["AI_LOCAL_URL"] as? String) ?? "http://orion-server.local:8787/v1/chat"
+        let localValue = UserDefaults.standard.string(forKey: "llmLocalURL") ?? localDefault
+
+        self.llmProvider = providerValue
+        self.llmModel = modelValue
+        self.llmProxyURL = proxyValue
+        self.llmLocalURL = localValue
 
         // Debug Options
         self.enableNetworkLogging = UserDefaults.standard.bool(forKey: "enableNetworkLogging")

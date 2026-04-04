@@ -10,17 +10,19 @@ import Foundation
 import Supabase
 import Combine
 import SwiftUI
-import AuthenticationServices
+@preconcurrency import AuthenticationServices
 
 @MainActor
 class AuthManager: NSObject, ObservableObject {
     @Published var session: Session?
     @Published var isLoading = false
     @Published var isInitializing = true // Add this to track initial session check
+    @Published var isOffline = false // Track offline state
 
     private var cancellables = Set<AnyCancellable>()
     private var authChangeListener: AuthStateChangeListenerRegistration?
     private var webAuthSession: ASWebAuthenticationSession?
+    private var refreshTimer: Timer?
 
     var supabase: SupabaseClient!
 
@@ -51,18 +53,7 @@ class AuthManager: NSObject, ObservableObject {
 
         // Fetch current session on launch to get latest user metadata
         Task {
-            do {
-                let currentSession = try await supabase.auth.session
-                DispatchQueue.main.async {
-                    self.session = currentSession
-                    self.isInitializing = false // Mark initialization as complete
-                }
-            } catch {
-                Logger.shared.log("Error fetching initial session: \(error.localizedDescription)", level: .error, category: .general)
-                DispatchQueue.main.async {
-                    self.isInitializing = false // Mark initialization as complete even on error
-                }
-            }
+            await fetchInitialSession()
         }
     }
 
@@ -70,11 +61,109 @@ class AuthManager: NSObject, ObservableObject {
         // Listen for auth state changes
         Task {
             authChangeListener = await supabase.auth.onAuthStateChange { [weak self] event, session in
-                DispatchQueue.main.async {
-                    self?.session = session
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    self.session = session
+                    // Use auth event to drive timer rather than nil checks
+                    switch event {
+                    case .signedIn, .tokenRefreshed, .userUpdated:
+                        self.startTokenRefreshTimer()
+                    case .signedOut, .userDeleted:
+                        self.stopTokenRefreshTimer()
+                    default:
+                        break
+                    }
                 }
             }
         }
+    }
+    
+    // MARK: - Network-Resilient Session Management
+    private func fetchInitialSession() async {
+        do {
+            let fetchedSession = try await supabase.auth.session
+            await MainActor.run {
+                self.session = fetchedSession
+                self.isOffline = false
+                self.isInitializing = false
+                
+                // We successfully fetched a session, start the refresh timer
+                self.startTokenRefreshTimer()
+            }
+        } catch {
+            Logger.shared.log("Error fetching initial session: \(error.localizedDescription)", level: .error, category: .general)
+            
+            // Check if this is a network error
+            if isNetworkError(error) {
+                await MainActor.run {
+                    self.isOffline = true
+                    self.isInitializing = false
+                    // Don't show toast during initialization - app should still open
+                }
+            } else {
+                await MainActor.run {
+                    self.isInitializing = false
+                    ToastManager.shared.showAuthError("Authentication initialization failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Token Refresh Management
+    private func startTokenRefreshTimer() {
+        stopTokenRefreshTimer() // Clean up any existing timer
+
+        // Refresh token every 20 hours (before the typical 24-hour expiry)
+        let interval: TimeInterval = 20 * 60 * 60
+
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            Task {
+                await self?.refreshSessionIfNeeded()
+            }
+        }
+    }
+    
+    private func stopTokenRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+    
+    private func refreshSessionIfNeeded() async {
+        do {
+            let refreshedSession = try await supabase.auth.refreshSession()
+            await MainActor.run {
+                self.session = refreshedSession
+                self.isOffline = false
+            }
+            Logger.shared.log("Session refreshed successfully", level: .info, category: .general)
+        } catch {
+            Logger.shared.log("Failed to refresh session: \(error.localizedDescription)", level: .error, category: .general)
+            
+            if isNetworkError(error) {
+                await MainActor.run {
+                    self.isOffline = true
+                    ToastManager.shared.showNetworkError("Connection lost. Some features may be unavailable.")
+                }
+            } else {
+                // If refresh fails due to invalid token, user needs to re-authenticate
+                await MainActor.run {
+                    ToastManager.shared.showAuthError("Session expired. Please sign in again.")
+                }
+                await signOut()
+            }
+        }
+    }
+    
+    // MARK: - Network Error Detection
+    private func isNetworkError(_ error: Error) -> Bool {
+        let errorString = error.localizedDescription.lowercased()
+        return errorString.contains("network") ||
+               errorString.contains("internet") ||
+               errorString.contains("offline") ||
+               errorString.contains("connection") ||
+               errorString.contains("timeout") ||
+               errorString.contains("unreachable") ||
+               (error as NSError).domain.contains("NSURLError")
     }
 
         // MARK: - OAuth Sign In
@@ -89,21 +178,39 @@ class AuthManager: NSObject, ObservableObject {
             )
         } catch {
             Logger.shared.log("Error signing in with \(provider.rawValue): \(error.localizedDescription)", level: .error, category: .general)
+            
+            if isNetworkError(error) {
+                ToastManager.shared.showNetworkError("Cannot connect to authentication service. Please check your internet connection.")
+            } else {
+                ToastManager.shared.showAuthError("Sign in failed: \(error.localizedDescription)")
+            }
         }
         }
 
         // MARK: - Web Sign In/Up
         func openWebSignIn() {
-            guard var urlComponents = URLComponents(string: "https://orionlive.ai/login") else { return }
+            guard var urlComponents = URLComponents(string: "https://orionlive.ai/login") else { 
+                ToastManager.shared.showAuthError("Invalid authentication URL")
+                return 
+            }
             urlComponents.queryItems = [URLQueryItem(name: "redirectTo", value: "orion://auth/native-auth-callback")]
-            guard let url = urlComponents.url else { return }
+            guard let url = urlComponents.url else { 
+                ToastManager.shared.showAuthError("Invalid authentication URL")
+                return 
+            }
             startWebAuthenticationSession(url: url)
         }
 
         func openWebSignUp() {
-            guard var urlComponents = URLComponents(string: "https://orionlive.ai/signup") else { return }
+            guard var urlComponents = URLComponents(string: "https://orionlive.ai/signup") else { 
+                ToastManager.shared.showAuthError("Invalid authentication URL")
+                return 
+            }
             urlComponents.queryItems = [URLQueryItem(name: "redirectTo", value: "orion://auth/native-auth-callback")]
-            guard let url = urlComponents.url else { return }
+            guard let url = urlComponents.url else { 
+                ToastManager.shared.showAuthError("Invalid authentication URL")
+                return 
+            }
             startWebAuthenticationSession(url: url)
         }
 
@@ -152,9 +259,7 @@ class AuthManager: NSObject, ObservableObject {
             defer {
                 isLoading = false
                 // Clean up the web auth session after handling the callback
-                DispatchQueue.main.async {
-                    self.webAuthSession = nil
-                }
+                self.webAuthSession = nil
             }
 
             Logger.shared.log("Handling session callback from URL: \(url.absoluteString)", level: .info, category: .general)
@@ -177,6 +282,7 @@ class AuthManager: NSObject, ObservableObject {
                 guard let accessToken = params["access_token"],
                       let refreshToken = params["refresh_token"] else {
                     Logger.shared.log("Error: Tokens not found in URL fragment. Available params: \(params)", level: .error, category: .general)
+                    ToastManager.shared.showAuthError("Authentication tokens not found in callback")
                     return
                 }
 
@@ -185,6 +291,11 @@ class AuthManager: NSObject, ObservableObject {
                     Logger.shared.log("Session successfully set from URL fragment.", level: .info, category: .general)
                 } catch {
                     Logger.shared.log("Error setting session from URL fragment: \(error.localizedDescription)", level: .error, category: .general)
+                    if isNetworkError(error) {
+                        ToastManager.shared.showNetworkError("Failed to complete authentication due to network issues")
+                    } else {
+                        ToastManager.shared.showAuthError("Failed to set authentication session: \(error.localizedDescription)")
+                    }
                 }
                 return
             }
@@ -193,6 +304,7 @@ class AuthManager: NSObject, ObservableObject {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
                   let queryItems = components.queryItems else {
                 Logger.shared.log("Error: No query items found in URL", level: .error, category: .general)
+                ToastManager.shared.showAuthError("Invalid authentication callback URL")
                 return
             }
 
@@ -207,15 +319,24 @@ class AuthManager: NSObject, ObservableObject {
                     Logger.shared.log("Session successfully set from query parameters.", level: .info, category: .general)
                 } catch {
                     Logger.shared.log("Error setting session from query parameters: \(error.localizedDescription)", level: .error, category: .general)
+                    if isNetworkError(error) {
+                        ToastManager.shared.showNetworkError("Failed to complete authentication due to network issues")
+                    } else {
+                        ToastManager.shared.showAuthError("Failed to set authentication session: \(error.localizedDescription)")
+                    }
                 }
             } else {
                 Logger.shared.log("Error: No tokens found in query parameters. Available params: \(params)", level: .error, category: .general)
+                ToastManager.shared.showAuthError("Authentication tokens not found in callback URL")
             }
         }
 
         // MARK: - Sign Out
         func signOut() async {
             isLoading = true
+            
+            // Stop the refresh timer
+            stopTokenRefreshTimer()
             
             // Call cleanup handlers before signing out
             onSignOut?()
@@ -224,6 +345,10 @@ class AuthManager: NSObject, ObservableObject {
                 try await supabase.auth.signOut()
             } catch {
                 Logger.shared.log("Error signing out: \(error.localizedDescription)", level: .error, category: .general)
+                // Even if sign out fails on server, clear local session
+                await MainActor.run {
+                    self.session = nil
+                }
             }
             
             // Ensure UI updates happen after cleanup
@@ -233,9 +358,11 @@ class AuthManager: NSObject, ObservableObject {
         }
     
     deinit {
-        // Clean up auth listener and web session
+        // Clean up auth listener, web session, and timer
         authChangeListener?.remove()
         webAuthSession?.cancel()
+        refreshTimer?.invalidate()
+        refreshTimer = nil
         cancellables.removeAll()
     }
 }
