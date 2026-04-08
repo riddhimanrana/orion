@@ -340,7 +340,6 @@ const server = http.createServer(async (req, res) => {
       const aggregate = aggregatePacketStats();
 
       const { hasDeviceA, hasDeviceB } = pairHasAnyDevices(pair);
-
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -551,6 +550,12 @@ const server = http.createServer(async (req, res) => {
         if (pair.user_id !== userId) {
           res.writeHead(403, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Unauthorized pair" }));
+          return;
+        }
+
+        if (pair.status && pair.status !== "active") {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Pair not active" }));
           return;
         }
 
