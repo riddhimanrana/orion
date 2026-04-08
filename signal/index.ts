@@ -202,6 +202,30 @@ function makeTurnCredentials(user: string, ttlSec: number) {
   return { username, credential };
 }
 
+function supabaseHostLabel(url: string) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "invalid";
+  }
+}
+
+function isDeviceMemberOfPair(pair: any, deviceId: string) {
+  return (
+    pair?.mobile_device_id === deviceId ||
+    pair?.server_device_id === deviceId ||
+    pair?.device_a_id === deviceId ||
+    pair?.device_b_id === deviceId
+  );
+}
+
+function pairHasAnyDevices(pair: any) {
+  return {
+    hasDeviceA: Boolean(pair?.mobile_device_id ?? pair?.device_a_id),
+    hasDeviceB: Boolean(pair?.server_device_id ?? pair?.device_b_id),
+  };
+}
+
 function checkIceRate(userId: string) {
   const now = Math.floor(Date.now() / 1000);
   const rec = iceRateState.get(userId);
@@ -286,32 +310,45 @@ const server = http.createServer(async (req, res) => {
         .eq("id", pairId)
         .single();
 
-      if (error || !pair) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid pair" }));
-        return;
-      }
+      // Prefer validating against Supabase; fall back to JWT-only validation if
+      // the pair lookup fails (misconfiguration, cross-project mismatch, etc).
+      const pairValidation = {
+        mode: "supabase" as "supabase" | "jwt_only",
+        ok: true,
+        supabaseHost: supabaseHostLabel(SUPABASE_URL),
+        error: error ? String((error as any).message || error) : null,
+      };
 
-      if (pair.user_id !== userId) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Unauthorized pair" }));
-        return;
+      if (error || !pair) {
+        pairValidation.mode = "jwt_only";
+        pairValidation.ok = false;
+        console.warn("/v1/diag: pair lookup failed; falling back to jwt_only", {
+          pairId,
+          supabaseHost: pairValidation.supabaseHost,
+          error: pairValidation.error,
+        });
+      } else {
+        if (pair.user_id !== userId) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Unauthorized pair" }));
+          return;
+        }
       }
 
       const room = rooms.get(pairId) ?? [];
       const pairStats = ensurePairStats(pairId);
       const aggregate = aggregatePacketStats();
 
-      const hasDeviceA = Boolean(pair.mobile_device_id ?? pair.device_a_id);
-      const hasDeviceB = Boolean(pair.server_device_id ?? pair.device_b_id);
+      const { hasDeviceA, hasDeviceB } = pairHasAnyDevices(pair);
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
           authenticated: true,
+          pairValidation,
           pair: {
-            id: pair.id,
-            status: pair.status,
+            id: pair?.id ?? pairId,
+            status: pair?.status ?? "unknown",
             hasDeviceA,
             hasDeviceB,
           },
@@ -378,16 +415,30 @@ const server = http.createServer(async (req, res) => {
         .eq("id", pairId)
         .single();
 
-      if (error || !pair) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid pair" }));
-        return;
-      }
+      const pairValidation = {
+        mode: "supabase" as "supabase" | "jwt_only",
+        ok: true,
+        supabaseHost: supabaseHostLabel(SUPABASE_URL),
+        error: error ? String((error as any).message || error) : null,
+      };
 
-      if (pair.user_id !== userId) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Unauthorized pair" }));
-        return;
+      if (error || !pair) {
+        pairValidation.mode = "jwt_only";
+        pairValidation.ok = false;
+        console.warn(
+          "/v1/account-usage: pair lookup failed; falling back to jwt_only",
+          {
+            pairId,
+            supabaseHost: pairValidation.supabaseHost,
+            error: pairValidation.error,
+          },
+        );
+      } else {
+        if (pair.user_id !== userId) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Unauthorized pair" }));
+          return;
+        }
       }
 
       const usage = ensureUserUsage(userId);
@@ -397,6 +448,7 @@ const server = http.createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           authenticated: true,
+          pairValidation,
           userId,
           pairId,
           usage: {
@@ -478,27 +530,36 @@ const server = http.createServer(async (req, res) => {
         .eq("id", pairId)
         .single();
 
+      const pairValidation = {
+        mode: "supabase" as "supabase" | "jwt_only",
+        ok: true,
+        supabaseHost: supabaseHostLabel(SUPABASE_URL),
+        error: error ? String((error as any).message || error) : null,
+      };
+
       if (error || !pair) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Invalid pair" }));
-        return;
-      }
+        // Token is already signed by the website and short-lived; allow TURN
+        // issuance even if Supabase lookup fails.
+        pairValidation.mode = "jwt_only";
+        pairValidation.ok = false;
+        console.warn("/v1/ice: pair lookup failed; falling back to jwt_only", {
+          pairId,
+          supabaseHost: pairValidation.supabaseHost,
+          error: pairValidation.error,
+        });
+      } else {
+        if (pair.user_id !== userId) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Unauthorized pair" }));
+          return;
+        }
 
-      if (pair.user_id !== userId) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Unauthorized pair" }));
-        return;
-      }
-
-      const isMember =
-        pair.mobile_device_id === deviceId ||
-        pair.server_device_id === deviceId ||
-        pair.device_a_id === deviceId ||
-        pair.device_b_id === deviceId;
-      if (!isMember) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Device not in pair" }));
-        return;
+        const isMember = isDeviceMemberOfPair(pair, deviceId);
+        if (!isMember) {
+          res.writeHead(403, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Device not in pair" }));
+          return;
+        }
       }
 
       if (!TURN_REST_SECRET || TURN_URLS.length === 0) {
@@ -524,6 +585,7 @@ const server = http.createServer(async (req, res) => {
           realm: TURN_REALM,
           issuedAt: now,
           expiresAt: now + TURN_TTL,
+          pairValidation,
           usage: {
             countInWindow: rate.count,
             maxInWindow: ICE_RATE_MAX,
@@ -589,16 +651,21 @@ server.on("upgrade", async (req: IncomingMessage, socket, head) => {
       .eq("id", pairId)
       .single();
 
-    if (error || !pair) return rejectUpgrade(socket, 403, "Forbidden");
-    if (pair.user_id !== userId) return rejectUpgrade(socket, 403, "Forbidden");
-    if (pair.status !== "active") return rejectUpgrade(socket, 403, "Forbidden");
+    // Prefer Supabase validation, but fall back to JWT-only validation if the
+    // pair row can't be fetched (e.g. Supabase misconfig).
+    if (error || !pair) {
+      console.warn("upgrade: pair lookup failed; falling back to jwt_only", {
+        pairId,
+        supabaseHost: supabaseHostLabel(SUPABASE_URL),
+        error: error ? String((error as any).message || error) : "not_found",
+      });
+    } else {
+      if (pair.user_id !== userId) return rejectUpgrade(socket, 403, "Forbidden");
+      if (pair.status !== "active") return rejectUpgrade(socket, 403, "Forbidden");
 
-    const isMember =
-      pair.mobile_device_id === deviceId ||
-      pair.server_device_id === deviceId ||
-      pair.device_a_id === deviceId ||
-      pair.device_b_id === deviceId;
-    if (!isMember) return rejectUpgrade(socket, 403, "Forbidden");
+      const isMember = isDeviceMemberOfPair(pair, deviceId);
+      if (!isMember) return rejectUpgrade(socket, 403, "Forbidden");
+    }
 
     wss.handleUpgrade(req, socket as any, head, (ws) => {
       setWsMeta(ws, { userId, pairId, deviceId, connectedAtMs: Date.now() });
