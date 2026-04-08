@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "dev:signal": "bun run lib/server/p2p-signal-server.ts",
-    "test:status": "node scripts/test-system-status.mjs"
+    "test:status": "node scripts/test-system-status.mjs",
+    "test:e2e:pairing-signal": "node scripts/e2e-pairing-signal.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

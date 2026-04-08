@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { trackApiRoute } from "@/utils/usage/track-api-route";
 
 export interface SystemStatusResponse {
   overall: "operational" | "degraded" | "outage" | "maintenance";
@@ -15,67 +16,71 @@ const DEFAULT_STATUS: SystemStatusResponse = {
   lastUpdated: new Date().toISOString(),
 };
 
-export async function GET() {
-  try {
-    const apiKey = process.env.BETTERSTACK_UPTIME_STATUS_KEY;
+export async function GET(request: Request) {
+  return trackApiRoute(request, { action: "system.status" }, async (usage) => {
+    try {
+      const apiKey = process.env.BETTERSTACK_UPTIME_STATUS_KEY;
+      usage.addMetadata({ hasBetterstackApiKey: !!apiKey });
 
-    if (!apiKey) {
-      // Return default operational status if no API key is configured
-      return NextResponse.json(DEFAULT_STATUS);
-    }
+      if (!apiKey) {
+        // Return default operational status if no API key is configured
+        return NextResponse.json(DEFAULT_STATUS);
+      }
 
-    const response = await fetch(
-      "https://uptime.betterstack.com/api/v2/monitors",
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "https://uptime.betterstack.com/api/v2/monitors",
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          // Cache for 2 minutes to avoid too many requests
+          next: { revalidate: 120 },
         },
-        // Cache for 2 minutes to avoid too many requests
-        next: { revalidate: 120 },
-      },
-    );
-
-    if (!response.ok) {
-      console.error(
-        `BetterStack API error: ${response.status} ${response.statusText}`,
       );
+
+      if (!response.ok) {
+        console.error(
+          `BetterStack API error: ${response.status} ${response.statusText}`,
+        );
+        return NextResponse.json(DEFAULT_STATUS);
+      }
+
+      const data = await response.json();
+
+      // Process the response to determine overall status
+      const services =
+        data.data?.map(
+          (monitor: {
+            attributes?: {
+              friendly_name?: string;
+              url?: string;
+              status?: string;
+            };
+          }) => ({
+            name:
+              monitor.attributes?.friendly_name ||
+              monitor.attributes?.url ||
+              "Unknown Service",
+            status: mapBetterStackStatus(monitor.attributes?.status),
+          }),
+        ) || [];
+
+      const overall = determineOverallStatus(services);
+      usage.addMetadata({ servicesCount: services.length, overall });
+
+      const statusResponse: SystemStatusResponse = {
+        overall,
+        services,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      return NextResponse.json(statusResponse);
+    } catch (error) {
+      console.error("Failed to fetch system status:", error);
       return NextResponse.json(DEFAULT_STATUS);
     }
-
-    const data = await response.json();
-
-    // Process the response to determine overall status
-    const services =
-      data.data?.map(
-        (monitor: {
-          attributes?: {
-            friendly_name?: string;
-            url?: string;
-            status?: string;
-          };
-        }) => ({
-          name:
-            monitor.attributes?.friendly_name ||
-            monitor.attributes?.url ||
-            "Unknown Service",
-          status: mapBetterStackStatus(monitor.attributes?.status),
-        }),
-      ) || [];
-
-    const overall = determineOverallStatus(services);
-
-    const statusResponse: SystemStatusResponse = {
-      overall,
-      services,
-      lastUpdated: new Date().toISOString(),
-    };
-
-    return NextResponse.json(statusResponse);
-  } catch (error) {
-    console.error("Failed to fetch system status:", error);
-    return NextResponse.json(DEFAULT_STATUS);
-  }
+  });
 }
 
 function mapBetterStackStatus(

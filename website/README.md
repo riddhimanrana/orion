@@ -46,6 +46,33 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Local E2E diagnostics (pairing + signaling)
+
+This repo includes a script that exercises the full pairing + signaling path:
+
+- Creates a Supabase test user
+- Registers iOS + mac devices via the website API
+- Creates + consumes a pairing code (writes `device_pairs`)
+- Mints signaling JWTs via `POST /api/auth/webrtc-token`
+- Connects two WebSockets to the signaling server and verifies a relayed message
+
+Prereqs:
+
+- Website dev server running (any port is fine)
+- Local signaling server running (defaults to `ws://localhost:3001`)
+
+Run:
+
+```bash
+node scripts/e2e-pairing-signal.mjs
+```
+
+Optional env overrides:
+
+- `ORION_API_BASE_URL` (e.g. `http://localhost:3005`)
+- `NEXT_PUBLIC_P2P_SIGNAL_URL` (e.g. `ws://localhost:3001`)
+- `E2E_EMAIL` / `E2E_PASSWORD` (if you want to reuse an existing user)
+
 ## Contributing
 
 This is a solo project and I'm currently not accepting contributions, however the code is still publicly available for transparency.

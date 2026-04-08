@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { trackApiRoute } from "@/utils/usage/track-api-route";
 
 // Helper to generate a random 6-digit code
 const generateCode = () =>
@@ -17,88 +18,94 @@ const hashWithSalt = (code: string, salt: string): Promise<string> => {
 };
 
 export async function POST(request: Request) {
-  const authHeader = request.headers.get("Authorization");
+  return trackApiRoute(request, { action: "pairings.create" }, async (usage) => {
+    const authHeader = request.headers.get("Authorization");
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new NextResponse(
-      JSON.stringify({ error: "Unauthorized: Missing or invalid token" }),
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized: Missing or invalid token" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const token = authHeader.substring(7);
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
+        global: { headers: { Authorization: `Bearer ${token}` } },
       },
     );
-  }
 
-  const token = authHeader.substring(7);
+    const {
+      data: { user },
+      error: getUserError,
+    } = await supabase.auth.getUser();
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    },
-  );
+    if (getUserError || !user) {
+      console.error("Error getting user for token:", getUserError);
+      return new NextResponse(
+        JSON.stringify({ error: "Unauthorized: Invalid token" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
 
-  const {
-    data: { user },
-    error: getUserError,
-  } = await supabase.auth.getUser();
+    usage.setUserId(user.id);
 
-  if (getUserError || !user) {
-    console.error("Error getting user for token:", getUserError);
-    return new NextResponse(
-      JSON.stringify({ error: "Unauthorized: Invalid token" }),
-      {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+    const { device_id } = await request.json();
 
-  const { device_id } = await request.json();
+    if (!device_id) {
+      return new NextResponse(
+        JSON.stringify({ error: "device_id is required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
 
-  if (!device_id) {
-    return new NextResponse(
-      JSON.stringify({ error: "device_id is required" }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  }
+    usage.addMetadata({ deviceId: device_id });
 
-  // Invalidate any old, unused codes for this device
-  const { error: updateError } = await supabase
-    .from("device_pairing_codes")
-    .update({ used: true })
-    .eq("device_id", device_id)
-    .eq("used", false);
+    // Invalidate any old, unused codes for this device
+    const { error: updateError } = await supabase
+      .from("device_pairing_codes")
+      .update({ used: true })
+      .eq("device_id", device_id)
+      .eq("used", false);
 
-  if (updateError) {
-    console.error("Error invalidating old pairing codes:", updateError);
-    // Non-fatal, so we continue
-  }
+    if (updateError) {
+      console.error("Error invalidating old pairing codes:", updateError);
+      // Non-fatal, so we continue
+    }
 
-  // Generate a new code
-  const code = generateCode();
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hashed_code = await hashWithSalt(code, salt);
-  const expires_at = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes from now
+    // Generate a new code
+    const code = generateCode();
+    const salt = crypto.randomBytes(16).toString("hex");
+    const hashed_code = await hashWithSalt(code, salt);
+    const expires_at = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes from now
 
-  const { error } = await supabase.from("device_pairing_codes").insert({
-    device_id,
-    hashed_code,
-    salt,
-    expires_at,
-  });
-
-  if (error) {
-    console.error("Error creating pairing code:", error);
-    return new NextResponse(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+    const { error } = await supabase.from("device_pairing_codes").insert({
+      device_id,
+      hashed_code,
+      salt,
+      expires_at,
     });
-  }
 
-  return NextResponse.json({ code: code, expires_at: expires_at });
+    if (error) {
+      console.error("Error creating pairing code:", error);
+      return new NextResponse(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return NextResponse.json({ code: code, expires_at: expires_at });
+  });
 }
