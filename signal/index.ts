@@ -282,7 +282,7 @@ const server = http.createServer(async (req, res) => {
 
       const { data: pair, error } = await supabase
         .from("device_pairs")
-        .select("id, status, user_id, device_a_id, device_b_id")
+        .select("*")
         .eq("id", pairId)
         .single();
 
@@ -302,6 +302,9 @@ const server = http.createServer(async (req, res) => {
       const pairStats = ensurePairStats(pairId);
       const aggregate = aggregatePacketStats();
 
+      const hasDeviceA = Boolean(pair.mobile_device_id ?? pair.device_a_id);
+      const hasDeviceB = Boolean(pair.server_device_id ?? pair.device_b_id);
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -309,8 +312,8 @@ const server = http.createServer(async (req, res) => {
           pair: {
             id: pair.id,
             status: pair.status,
-            hasDeviceA: Boolean(pair.device_a_id),
-            hasDeviceB: Boolean(pair.device_b_id),
+            hasDeviceA,
+            hasDeviceB,
           },
           room: {
             connectedClients: room.length,
@@ -371,7 +374,7 @@ const server = http.createServer(async (req, res) => {
 
       const { data: pair, error } = await supabase
         .from("device_pairs")
-        .select("id, status, user_id, device_a_id, device_b_id")
+        .select("*")
         .eq("id", pairId)
         .single();
 
@@ -471,7 +474,7 @@ const server = http.createServer(async (req, res) => {
 
       const { data: pair, error } = await supabase
         .from("device_pairs")
-        .select("id, status, user_id, device_a_id, device_b_id")
+        .select("*")
         .eq("id", pairId)
         .single();
 
@@ -487,7 +490,11 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const isMember = pair.device_a_id === deviceId || pair.device_b_id === deviceId;
+      const isMember =
+        pair.mobile_device_id === deviceId ||
+        pair.server_device_id === deviceId ||
+        pair.device_a_id === deviceId ||
+        pair.device_b_id === deviceId;
       if (!isMember) {
         res.writeHead(403, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Device not in pair" }));
@@ -578,7 +585,7 @@ server.on("upgrade", async (req: IncomingMessage, socket, head) => {
 
     const { data: pair, error } = await supabase
       .from("device_pairs")
-      .select("id, status, user_id, device_a_id, device_b_id")
+      .select("*")
       .eq("id", pairId)
       .single();
 
@@ -586,7 +593,11 @@ server.on("upgrade", async (req: IncomingMessage, socket, head) => {
     if (pair.user_id !== userId) return rejectUpgrade(socket, 403, "Forbidden");
     if (pair.status !== "active") return rejectUpgrade(socket, 403, "Forbidden");
 
-    const isMember = pair.device_a_id === deviceId || pair.device_b_id === deviceId;
+    const isMember =
+      pair.mobile_device_id === deviceId ||
+      pair.server_device_id === deviceId ||
+      pair.device_a_id === deviceId ||
+      pair.device_b_id === deviceId;
     if (!isMember) return rejectUpgrade(socket, 403, "Forbidden");
 
     wss.handleUpgrade(req, socket as any, head, (ws) => {
