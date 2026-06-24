@@ -14,7 +14,7 @@ class SupabaseService:
     
     def __init__(self):
         self.url = settings.SUPABASE_URL
-        self.key = settings.SUPABASE_SERVICE_ROLE_KEY
+        self.key = settings.SUPABASE_SECRET_KEY or settings.SUPABASE_SERVICE_ROLE_KEY
         self.client: Optional[Client] = None
         self.is_initialized = False
         
@@ -23,7 +23,7 @@ class SupabaseService:
             return True
         try:
             if not self.url or not self.key:
-                logger.error("Supabase URL or Service Role Key missing in settings.")
+                logger.error("Supabase URL or Secret Key missing in settings.")
                 return False
             self.client = create_client(self.url, self.key)
             self.is_initialized = True

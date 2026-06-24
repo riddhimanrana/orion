@@ -68,6 +68,7 @@ dependencies = [
 # Install the local Apple/MLX package separately if needed (e.g., `pip install -e ./mlx-vlm`).
 apple = ["mlx-vlm"]
 memgraph = ["pymgclient>=1.0.0"]  # Memgraph driver (Bolt protocol)
+depth = ["depth-anything-3"]  # On Apple Silicon install with --no-deps to avoid xformers build issues.
 dev = [
     "pytest>=7.0.0",
     "jupyter>=1.0.0",

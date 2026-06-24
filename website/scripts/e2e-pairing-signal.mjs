@@ -67,6 +67,10 @@ function requireEnv(name) {
   return value;
 }
 
+function requireEnvAny(primaryName, fallbackName) {
+  return process.env[primaryName] || requireEnv(fallbackName);
+}
+
 function toSignalHttpBaseUrl(wsBaseUrl) {
   return stripTrailingSlash(
     wsBaseUrl
@@ -205,8 +209,14 @@ async function main() {
   const signalHttpBaseUrl = toSignalHttpBaseUrl(signalWsBaseUrl);
 
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const supabaseAnonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  const supabaseServiceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const supabasePublishableKey = requireEnvAny(
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  );
+  const supabaseSecretKey = requireEnvAny(
+    "SUPABASE_SECRET_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  );
 
   const email =
     process.env.E2E_EMAIL || `orion-e2e+${Date.now()}@example.com`;
@@ -220,10 +230,10 @@ async function main() {
   console.log(`- Signal HTTP base: ${signalHttpBaseUrl}`);
   console.log(`- Test user email: ${email}`);
 
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
     auth: { persistSession: false },
   });
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     auth: { persistSession: false },
   });
 

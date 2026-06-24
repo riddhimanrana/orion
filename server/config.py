@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any, Dict
 
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
 # Root directory
 ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / ".env")
 
 class Settings(BaseModel):
     """Server configuration settings."""
@@ -26,6 +28,8 @@ class Settings(BaseModel):
     
     # Supabase & WebRTC Signaling
     SUPABASE_URL: str = "https://svltefplctinykebecyv.supabase.co"
+    SUPABASE_PUBLISHABLE_KEY: str = ""
+    SUPABASE_SECRET_KEY: str = ""
     SUPABASE_ANON_KEY: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     P2P_SIGNAL_JWT_SECRET: str = ""

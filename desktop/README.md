@@ -186,8 +186,8 @@ Add your Supabase credentials to `Orion Server/Info.plist`:
 ```xml
 <key>SUPABASE_URL</key>
 <string>https://your-project.supabase.co</string>
-<key>SUPABASE_ANON_KEY</key>
-<string>your-anon-key-here</string>
+<key>SUPABASE_PUBLISHABLE_KEY</key>
+<string>your-publishable-key-here</string>
 ```
 
 ### OAuth Redirect URLs

@@ -9,7 +9,8 @@ import type { IncomingMessage } from "http";
 // --- Config from env ---
 const JWT_SECRET = process.env.P2P_SIGNAL_JWT_SECRET;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SECRET_KEY =
+  process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PORT = process.env.P2P_SIGNAL_PORT
   ? parseInt(process.env.P2P_SIGNAL_PORT, 10)
   : 3001;
@@ -38,12 +39,12 @@ const BILLING_CONNECTION_MIN_USD = process.env.BILLING_CONNECTION_MIN_USD
   ? parseFloat(process.env.BILLING_CONNECTION_MIN_USD)
   : 0.0005;
 
-if (!JWT_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+if (!JWT_SECRET || !SUPABASE_URL || !SUPABASE_SECRET_KEY) {
   throw new Error("Missing required environment variables");
 }
 
 // --- Supabase admin client ---
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
 
 // --- Types ---
 type SignalMessage = {

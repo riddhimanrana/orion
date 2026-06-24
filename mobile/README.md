@@ -138,7 +138,7 @@ Key components:
 - **Tables**:
   - `device_pairs`: Pairing data (`id`, `user_id`, `status`).
   - `ice_usage`: Logs (`user_id`, `pair_id`, `device_id`, `issued_at`, `ttl`).
-- **Anon Key**: `sb_publishable_xbZg9iawNirb6uCt5mw6ZA_FI9dttqk`
+- **Publishable Key**: Supabase client key in app Info.plist.
 
 ## Setup & Configuration
 
@@ -146,7 +146,7 @@ Key components:
 
 - `P2P_SIGNAL_JWT_SECRET`: Secret for JWT signing.
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase URL.
-- `SUPABASE_SERVICE_ROLE_KEY`: Service key for DB access.
+- `SUPABASE_SECRET_KEY`: Secret key for trusted server DB access.
 - `TURN_REALM`: `orionlive.ai`
 - `TURN_REST_SECRET`: HMAC secret (matches CoTURN `static-auth-secret`).
 - `TURN_URLS`: Comma-separated TURN URLs.
@@ -158,7 +158,7 @@ Key components:
 
 - **iOS/macOS Info.plist**:
   - `SUPABASE_URL`: `https://svltefplctinykebecyv.supabase.co`
-  - `SUPABASE_ANON_KEY`: `sb_publishable_xbZg9iawNirb6uCt5mw6ZA_FI9dttqk`
+  - `SUPABASE_PUBLISHABLE_KEY`: Supabase publishable key.
   - `TURN_URLS`: Array of TURN URLs (fallback).
   - `TURN_USERNAME/PASSWORD`: Static fallback creds.
   - `NSMicrophoneUsageDescription`: Privacy string for WebRTC.

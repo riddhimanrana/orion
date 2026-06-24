@@ -30,11 +30,11 @@ This server is a critical component of the Orion architecture, responsible for f
     bun install
     ```
 
-3.  Create a `.env` file in this directory and add the required environment variables. You will need the JWT secret from your website's configuration and your Supabase project URL and service role key.
+3.  Create a `.env` file in this directory and add the required environment variables. You will need the JWT secret from your website's configuration and your Supabase project URL and secret key.
     ```
     P2P_SIGNAL_JWT_SECRET=your-super-secret-key
     NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-    SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+    SUPABASE_SECRET_KEY=your-supabase-secret-key
     ```
 
 ### Running Locally

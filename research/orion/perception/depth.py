@@ -9,17 +9,20 @@ automatic fallback to the stable V2 weights when V3 assets are unavailable.
 
 import time
 from typing import Tuple, Optional
+import os
+
+# Avoid duplicate OpenMP runtime aborts on macOS when DA3, torch, and other
+# native deps load their own libomp copies.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
 import cv2
 import sys
-import os
 from pathlib import Path
-
-# Enable MPS fallback for operations not yet implemented in MPS (e.g. upsample_bicubic2d)
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 

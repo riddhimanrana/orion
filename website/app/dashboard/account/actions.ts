@@ -213,7 +213,7 @@ export async function deleteUserAccount(confirmationText: string) {
   try {
     // Check for required environment variables
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl) {
       throw new Error("Supabase URL not configured");
@@ -225,7 +225,7 @@ export async function deleteUserAccount(confirmationText: string) {
       );
     }
 
-    // Create admin client with service role key
+    // Create admin client with secret key
     const adminClient = createAdminClient(supabaseUrl, serviceRoleKey);
 
     // First sign out to clear session cookies before deletion

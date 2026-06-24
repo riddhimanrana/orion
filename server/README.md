@@ -35,6 +35,12 @@ I'm currently working on a new cloud API server system and a dedicated macOS ser
    pip install -r requirements.txt
    ```
 
+   Optional Depth Anything 3 on Apple Silicon:
+
+   ```bash
+   uv pip install --python ../research/.venv/bin/python --no-deps depth-anything-3
+   ```
+
 3. Start the server:  
 
    ```bash

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     // Create a new Supabase client with the user's token
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
       {
         global: { headers: { Authorization: `Bearer ${token}` } },
       },

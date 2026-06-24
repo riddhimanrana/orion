@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     // Create a Supabase client authenticated with the user's token
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
       {
         global: { headers: { Authorization: `Bearer ${token}` } },
       },
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       // This query now uses the service_role key for elevated privilege, which is safer for backend queries.
       const supabaseAdmin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!,
       );
       const { data: pair, error: pairError } = await supabaseAdmin
         .from("device_pairs")

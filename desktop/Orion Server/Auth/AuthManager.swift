@@ -35,39 +35,42 @@ class AuthManager: NSObject, ObservableObject {
 
         // Try multiple approaches to read the Info.plist
         var supabaseURLString: String?
-        var supabaseAnonKey: String?
+        var supabasePublishableKey: String?
 
         // Approach 1: Direct from Bundle
         if let infoDictionary = Bundle.main.infoDictionary {
             supabaseURLString = infoDictionary["SUPABASE_URL"] as? String
-            supabaseAnonKey = infoDictionary["SUPABASE_ANON_KEY"] as? String
+            supabasePublishableKey = (infoDictionary["SUPABASE_PUBLISHABLE_KEY"] as? String)
+                ?? (infoDictionary["SUPABASE_ANON_KEY"] as? String)
             print("Approach 1 - Bundle.main.infoDictionary:")
             print("  SUPABASE_URL: \(supabaseURLString ?? "NOT FOUND")")
-            print("  SUPABASE_ANON_KEY: \(supabaseAnonKey ?? "NOT FOUND")")
+            print("  SUPABASE_PUBLISHABLE_KEY: \(supabasePublishableKey == nil ? "NOT FOUND" : "FOUND")")
         }
 
         // Approach 2: Direct from plist file path
-        if supabaseURLString == nil || supabaseAnonKey == nil {
+        if supabaseURLString == nil || supabasePublishableKey == nil {
             if let plistPath = Bundle.main.path(forResource: "Info", ofType: "plist"),
                let plistData = NSDictionary(contentsOfFile: plistPath) {
                 supabaseURLString = plistData["SUPABASE_URL"] as? String
-                supabaseAnonKey = plistData["SUPABASE_ANON_KEY"] as? String
+                supabasePublishableKey = (plistData["SUPABASE_PUBLISHABLE_KEY"] as? String)
+                    ?? (plistData["SUPABASE_ANON_KEY"] as? String)
                 print("Approach 2 - Direct plist file:")
                 print("  SUPABASE_URL: \(supabaseURLString ?? "NOT FOUND")")
-                print("  SUPABASE_ANON_KEY: \(supabaseAnonKey ?? "NOT FOUND")")
+                print("  SUPABASE_PUBLISHABLE_KEY: \(supabasePublishableKey == nil ? "NOT FOUND" : "FOUND")")
             }
         }
 
         // Approach 3: Read from embedded plist
-        if supabaseURLString == nil || supabaseAnonKey == nil {
+        if supabaseURLString == nil || supabasePublishableKey == nil {
             if let url = Bundle.main.url(forResource: "Info", withExtension: "plist"),
                let data = try? Data(contentsOf: url),
                let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
                 supabaseURLString = plist["SUPABASE_URL"] as? String
-                supabaseAnonKey = plist["SUPABASE_ANON_KEY"] as? String
+                supabasePublishableKey = (plist["SUPABASE_PUBLISHABLE_KEY"] as? String)
+                    ?? (plist["SUPABASE_ANON_KEY"] as? String)
                 print("Approach 3 - PropertyListSerialization:")
                 print("  SUPABASE_URL: \(supabaseURLString ?? "NOT FOUND")")
-                print("  SUPABASE_ANON_KEY: \(supabaseAnonKey ?? "NOT FOUND")")
+                print("  SUPABASE_PUBLISHABLE_KEY: \(supabasePublishableKey == nil ? "NOT FOUND" : "FOUND")")
             }
         }
 
@@ -78,10 +81,10 @@ class AuthManager: NSObject, ObservableObject {
             fatalError("SUPABASE_URL not found in Info.plist. Make sure the Info.plist file is properly included in your app bundle.")
         }
 
-        guard let finalAnonKey = supabaseAnonKey,
-              !finalAnonKey.isEmpty,
-              !finalAnonKey.contains("YOUR_") else {
-            fatalError("SUPABASE_ANON_KEY not found in Info.plist. Make sure the Info.plist file is properly included in your app bundle.")
+        guard let finalPublishableKey = supabasePublishableKey,
+              !finalPublishableKey.isEmpty,
+              !finalPublishableKey.contains("YOUR_") else {
+            fatalError("SUPABASE_PUBLISHABLE_KEY not found in Info.plist. Make sure the Info.plist file is properly included in your app bundle.")
         }
 
         guard let supabaseURL = URL(string: finalURLString) else {
@@ -90,9 +93,9 @@ class AuthManager: NSObject, ObservableObject {
 
         print("✅ Successfully loaded Supabase credentials from Info.plist:")
         print("- URL: \(finalURLString)")
-        print("- Key: \(String(finalAnonKey.prefix(20)))...")
+        print("- Publishable key: FOUND")
 
-        self.supabase = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: finalAnonKey)
+        self.supabase = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: finalPublishableKey)
 
         setupAuthListener()
 
