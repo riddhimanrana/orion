@@ -19,7 +19,7 @@ class Settings(BaseModel):
     
     # MLX model settings
     WEIGHTS_DIR: Path = ROOT_DIR / "weights"
-    LLM_MODEL_PATH: str = "mlx-community/gemma-4-12B-it-qat-4bit"
+    LLM_MODEL_PATH: str = "mlx-community/gemma-4-e2b-it-qat-OptiQ-4bit"
     YOLO_MODEL_PATH: str = "yolo26x"
     FASTVLM_MODEL_PATH: str = str(ROOT_DIR.parent / "mobile/FastVLM/model/")
     PROCESSING_MODE: str = "full"  # "split" (VLM on device, LLM on server) or "full" (VLM+LLM on server)

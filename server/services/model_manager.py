@@ -275,12 +275,15 @@ class ModelManager:
             image_data = base64.b64decode(image_data_b64)
             image = Image.open(io.BytesIO(image_data)).convert("RGB")
             
-            # FastVLM expects 1024x1024 input
+            # FastVLM CoreML expects an MLMultiArray-compatible tensor:
+            # [batch, channels, height, width] as float32.
             image = image.resize((1024, 1024))
+            image_array = np.asarray(image, dtype=np.float32) / 255.0
+            image_array = np.transpose(image_array, (2, 0, 1))[np.newaxis, ...]
 
             # CoreML model prediction
             # The input name 'images' is derived from the CoreML model's input features
-            predictions = self.vlm_model.predict({"images": image})
+            predictions = self.vlm_model.predict({"images": image_array})
 
             # Process predictions (this part is highly model-specific)
             # Assuming output is 'image_features' which needs to be processed by an LLM
@@ -317,4 +320,3 @@ class ModelManager:
         self.vlm_model = None
         self.models_loaded = {"gemma": False, "yolo": False, "vlm": False}
         logger.info("Models cleaned up")
-
