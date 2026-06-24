@@ -30,7 +30,13 @@ mobile/Orion/yolo11n.mlpackage
 venv/
 env/
 ENV/
+.venv/
+**/.venv/
 .env
+**/.env
+signal/.env
+signal/.env.local
+research/.env
 
 # IDE - VSCode
 .vscode/*
@@ -99,11 +105,16 @@ yarn-error.log*
 .next/
 out/
 web/build/
+website/.next/
 .vercel
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
 
 # iOS
 ## User settings
@@ -293,3 +304,13 @@ steering/
 
 mobile/FastVLM/model
 mobile/Orion/Detection/model
+
+# Gemini/Antigravity and custom agent directories
+.gemini/
+.agents/
+
+# External model subprojects and weights
+ml-fastvlm/
+orion-icon.icon/
+*.pdf
+

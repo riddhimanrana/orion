@@ -41,9 +41,15 @@ I'm currently working on a new cloud API server system and a dedicated macOS ser
    uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
 
+4. (Optional) Run an iOS WebSocket pipeline sanity check:
+
+   ```bash
+   python scripts/e2e_ios_frame_pipeline.py
+   ```
+
 ## Legacy Prototype Details
 
-- WebSocket endpoint for iOS clients: `/ws/ios/{client_id}`  
+- WebSocket endpoint for iOS clients: `/ios`  
 - Dashboard WebSocket endpoint: `/ws/dashboard`  
 - Frame queue processing with LLM and vision processors  
 - Designed for local development on a Mac only  

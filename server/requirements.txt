@@ -13,3 +13,4 @@ python-json-logger
 huggingface-hub
 structlog
 coremltools
+supabase

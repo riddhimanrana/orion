@@ -19,10 +19,18 @@ class Settings(BaseModel):
     
     # MLX model settings
     WEIGHTS_DIR: Path = ROOT_DIR / "weights"
-    LLM_MODEL_PATH: str = str(ROOT_DIR / "weights/gemma-3-1b-it-4bit/")
-    YOLO_MODEL_PATH: str = str(ROOT_DIR / "weights/yolov11n/yolo11n.mlpackage")
-    FASTVLM_MODEL_PATH: str = str(ROOT_DIR / "weights/fastvlm-0.5b/")
-    PROCESSING_MODE: str = "split"  # "split" (VLM on device, LLM on server) or "full" (VLM+LLM on server)
+    LLM_MODEL_PATH: str = "mlx-community/gemma-4-12B-it-qat-4bit"
+    YOLO_MODEL_PATH: str = "yolo26x"
+    FASTVLM_MODEL_PATH: str = str(ROOT_DIR.parent / "mobile/FastVLM/model/")
+    PROCESSING_MODE: str = "full"  # "split" (VLM on device, LLM on server) or "full" (VLM+LLM on server)
+    
+    # Supabase & WebRTC Signaling
+    SUPABASE_URL: str = "https://svltefplctinykebecyv.supabase.co"
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    P2P_SIGNAL_JWT_SECRET: str = ""
+    SERVER_DEVICE_ID: str = "macos-server-dev"
+    SERVER_DEVICE_NAME: str = "macOS Orion Server"
     
     # Memory settings
     MAX_MEMORY_FRAMES: int = 1000

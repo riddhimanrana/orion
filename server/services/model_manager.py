@@ -88,28 +88,38 @@ class ModelManager:
         if not MLX_READY or not mlx_lm:
             raise RuntimeError("mlx_lm not available for Gemma loading")
             
-        gemma_model_dir = Path(self.gemma_path_str)
-        if not gemma_model_dir.is_dir():
-            raise FileNotFoundError(f"Gemma model directory not found at {self.gemma_path_str}")
-        
         try:
-            model, tokenizer = mlx_lm.load(str(gemma_model_dir))
+            model, tokenizer = mlx_lm.load(self.gemma_path_str)
             logger.info("Gemma model and tokenizer loaded successfully.")
             return model, tokenizer
         except Exception as e:
             logger.error(f"Failed to load Gemma model from {self.gemma_path_str}: {e}")
             raise
         
-    async def _load_yolo_model(self) -> Optional[ct.models.MLModel]:
-        logger.info(f"Loading YOLOv11n model from {self.yolo_path_str}")
-        try:
-            # CoreML models are loaded using coremltools.models.MLModel
-            model = ct.models.MLModel(self.yolo_path_str)
-            logger.info("YOLOv11n model loaded successfully.")
-            return model
-        except Exception as e:
-            logger.error(f"Error loading YOLO model from {self.yolo_path_str}: {e}")
-            return None
+    async def _load_yolo_model(self) -> Optional[Any]:
+        if self.yolo_path_str.endswith(".pt") or "/" not in self.yolo_path_str or "\\" not in self.yolo_path_str:
+            logger.info(f"Loading PyTorch YOLO model: {self.yolo_path_str}")
+            try:
+                import torch
+                from ultralytics import YOLO
+                model = YOLO(self.yolo_path_str)
+                device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+                model.to(device)
+                logger.info(f"PyTorch YOLO model loaded successfully on {device}.")
+                return model
+            except Exception as e:
+                logger.error(f"Error loading PyTorch YOLO model: {e}")
+                return None
+        else:
+            logger.info(f"Loading CoreML YOLO model from {self.yolo_path_str}")
+            try:
+                # CoreML models are loaded using coremltools.models.MLModel
+                model = ct.models.MLModel(self.yolo_path_str)
+                logger.info("CoreML YOLO model loaded successfully.")
+                return model
+            except Exception as e:
+                logger.error(f"Error loading YOLO model from {self.yolo_path_str}: {e}")
+                return None
 
     async def _load_vlm_model(self) -> Optional[ct.models.MLModel]:
         logger.info(f"Loading FastVLM model from {self.vlm_path_str}")
@@ -155,17 +165,38 @@ class ModelManager:
             
     async def process_image_for_yolo(self, image_data_b64: str) -> List[Dict[str, Any]]:
         if not self.yolo_model:
-            logger.warning("YOLO model not loaded. Cannot perform detection.")
-            return []
+            logger.info("YOLO model not loaded. Lazy loading YOLO model...")
+            self.yolo_model = await self._load_yolo_model()
+            if not self.yolo_model:
+                logger.error("Failed to lazy load YOLO model. Cannot perform detection.")
+                return []
+            self.models_loaded["yolo"] = True
 
         try:
             image_data = base64.b64decode(image_data_b64)
             image = Image.open(io.BytesIO(image_data)).convert("RGB")
             
-            # YOLOv11n expects 640x640 input
-            image = image.resize((640, 640))
+            # Check if it is a PyTorch Ultralytics model
+            if not hasattr(self.yolo_model, "predict") or hasattr(self.yolo_model, "names"):
+                # Run inference on PIL Image
+                results = self.yolo_model(image, verbose=False)[0]
+                detections = []
+                boxes = results.boxes
+                for i in range(len(boxes)):
+                    conf = float(boxes.conf[i])
+                    if conf > 0.25: # confidence threshold
+                        x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy().tolist()
+                        cls_id = int(boxes.cls[i])
+                        label = results.names[cls_id]
+                        detections.append({
+                            "label": label,
+                            "confidence": conf,
+                            "bbox": [x1, y1, x2, y2]
+                        })
+                return detections
 
             # CoreML model prediction
+            image = image.resize((640, 640))
             # The input name 'image' is derived from the CoreML model's input features
             # You might need to inspect the .mlmodel to confirm the exact input/output names
             predictions = self.yolo_model.predict({"image": image})
@@ -233,8 +264,12 @@ class ModelManager:
 
     async def process_image_for_vlm(self, image_data_b64: str, prompt: str) -> Dict[str, Any]:
         if not self.vlm_model:
-            logger.warning("VLM model not loaded. Cannot perform captioning.")
-            return {"description": "VLM model not loaded.", "confidence": 0.0}
+            logger.info("VLM model not loaded. Lazy loading VLM model...")
+            self.vlm_model = await self._load_vlm_model()
+            if not self.vlm_model:
+                logger.error("Failed to lazy load VLM model. Cannot perform captioning.")
+                return {"description": "VLM model not loaded.", "confidence": 0.0}
+            self.models_loaded["vlm"] = True
 
         try:
             image_data = base64.b64decode(image_data_b64)

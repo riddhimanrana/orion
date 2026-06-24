@@ -1,0 +1,28 @@
+{
+  "name": "orion",
+  "private": true,
+  "packageManager": "bun@1.2.0",
+  "workspaces": [
+    "mobile",
+    "research",
+    "server",
+    "signal",
+    "website",
+    "desktop"
+  ],
+  "scripts": {
+    "dev:web": "bun --cwd website run dev",
+    "dev:signal": "bun --cwd signal run dev",
+    "dev:server": "./research/.venv/bin/python -m uvicorn main:app --reload --app-dir server",
+    "dev:research": "cd research && .venv/bin/python -m orion.cli.main",
+    "dev:mobile": "xcodebuild -project \"mobile/Orion Live.xcodeproj\" -scheme \"Orion Live\" -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug build",
+    "dev:mac": "xcodebuild -project \"desktop/Orion Server.xcodeproj\" -scheme \"Orion Server\" -configuration Debug build",
+    "build:web": "bun --cwd website run build",
+    "build:signal": "bun --cwd signal run build",
+    "build:mobile": "xcodebuild -project \"mobile/Orion Live.xcodeproj\" -scheme \"Orion Live\" -destination 'platform=iOS Simulator,name=iPhone 17' -configuration Debug build",
+    "build:mac": "xcodebuild -project \"desktop/Orion Server.xcodeproj\" -scheme \"Orion Server\" -configuration Debug build",
+    "verify:signal": "bun --cwd signal run verify:connections",
+    "open:mobile": "open \"mobile/Orion Live.xcodeproj\"",
+    "open:mac": "open \"desktop/Orion Server.xcodeproj\""
+  }
+}

@@ -29,6 +29,11 @@ class SettingsManager: ObservableObject {
         didSet { UserDefaults.standard.set(processingMode, forKey: UserDefaultsKeys.processingMode) }
     }
 
+    // Connection Mode ("direct" or "webrtc")
+    @Published var connectionMode: String {
+        didSet { UserDefaults.standard.set(connectionMode, forKey: "connectionMode") }
+    }
+
     // Camera & Detection
     @Published var showDetectionBoxes: Bool {
         didSet {
@@ -97,6 +102,7 @@ class SettingsManager: ObservableObject {
         self.serverPort = UserDefaults.standard.object(forKey: UserDefaultsKeys.serverPort) as? Int ?? ServerConfig.port
         self.reconnectDelay = UserDefaults.standard.double(forKey: "reconnectDelay")
         self.processingMode = UserDefaults.standard.string(forKey: UserDefaultsKeys.processingMode) ?? "split" // Default to split
+        self.connectionMode = UserDefaults.standard.string(forKey: "connectionMode") ?? "direct" // Default to direct
 
         // Camera & Detection
         self.showDetectionBoxes = UserDefaults.standard.bool(forKey: "showDetectionBoxes")

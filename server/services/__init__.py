@@ -15,10 +15,12 @@ from .vision_processor import VisionProcessor
 from .llm_processor import LLMProcessor
 from .context_memory import ContextMemory
 from .model_manager import ModelManager
+from .supabase_service import SupabaseService
 
 __all__ = [
     'WebSocketManager',
     'LLMProcessor',
     'ContextMemory',
-    'ModelManager'
+    'ModelManager',
+    'SupabaseService'
 ]

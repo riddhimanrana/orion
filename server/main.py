@@ -4,6 +4,11 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Dict, Optional, Tuple
 import time
+import sys
+from pathlib import Path
+
+# Add research/ to sys.path to enable importing the orion package
+sys.path.append(str(Path(__file__).parent.parent / "research"))
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -20,6 +25,7 @@ from services.llm_processor import LLMProcessor
 from services.context_memory import ContextMemory
 from services.model_manager import ModelManager
 from services.vision_processor import VisionProcessor # Import VisionProcessor
+from services.supabase_service import SupabaseService
 from utils.logger import setup_logger, get_logger
 
 # Setup rich console and logging
@@ -33,6 +39,27 @@ context_memory: Optional[ContextMemory] = None
 model_manager: Optional[ModelManager] = None
 vision_processor: Optional[VisionProcessor] = None # Add vision_processor
 frame_queue: Optional[asyncio.Queue] = None # The new task queue
+supabase_service: Optional[SupabaseService] = None
+
+
+def normalize_processing_mode(value: str) -> str:
+    """Normalize client processing_mode values.
+
+    The iOS app historically sent various strings. The server's pipeline currently
+    distinguishes only between "full" (process immediately) and everything else
+    (queued/split path).
+
+    Accepted aliases:
+    - full/server -> "full"
+    - split/hybrid/local -> "split"
+    """
+    v = (value or "").strip().lower()
+    if v in {"full", "server"}:
+        return "full"
+    if v in {"split", "hybrid", "local"}:
+        return "split"
+    # Default safe behavior: use queued/split path.
+    return "split"
 
 def check_services() -> bool:
     """Check if all required services are initialized."""
@@ -80,7 +107,7 @@ async def frame_processor_worker():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown."""
-    global websocket_manager, llm_processor, context_memory, model_manager, vision_processor, frame_queue
+    global websocket_manager, llm_processor, context_memory, model_manager, vision_processor, frame_queue, supabase_service
     
     console.print("[bold green]🚀 Starting Orion Server (MLX)...[/bold green]")
     
@@ -95,6 +122,8 @@ async def lifespan(app: FastAPI):
         vision_processor = VisionProcessor(model_manager) # Initialize vision_processor
         websocket_manager = WebSocketManager()
         frame_queue = asyncio.Queue()
+        supabase_service = SupabaseService()
+        supabase_service.initialize()
         
         # Start the background worker
         worker_task = asyncio.create_task(frame_processor_worker())
@@ -154,6 +183,62 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/pairing/code")
+async def get_pairing_code(user_id: str):
+    """Generate a pairing code for this server."""
+    if not supabase_service:
+        raise HTTPException(status_code=500, detail="Supabase service not initialized")
+    code = supabase_service.generate_pairing_code(user_id)
+    if not code:
+        raise HTTPException(status_code=500, detail="Failed to generate pairing code")
+    return {"code": code, "device_id": settings.SERVER_DEVICE_ID}
+
+@app.get("/pairing/status")
+async def get_pairing_status():
+    """Check if the server has been successfully paired with a mobile device."""
+    if not supabase_service:
+        raise HTTPException(status_code=500, detail="Supabase service not initialized")
+    status = supabase_service.check_pairing_status()
+    return status
+
+@app.post("/pairing/webrtc-token")
+async def get_webrtc_token(body: dict):
+    """Generate a JWT token for connection to the signaling server."""
+    pair_id = body.get("pairId")
+    user_id = body.get("userId")
+    if not pair_id or not user_id:
+        raise HTTPException(status_code=400, detail="Missing pairId or userId")
+        
+    # Generate token using the shared secret
+    token_payload = {
+        "userId": user_id,
+        "pairId": pair_id,
+        "deviceId": settings.SERVER_DEVICE_ID,
+        "exp": int(time.time()) + 3600
+    }
+    
+    import base64
+    import json
+    import hmac
+    import hashlib
+    
+    def base64url_encode(data: bytes) -> str:
+        return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
+        
+    try:
+        secret = settings.P2P_SIGNAL_JWT_SECRET
+        header = {"alg": "HS256", "typ": "JWT"}
+        header_json = json.dumps(header, separators=(',', ':')).encode('utf-8')
+        payload_json = json.dumps(token_payload, separators=(',', ':')).encode('utf-8')
+        
+        data = f"{base64url_encode(header_json)}.{base64url_encode(payload_json)}".encode('utf-8')
+        signature = hmac.new(secret.encode('utf-8'), data, hashlib.sha256).digest()
+        token = f"{data.decode('utf-8')}.{base64url_encode(signature)}"
+        
+        return {"token": token, "deviceId": settings.SERVER_DEVICE_ID}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to sign signaling token: {str(e)}")
 
 @app.get("/health", response_model=HealthCheck)
 async def health_check():
@@ -248,7 +333,7 @@ async def ios_websocket(websocket: WebSocket):
                     await process_user_prompt(client_id, user_prompt_message)
                 elif message_type == "configuration":
                     config_message = ConfigurationMessage.model_validate(message_json)
-                    settings.PROCESSING_MODE = config_message.processing_mode
+                    settings.PROCESSING_MODE = normalize_processing_mode(config_message.processing_mode)
                     logger.info(f"Server processing mode set to: {settings.PROCESSING_MODE}")
                     # Optionally send an acknowledgment back to the client
                     await websocket_manager.send_to_ios_client(client_id, {
@@ -406,7 +491,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
                 timestamp=time.time(),
                 source="Server",
                 destination="Server",
-                summary=f"YOLO analysis complete for frame {frame.frame_id}. Detections: {len(vision_analysis.get("detections", []))}",
+                summary=f"YOLO analysis complete for frame {frame.frame_id}. Detections: {len(vision_analysis.get('detections', []))}",
                 payload={
                     "frame_id": frame.frame_id,
                     "detections_count": len(vision_analysis.get("detections", [])),
@@ -419,7 +504,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             timestamp=time.time(),
             source="Server",
             destination="Server",
-            summary=f"VLM analysis complete for frame {frame.frame_id}. Description: {vision_analysis.get("description", "N/A")[:50]}...",
+            summary=f"VLM analysis complete for frame {frame.frame_id}. Description: {vision_analysis.get('description', 'N/A')[:50]}...",
             payload={
                 "frame_id": frame.frame_id,
                 "description": vision_analysis.get("description"),
@@ -461,7 +546,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             timestamp=time.time(),
             source="Server",
             destination="Server",
-            summary=f"LLM reasoning complete for frame {frame.frame_id}. Scene: {llm_result.get("scene_description", "N/A")[:50]}...",
+            summary=f"LLM reasoning complete for frame {frame.frame_id}. Scene: {llm_result.get('scene_description', 'N/A')[:50]}...",
             payload={
                 "frame_id": frame.frame_id,
                 "scene_description": llm_result.get("scene_description"),

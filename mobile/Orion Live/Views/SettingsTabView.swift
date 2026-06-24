@@ -40,6 +40,7 @@ struct SettingsTabView: View {
                 modelProviderSection
                 chatSection
                 processingModeSection
+                connectionSettingsSection
                 cameraAndDetectionSection
                 devicePairingSection
                 systemCompatibilitySection
@@ -71,8 +72,7 @@ struct SettingsTabView: View {
             }
         }
         .sheet(isPresented: $showingPairingSheet) {
-            DevicePairingView()
-                .environmentObject(deviceManager)
+            PairingView(authManager: authManager)
         }
         .sheet(isPresented: $showingSafari) {
             if let url = safariURL {
@@ -243,6 +243,63 @@ struct SettingsTabView: View {
                 cameraManager.configure(for: newMode)
             }
         }
+    }
+
+    private var connectionSettingsSection: some View {
+        Section(header: Label("Connection Settings", systemImage: "server.rack")) {
+            Picker("Mode", selection: $settings.connectionMode) {
+                Text("Direct Wi-Fi").tag("direct")
+                Text("Remote P2P").tag("webrtc")
+            }
+            .pickerStyle(.segmented)
+            
+            if settings.connectionMode == "direct" {
+                HStack {
+                    Text("Host")
+                    Spacer()
+                    TextField("Host", text: $settings.serverHost)
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                        .onSubmit(updateConnection)
+                }
+                HStack {
+                    Text("Port")
+                    Spacer()
+                    TextField("Port", value: $settings.serverPort, formatter: NumberFormatter())
+                        .multilineTextAlignment(.trailing)
+                        .foregroundColor(.secondary)
+                        .onSubmit(updateConnection)
+                }
+                HStack {
+                    Text("Status")
+                    Spacer()
+                    Text(wsManager.status == .connected ? "Connected" : (wsManager.status == .connecting ? "Connecting" : "Disconnected"))
+                        .foregroundColor(wsManager.status == .connected ? .green : .yellow)
+                }
+            } else {
+                Button("Pair with macOS Server") {
+                    showingPairingSheet = true
+                }
+                
+                HStack {
+                    Text("P2P Status")
+                    Spacer()
+                    if UserDefaults.standard.string(forKey: "paired_server_device_id") != nil {
+                        Text("Ready")
+                            .foregroundColor(.green)
+                    } else {
+                        Text("Not Paired")
+                            .foregroundColor(.yellow)
+                    }
+                }
+            }
+        }
+    }
+
+    private func updateConnection() {
+        wsManager.updateServerURL(host: settings.serverHost, port: settings.serverPort)
+        wsManager.disconnect()
+        wsManager.connect()
     }
 
     private func startPolling() {
