@@ -19,6 +19,7 @@ class WebRTCManager: NSObject, ObservableObject {
     }
     @Published var videoTrack: RTCVideoTrack?
     @Published var receivedMessage: String = ""
+    @Published var dataChannelState: RTCDataChannelState = .closed
 // Ephemeral TURN TTL remaining (seconds). Published for UI.
     @Published var ephemeralTTLRemaining: Int? = nil
     
@@ -56,6 +57,7 @@ class WebRTCManager: NSObject, ObservableObject {
         peerConnection?.close()
         peerConnection = nil
         self.connectionState = .closed
+        self.dataChannelState = .closed
     }
 
     private func setupPeerConnection(iceServers: [RTCIceServer]) {
@@ -82,6 +84,7 @@ class WebRTCManager: NSObject, ObservableObject {
         if let channel = self.peerConnection?.dataChannel(forLabel: "orion-data", configuration: config) {
             channel.delegate = self
             self.dataChannel = channel
+            self.dataChannelState = channel.readyState
         }
     }
 
@@ -331,6 +334,7 @@ struct ICEStatus {
 extension WebRTCManager: RTCDataChannelDelegate {
     nonisolated func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
         print("macOS: Data channel state changed to: \(dataChannel.readyState)")
+        Task { @MainActor in self.dataChannelState = dataChannel.readyState }
     }
 
     nonisolated func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
@@ -379,4 +383,3 @@ extension RTCIceConnectionState {
         }
     }
 }
-

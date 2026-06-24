@@ -12,12 +12,11 @@
     "render:status": "node ./scripts/render-status.mjs"
   },
   "dependencies": {
-    "jsonwebtoken": "^9.0.2",
-    "ws": "^8.17.1",
-    "@supabase/supabase-js": "^2.44.4"
+    "@supabase/supabase-js": "^2.108.2",
+    "jose": "^6.2.3",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20",
     "@types/ws": "^8.5.10",
     "bun-types": "latest",

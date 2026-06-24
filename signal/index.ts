@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import type { IncomingMessage } from "http";
@@ -44,7 +44,13 @@ if (!JWT_SECRET || !SUPABASE_URL || !SUPABASE_SECRET_KEY) {
 }
 
 // --- Supabase admin client ---
-const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false,
+  },
+});
 
 // --- Types ---
 type SignalMessage = {
@@ -83,6 +89,12 @@ interface ClientMeta {
   connectedAtMs: number;
 }
 
+type SignalTokenClaims = {
+  userId: string;
+  pairId: string;
+  deviceId: string;
+};
+
 // --- In-memory state ---
 const rooms = new Map<string, WebSocket[]>();
 const serverStartedAtMs = Date.now();
@@ -113,6 +125,24 @@ function totalConnectedClients(): number {
   let total = 0;
   for (const clients of rooms.values()) total += clients.length;
   return total;
+}
+
+async function verifySignalToken(token: string): Promise<SignalTokenClaims> {
+  const { payload } = await jwtVerify(token, new TextEncoder().encode(JWT_SECRET!), {
+    algorithms: ["HS256"],
+  });
+  const { pairId, deviceId, userId } = payload as Record<string, unknown>;
+  if (
+    typeof pairId !== "string" ||
+    typeof deviceId !== "string" ||
+    typeof userId !== "string" ||
+    !pairId ||
+    !deviceId ||
+    !userId
+  ) {
+    throw new Error("Invalid token claims");
+  }
+  return { pairId, deviceId, userId };
 }
 
 function aggregatePacketStats() {
@@ -290,14 +320,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const payload = jwt.verify(token, JWT_SECRET!);
-      if (typeof payload === "string") throw new Error("Invalid token payload");
-
-      const { pairId, deviceId, userId } = payload as {
-        pairId: string;
-        deviceId: string;
-        userId: string;
-      };
+      const { pairId, deviceId, userId } = await verifySignalToken(token);
 
       if (!pairId || !deviceId || !userId) {
         res.writeHead(401, { "Content-Type": "application/json" });
@@ -394,14 +417,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const payload = jwt.verify(token, JWT_SECRET!);
-      if (typeof payload === "string") throw new Error("Invalid token payload");
-
-      const { pairId, deviceId, userId } = payload as {
-        pairId: string;
-        deviceId: string;
-        userId: string;
-      };
+      const { pairId, deviceId, userId } = await verifySignalToken(token);
 
       if (!pairId || !deviceId || !userId) {
         res.writeHead(401, { "Content-Type": "application/json" });
@@ -492,14 +508,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const payload = jwt.verify(token, JWT_SECRET!);
-      if (typeof payload === "string") throw new Error("Invalid token payload");
-
-      const { pairId, deviceId, userId } = payload as {
-        pairId: string;
-        deviceId: string;
-        userId: string;
-      };
+      const { pairId, deviceId, userId } = await verifySignalToken(token);
 
       if (!pairId || !deviceId || !userId) {
         res.writeHead(401, { "Content-Type": "application/json" });
@@ -635,19 +644,14 @@ server.on("upgrade", async (req: IncomingMessage, socket, head) => {
     }
     if (!token) return rejectUpgrade(socket, 401, "Unauthorized");
 
-    let payload: any;
+    let userId: string;
+    let pairId: string;
+    let deviceId: string;
     try {
-      payload = jwt.verify(token, JWT_SECRET!);
+      ({ userId, pairId, deviceId } = await verifySignalToken(token));
     } catch {
       return rejectUpgrade(socket, 401, "Unauthorized");
     }
-    if (typeof payload === "string") return rejectUpgrade(socket, 401, "Unauthorized");
-
-    const { userId, pairId, deviceId } = payload as {
-      userId?: string;
-      pairId?: string;
-      deviceId?: string;
-    };
     if (!userId || !pairId || !deviceId)
       return rejectUpgrade(socket, 401, "Unauthorized");
 

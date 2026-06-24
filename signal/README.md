@@ -14,7 +14,7 @@ This server is a critical component of the Orion architecture, responsible for f
 - [Bun](https://bun.sh/) — JavaScript runtime & toolkit
 - [TypeScript](https://www.typescriptlang.org/) — Statically typed language
 - [ws](https://github.com/websockets/ws) — High-performance WebSocket library for Node.js
-- [jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) — For handling JWTs
+- [jose](https://github.com/panva/jose) — For signing and verifying short-lived WebRTC JWTs
 
 ## Getting Started
 

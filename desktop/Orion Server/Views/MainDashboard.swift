@@ -79,6 +79,31 @@ struct SidebarView: View {
                 StatusRow(label: "Ping RTT", status: pingRTTText, color: .blue)
             }
 
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Signal Traffic").font(.headline).padding(.bottom, 5)
+                StatusRow(label: "Packets Out", status: "\(signalingClient.packetsSent)", color: .blue)
+                StatusRow(label: "Packets In", status: "\(signalingClient.packetsReceived)", color: .green)
+                StatusRow(label: "Bytes Out", status: ByteCountFormatter.string(fromByteCount: Int64(signalingClient.packetBytesSent), countStyle: .binary), color: .blue)
+                StatusRow(label: "Bytes In", status: ByteCountFormatter.string(fromByteCount: Int64(signalingClient.packetBytesReceived), countStyle: .binary), color: .green)
+                StatusRow(label: "Last Out", status: signalingClient.lastPacketTypeSent ?? "-", color: .gray)
+                StatusRow(label: "Last In", status: signalingClient.lastPacketTypeReceived ?? "-", color: .gray)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Server Health").font(.headline).padding(.bottom, 5)
+                if let health = signalingClient.lastSignalHealth {
+                    StatusRow(label: "Signal API", status: health.status, color: .green)
+                    StatusRow(label: "Rooms", status: health.roomsActive.map(String.init) ?? "-", color: .gray)
+                    StatusRow(label: "Clients", status: health.clientsConnected.map(String.init) ?? "-", color: .gray)
+                } else {
+                    StatusRow(label: "Signal API", status: "No sample yet", color: .gray)
+                }
+                if let usage = signalingClient.lastSignalAccountUsage {
+                    StatusRow(label: "Relayed", status: "\(usage.usage.packetsRelayed) packets", color: .gray)
+                    StatusRow(label: "Relay Bytes", status: ByteCountFormatter.string(fromByteCount: Int64(usage.usage.bytesRelayed), countStyle: .binary), color: .gray)
+                }
+            }
+
             // Logs Section
             VStack(alignment: .leading) {
                 Text("Logs").font(.headline).padding(.bottom, 5)
@@ -131,13 +156,22 @@ struct SidebarView: View {
     }
 
     private var dataChannelStateText: String {
-        // Placeholder until WebRTCManager exposes a compatible property
-        return "N/A"
+        switch webRTCManager.dataChannelState {
+        case .connecting: return "connecting"
+        case .open: return "open"
+        case .closing: return "closing"
+        case .closed: return "closed"
+        @unknown default: return "unknown"
+        }
     }
 
     private var dataChannelStatusColor: Color {
-        // Placeholder color until WebRTCManager exposes a compatible property
-        return .gray
+        switch webRTCManager.dataChannelState {
+        case .open: return .green
+        case .connecting: return .yellow
+        case .closing, .closed: return .red
+        @unknown default: return .gray
+        }
     }
 
     private var pingRTTText: String {

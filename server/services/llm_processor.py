@@ -13,6 +13,15 @@ logger = get_logger(__name__)
 class LLMProcessor:
     """Handles text generation and scene understanding."""
 
+    SCENE_PROMPT_MARKERS = (
+        "provide a very brief",
+        "provide a very brief summary",
+        "highlighting changes",
+        "analyze the current scene",
+        "focus on key objects",
+        "answer:",
+    )
+
     def __init__(self, model_manager: ModelManager):
         """
         Initialize LLM processor.
@@ -160,7 +169,8 @@ class LLMProcessor:
                     "last_seen": f"{obj.get('last_seen', 0.0):.1f}s",
                     "status": obj.get("status"),
                     "last_near_objects": obj.get("last_near_objects", []),
-                    "spatial_history": obj.get("spatial_history", [])[-5:]
+                    "spatial_history": obj.get("spatial_history", [])[-5:],
+                    "cis_history": obj.get("cis_history", [])[-5:]
                 })
         return evidence
 
@@ -182,6 +192,18 @@ class LLMProcessor:
                         for item in v
                     ]
                     parts.append(f"recent spatial history: {'; '.join(summaries)}")
+                elif k == "cis_history" and v:
+                    summaries = []
+                    for item in v:
+                        edges = item.get("edges", [])
+                        edge_text = ", ".join(
+                            f"{edge.get('target')} score {edge.get('score')} components {edge.get('components')}"
+                            for edge in edges[:3]
+                        )
+                        if edge_text:
+                            summaries.append(f"{edge_text} at {item.get('timestamp', 0.0):.1f}s")
+                    if summaries:
+                        parts.append(f"CIS influence evidence: {'; '.join(summaries)}")
                 else:
                     parts.append(f"{k}: {v}")
             evidence_lines.append(f"- {', '.join(parts)}")
@@ -276,13 +298,53 @@ Answer:"""
         llm_response: str
     ) -> str:
         """Prioritize LLM response for scene description, filtering out VLM placeholder."""
-        # If LLM provides a response, use it directly. Otherwise, fall back to VLM description.
-        if llm_response and llm_response.strip():
-            return llm_response.strip()
-        elif vlm_description and "VLM model not loaded" not in vlm_description:
+        clean_response = self._clean_scene_description(llm_response)
+        if clean_response:
+            return clean_response
+
+        if vlm_description and "VLM model not loaded" not in vlm_description:
             return vlm_description.strip()
-        else:
-            return "No meaningful scene description available."
+
+        if ios_detections:
+            labels = [getattr(det, "label", "object") for det in ios_detections[:6]]
+            unique_labels = []
+            for label in labels:
+                if label not in unique_labels:
+                    unique_labels.append(label)
+            return f"Detected {len(ios_detections)} object(s): {', '.join(unique_labels)}."
+
+        return "No meaningful scene description available."
+
+    def _clean_scene_description(self, text: str) -> str:
+        """Remove prompt echoes and instruction fragments from generated scene text."""
+        if not text:
+            return ""
+
+        lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+        clean_lines = []
+        for line in lines:
+            lowered = line.lower()
+            if any(marker in lowered for marker in self.SCENE_PROMPT_MARKERS):
+                continue
+            if lowered.startswith((
+                "current:",
+                "previous:",
+                "objects:",
+                "question:",
+                "provide ",
+                "analyze ",
+                "focus ",
+            )):
+                continue
+            clean_lines.append(line)
+
+        cleaned = " ".join(clean_lines).strip()
+        if not cleaned:
+            return ""
+        for marker in self.SCENE_PROMPT_MARKERS:
+            if marker in cleaned.lower():
+                return ""
+        return cleaned[:280]
 
     def _extract_insights(
         self,

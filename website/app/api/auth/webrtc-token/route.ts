@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { SignJWT } from "jose";
 import { trackApiRoute } from "@/utils/usage/track-api-route";
 
 export async function POST(request: Request) {
@@ -73,6 +73,13 @@ export async function POST(request: Request) {
       const supabaseAdmin = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+            detectSessionInUrl: false,
+          },
+        },
       );
       const { data: pair, error: pairError } = await supabaseAdmin
         .from("device_pairs")
@@ -106,15 +113,11 @@ export async function POST(request: Request) {
       }
 
       // Create a JWT with a 5-minute expiry for the signaling server
-      const p2pToken = jwt.sign(
-        {
-          deviceId,
-          pairId: pair.id,
-          userId: user.id,
-        },
-        jwtSecret,
-        { expiresIn: "5m" },
-      );
+      const p2pToken = await new SignJWT({ deviceId, pairId: pair.id, userId: user.id })
+        .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+        .setIssuedAt()
+        .setExpirationTime("5m")
+        .sign(new TextEncoder().encode(jwtSecret));
       console.log("Successfully generated P2P signaling token.");
 
       return NextResponse.json({ token: p2pToken });

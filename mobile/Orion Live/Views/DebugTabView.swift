@@ -41,6 +41,10 @@ struct DebugTabView: View {
                     Section(header: Label("Signaling", systemImage: "wifi")) {
                         signalingStatusSection
                     }
+
+                    Section(header: Label("Packets & Relay", systemImage: "point.3.connected.trianglepath.dotted")) {
+                        signalTrafficSection
+                    }
                 } else {
                     Section(header: Label("Processing Mode", systemImage: "info.circle")) {
                         Text("Hybrid mode is currently active. P2P connection details are only available in Server mode.")
@@ -51,6 +55,10 @@ struct DebugTabView: View {
 
                 Section(header: Label("Live System Metrics", systemImage: "speedometer")) {
                     systemMetricsSection
+                }
+
+                Section(header: Label("Model Route", systemImage: "server.rack")) {
+                    modelRouteSection
                 }
                 
                 Section(header: Label("On-Device Analysis Log", systemImage: "memorychip")) {
@@ -143,6 +151,29 @@ struct DebugTabView: View {
         VStack(spacing: 8) {
             ConnectionStatusRow(label: "Signaling Status", value: signalingClient.connectionState.description, color: signalingStatusColor)
             ConnectionStatusRow(label: "Server", value: "signal.orionlive.ai", color: .secondary)
+            if let health = signalingClient.lastSignalHealth {
+                ConnectionStatusRow(label: "Signal API", value: health.status, color: .green)
+                ConnectionStatusRow(label: "Rooms", value: health.roomsActive.map(String.init) ?? "-", color: .secondary)
+                ConnectionStatusRow(label: "Clients", value: health.clientsConnected.map(String.init) ?? "-", color: .secondary)
+            }
+        }
+    }
+
+    private var signalTrafficSection: some View {
+        VStack(spacing: 8) {
+            ConnectionStatusRow(label: "Packets Sent", value: "\(signalingClient.packetsSent)", color: .blue)
+            ConnectionStatusRow(label: "Packets Received", value: "\(signalingClient.packetsReceived)", color: .green)
+            ConnectionStatusRow(label: "Bytes Sent", value: ByteCountFormatter.string(fromByteCount: Int64(signalingClient.packetBytesSent), countStyle: .binary), color: .blue)
+            ConnectionStatusRow(label: "Bytes Received", value: ByteCountFormatter.string(fromByteCount: Int64(signalingClient.packetBytesReceived), countStyle: .binary), color: .green)
+            ConnectionStatusRow(label: "Last Sent", value: signalingClient.lastPacketTypeSent ?? "-", color: .secondary)
+            ConnectionStatusRow(label: "Last Received", value: signalingClient.lastPacketTypeReceived ?? "-", color: .secondary)
+            if let usage = signalingClient.lastSignalAccountUsage {
+                Divider()
+                ConnectionStatusRow(label: "Relay Packets", value: "\(usage.usage.packetsRelayed)", color: .secondary)
+                ConnectionStatusRow(label: "Relay Bytes", value: ByteCountFormatter.string(fromByteCount: Int64(usage.usage.bytesRelayed), countStyle: .binary), color: .secondary)
+                ConnectionStatusRow(label: "ICE Issued", value: "\(usage.usage.iceIssued)", color: .secondary)
+                ConnectionStatusRow(label: "Est. Cost", value: String(format: "$%.5f", usage.estimatedCostUsd.totalUsd), color: .secondary)
+            }
         }
     }
     
@@ -168,6 +199,17 @@ struct DebugTabView: View {
                 thermalState: batteryMonitoringManager.thermalState,
                 thermalStateDescription: batteryMonitoringManager.thermalStateDescription
             )
+        }
+    }
+
+    private var modelRouteSection: some View {
+        VStack(spacing: 8) {
+            ConnectionStatusRow(label: "Processing", value: "Server", color: .green)
+            ConnectionStatusRow(label: "Local YOLO/VLM", value: "Bypassed", color: .secondary)
+            ConnectionStatusRow(label: "Reasoning", value: "Gemma on macOS server", color: .secondary)
+            ConnectionStatusRow(label: "3D Depth", value: "Depth Anything 3", color: .secondary)
+            ConnectionStatusRow(label: "Tracking", value: "Server persistent memory", color: .secondary)
+            ConnectionStatusRow(label: "Server Host", value: "\(SettingsManager.shared.serverHost):\(SettingsManager.shared.serverPort)", color: .secondary)
         }
     }
     

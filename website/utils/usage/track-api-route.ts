@@ -29,6 +29,7 @@ function getSupabaseAdminClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+      detectSessionInUrl: false,
     },
   });
   return cachedAdminClient;
@@ -90,7 +91,7 @@ async function writeApiUsageEvent(event: {
       user_agent: event.userAgent,
       referer: event.referer,
       metadata: event.metadata,
-    });
+    } as any);
   } catch (err) {
     // Non-fatal: usage logging must never break API functionality.
     console.error("Failed to write api_usage_events row:", err);

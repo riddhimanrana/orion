@@ -150,11 +150,14 @@ class ModelManager:
                 max_tokens=settings.MAX_TEXT_LENGTH,
                 verbose=False
             )
+
+            if generated_text.startswith(prompt):
+                generated_text = generated_text[len(prompt):].strip()
             
             confidence_placeholder = 0.8
 
             return {
-                "response": generated_text
+                "response": generated_text.strip()
             }
             
         except Exception as e:

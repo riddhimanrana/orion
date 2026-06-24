@@ -21,6 +21,7 @@ class ContextMemory:
             max_frames: Maximum frames to keep in memory (default 1s at 30fps)
         """
         self.frames = deque(maxlen=max_frames)
+        self.max_frames = max_frames
         self.scene_analysis: Dict[str, Dict[str, Any]] = {}
         self.scene_understanding: Dict[str, Any] = {
             "ongoing_activities": [],
@@ -30,6 +31,8 @@ class ContextMemory:
         self.persistent_objects: Dict[str, Dict[str, Any]] = {}
         self.max_persistent_trajectory = 600
         self.max_spatial_history = 300
+        self.max_cis_history = 300
+        self.cis_threshold = 0.50
         self.stats = {
             "frames_stored": 0,
             "analyses_stored": 0,
@@ -170,7 +173,8 @@ class ContextMemory:
                         "trajectory": [det.bbox],
                         "status": "present",
                         "last_near_objects": [],
-                        "spatial_history": []
+                        "spatial_history": [],
+                        "cis_history": []
                     }
                 else:
                     p_obj = self.persistent_objects[obj_id]
@@ -191,7 +195,7 @@ class ContextMemory:
             if obj_id not in current_objects and current_time - obj["last_seen"] > 2.0:
                 obj["status"] = "absent"
 
-        # Compute spatial proximity relationships in persistent memory
+        # Compute spatial proximity and lightweight live CIS relationships.
         for obj_a_id in current_objects:
             if obj_a_id not in self.persistent_objects:
                 continue
@@ -200,6 +204,7 @@ class ContextMemory:
             centroid_a = ((bbox_a[0] + bbox_a[2]) / 2.0, (bbox_a[1] + bbox_a[3]) / 2.0)
 
             near_list = []
+            cis_edges = []
             for obj_b_id in current_objects:
                 if obj_b_id == obj_a_id:
                     continue
@@ -214,6 +219,14 @@ class ContextMemory:
                 if dist < 0.25:
                     near_list.append(obj_b["label"])
 
+                cis = self._compute_live_cis(obj_a, obj_b, frame.timestamp, dist)
+                if cis["score"] >= self.cis_threshold:
+                    cis_edges.append({
+                        "target": obj_b["label"],
+                        "target_track_id": obj_b.get("track_id"),
+                        **cis
+                    })
+
             if near_list:
                 labels = sorted(set(near_list))
                 obj_a["last_near_objects"] = labels
@@ -224,6 +237,14 @@ class ContextMemory:
                 })
                 if len(obj_a["spatial_history"]) > self.max_spatial_history:
                     obj_a["spatial_history"] = obj_a["spatial_history"][-self.max_spatial_history:]
+
+            if cis_edges:
+                obj_a.setdefault("cis_history", []).append({
+                    "timestamp": frame.timestamp,
+                    "edges": cis_edges
+                })
+                if len(obj_a["cis_history"]) > self.max_cis_history:
+                    obj_a["cis_history"] = obj_a["cis_history"][-self.max_cis_history:]
 
         # Clean up old active objects (5 second TTL for UI dashboard list)
         self.scene_understanding["tracked_objects"] = {
@@ -281,10 +302,52 @@ class ContextMemory:
             "ongoing_activities": len(self.scene_understanding["ongoing_activities"])
         }
 
+    def _compute_live_cis(
+        self,
+        obj_a: Dict[str, Any],
+        obj_b: Dict[str, Any],
+        timestamp: float,
+        dist: float
+    ) -> Dict[str, Any]:
+        """Deterministic live CIS proxy: temporal + spatial/depth + motion + semantic compatibility."""
+        delta_t = abs(float(obj_a.get("last_seen", timestamp)) - float(obj_b.get("last_seen", timestamp)))
+        temporal = math.exp(-delta_t / 1.0)
+        spatial = max(0.0, 1.0 - min(dist / 0.25, 1.0))
+        motion = self._motion_alignment(obj_a.get("trajectory", []), obj_b.get("trajectory", []))
+        semantic = 1.0 if obj_a.get("label") == obj_b.get("label") else 0.25
+        score = (0.30 * temporal) + (0.35 * spatial) + (0.20 * motion) + (0.15 * semantic)
+        return {
+            "score": round(score, 4),
+            "components": {
+                "temporal": round(temporal, 4),
+                "spatial": round(spatial, 4),
+                "motion": round(motion, 4),
+                "semantic": round(semantic, 4)
+            }
+        }
+
+    def _motion_alignment(self, traj_a: List[Any], traj_b: List[Any]) -> float:
+        if len(traj_a) < 2 or len(traj_b) < 2:
+            return 0.0
+
+        def velocity(traj: List[Any]) -> tuple[float, float]:
+            prev = traj[-2]
+            curr = traj[-1]
+            prev_center = ((prev[0] + prev[2]) / 2.0, (prev[1] + prev[3]) / 2.0)
+            curr_center = ((curr[0] + curr[2]) / 2.0, (curr[1] + curr[3]) / 2.0)
+            return (curr_center[0] - prev_center[0], curr_center[1] - prev_center[1])
+
+        va = velocity(traj_a)
+        vb = velocity(traj_b)
+        norm_a = math.hypot(*va)
+        norm_b = math.hypot(*vb)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return max(0.0, min(1.0, ((va[0] * vb[0]) + (va[1] * vb[1])) / (norm_a * norm_b)))
+
     def is_healthy(self) -> bool:
         """Check if memory system is healthy."""
-        max_memory_usage = len(self.frames) + len(self.scene_analysis)
-        return max_memory_usage < 1000  # Arbitrary limit
+        return len(self.frames) <= self.max_frames and len(self.scene_analysis) <= self.stats["frames_stored"]
 
     def clear(self) -> None:
         """Clear all stored context."""
