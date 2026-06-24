@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "github.copilot",
+    "github.copilot-chat",
+    "github.vscode-github-actions",
+    "redhat.vscode-yaml",
+    "swiftlang.swift-vscode",
+    "sweetpad.sweetpad",
+    "vadimcn.vscode-lldb",
+    "llvm-vs-code-extensions.lldb-dap"
+  ]
+}

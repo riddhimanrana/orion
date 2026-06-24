@@ -51,19 +51,31 @@ class WebRTCManager: NSObject, ObservableObject {
         guard peerConnection == nil else { return }
         Logger.shared.network("WebRTC: Starting connection", level: .info)
         self.signalingClient.delegate = self
-        setupPeerConnection()
+
+        let iceCredentials = try? await signalingClient.prepareICECredentials()
+        self.ephemeralTTLRemaining = iceCredentials?.ttl
+        self.iceUsage = iceCredentials?.usage
+
+        setupPeerConnection(iceCredentials: iceCredentials)
         await signalingClient.connect()
     }
 
     func disconnect() {
+        closePeerConnection(disconnectSignaling: true)
+        Logger.shared.network("WebRTC: Disconnected", level: .info)
+    }
+
+    private func closePeerConnection(disconnectSignaling: Bool) {
         pingTimer?.invalidate()
         pingTimer = nil
         peerConnection?.close()
         peerConnection = nil
-        signalingClient.disconnect()
+        dataChannel = nil
+        if disconnectSignaling {
+            signalingClient.disconnect()
+        }
         self.connectionState = .closed
         self.dataChannelState = .closed
-        Logger.shared.network("WebRTC: Disconnected", level: .info)
     }
 
     func sendPing() {
@@ -78,9 +90,19 @@ class WebRTCManager: NSObject, ObservableObject {
         sendPing()
     }
 
-    private func setupPeerConnection() {
+    private func setupPeerConnection(iceCredentials: ICECredentials?) {
         let configuration = RTCConfiguration()
-        configuration.iceServers = [RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"])]
+        if let iceCredentials {
+            configuration.iceServers = [
+                RTCIceServer(
+                    urlStrings: iceCredentials.urls,
+                    username: iceCredentials.username,
+                    credential: iceCredentials.credential
+                )
+            ]
+        } else {
+            configuration.iceServers = [RTCIceServer(urlStrings: ["stun:stun.l.google.com:19302"])]
+        }
         configuration.sdpSemantics = .unifiedPlan
 
         let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": "true"])
@@ -118,6 +140,9 @@ extension WebRTCManager: SignalingClientDelegate {
         Task { @MainActor in
             Logger.shared.network("Signaling connected. Creating offer...", level: .info)
             let constraints = RTCMediaConstraints(mandatoryConstraints: ["OfferToReceiveVideo": "true"], optionalConstraints: nil)
+            if self.peerConnection == nil {
+                self.setupPeerConnection(iceCredentials: nil)
+            }
             guard let pc = self.peerConnection else { return }
 
             do {
@@ -159,11 +184,11 @@ extension WebRTCManager: SignalingClientDelegate {
     }
 
     nonisolated func signalingClientDidDisconnect(_ client: SignalingClient) {
-        Task { @MainActor in self.disconnect() }
+        Task { @MainActor in self.closePeerConnection(disconnectSignaling: false) }
     }
 
     nonisolated func signalingClient(_ client: SignalingClient, didEncounterError error: Error) {
-        Task { @MainActor in self.disconnect() }
+        Task { @MainActor in self.closePeerConnection(disconnectSignaling: false) }
     }
 }
 

@@ -141,11 +141,61 @@ enum ServerMessageType: String, Codable {
     // Add other types as needed
 }
 
+struct ServerRuntimeStatus: Decodable {
+    let status: String
+    let processingMode: String
+    let services: [String: Bool]
+    let models: [String: Bool]
+    let memory: ServerMemoryStatus?
+    let vision: ServerVisionStatus?
+    let queueSize: Int
+    let memgraphConnected: Bool
+    let ragConnected: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case processingMode = "processing_mode"
+        case services
+        case models
+        case memory
+        case vision
+        case queueSize = "queue_size"
+        case memgraphConnected = "memgraph_connected"
+        case ragConnected = "rag_connected"
+    }
+}
+
+struct ServerMemoryStatus: Decodable {
+    let framesInMemory: Int?
+    let persistentObjects: Int?
+    let trackedObjects: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case framesInMemory = "frames_in_memory"
+        case persistentObjects = "persistent_objects"
+        case trackedObjects = "tracked_objects"
+    }
+}
+
+struct ServerVisionStatus: Decodable {
+    let framesProcessed: Int?
+    let totalDetections: Int?
+    let averageDetectionsPerFrame: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case framesProcessed = "frames_processed"
+        case totalDetections = "total_detections"
+        case averageDetectionsPerFrame = "average_detections_per_frame"
+    }
+}
+
 class WebSocketManager: ObservableObject {
     // Published properties for UI updates
     @Published private(set) var status = ConnectionStatus.disconnected
     @Published private(set) var lastRoundTripTime: TimeInterval? = nil
     @Published private(set) var serverQueueSize: Int = 0 // New published property for queue size
+    @Published private(set) var runtimeStatus: ServerRuntimeStatus?
+    @Published private(set) var runtimeStatusError: String?
     let lastRoundTripTimePublisher = PassthroughSubject<TimeInterval?, Never>()
     let networkLogPublisher = PassthroughSubject<NetworkLogEntry, Never>()
 
@@ -162,6 +212,10 @@ class WebSocketManager: ObservableObject {
     private var serverURL: URL? {
         let urlString = "ws://\(currentHost):\(currentPort)/ios"
         return URL(string: urlString)
+    }
+
+    private var statusURL: URL? {
+        URL(string: "http://\(currentHost):\(currentPort)/status")
     }
     
     // Dependencies
@@ -189,7 +243,8 @@ class WebSocketManager: ObservableObject {
     init() {
         self.currentHost = UserDefaults.standard.string(forKey: UserDefaultsKeys.serverHost) ?? ServerConfig.host
         self.currentPort = UserDefaults.standard.object(forKey: UserDefaultsKeys.serverPort) as? Int ?? ServerConfig.port
-        self.processingMode = UserDefaults.standard.string(forKey: UserDefaultsKeys.processingMode) ?? "hybrid" // Default to hybrid
+        self.processingMode = "server"
+        UserDefaults.standard.set("server", forKey: UserDefaultsKeys.processingMode)
         
         log("WebSocketManager initialized. Server: ws://\(currentHost):\(currentPort)/ios")
         startNetworkMonitoring()
@@ -264,7 +319,7 @@ class WebSocketManager: ObservableObject {
     }
     
     func sendFrame(_ frame: FrameDataMessage) {
-        if SettingsManager.shared.processingMode == "full" {
+        if SettingsManager.shared.processingMode.lowercased() == "server" {
             frameSendTimestamps[frame.frameId] = Date().timeIntervalSince1970
         }
         sendMessage(frame)
@@ -395,7 +450,9 @@ class WebSocketManager: ObservableObject {
             }
             
             switch messageType {
-            case .connectionAck: log("Received connection_ack from server.")
+            case .connectionAck:
+                log("Received connection_ack from server.")
+                refreshRuntimeStatus()
             case .liveUpdate:
                 if let dataDict = json?["data"] as? [String: Any], let serverStatus = dataDict["server_status"] as? [String: Any], let queueSize = serverStatus["queue_size"] as? Int {
                     DispatchQueue.main.async { self.serverQueueSize = queueSize }
@@ -413,7 +470,7 @@ class WebSocketManager: ObservableObject {
                 }
                 DispatchQueue.main.async { self.onFrameProcessed?() }
                 // Notify CameraManager to allow next frame in full mode
-                if SettingsManager.shared.processingMode == "full" {
+                if SettingsManager.shared.processingMode.lowercased() == "server" {
                     DispatchQueue.main.async {
                         self.cameraManager?.serverDidAcknowledgeFrame()
                     }
@@ -444,6 +501,47 @@ class WebSocketManager: ObservableObject {
         let errorMessage = json?["message"] as? String ?? "Unknown server error"
         log("Server sent an error message: \(errorMessage)")
         onError?(.serverError(errorMessage))
+    }
+
+    func refreshRuntimeStatus() {
+        guard let statusURL else {
+            DispatchQueue.main.async {
+                self.runtimeStatus = nil
+                self.runtimeStatusError = "Invalid local server URL"
+            }
+            return
+        }
+
+        URLSession.shared.dataTask(with: statusURL) { [weak self] data, response, error in
+            guard let self else { return }
+
+            if let error {
+                DispatchQueue.main.async {
+                    self.runtimeStatusError = error.localizedDescription
+                }
+                return
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode),
+                  let data else {
+                DispatchQueue.main.async {
+                    self.runtimeStatusError = "Local server did not return status"
+                }
+                return
+            }
+
+            DispatchQueue.main.async {
+                do {
+                    let decoded = try JSONDecoder().decode(ServerRuntimeStatus.self, from: data)
+                    self.runtimeStatus = decoded
+                    self.runtimeStatusError = nil
+                    self.serverQueueSize = decoded.queueSize
+                } catch {
+                    self.runtimeStatusError = error.localizedDescription
+                }
+            }
+        }.resume()
     }
     
     private func startNetworkMonitoring() {

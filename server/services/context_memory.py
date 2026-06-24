@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Any
 from collections import deque
 import time
 import json
+import math
 
 from models import DetectionFrame
 from utils.logger import get_logger
@@ -26,6 +27,9 @@ class ContextMemory:
             "tracked_objects": {},
             "scene_state": {}
         }
+        self.persistent_objects: Dict[str, Dict[str, Any]] = {}
+        self.max_persistent_trajectory = 600
+        self.max_spatial_history = 300
         self.stats = {
             "frames_stored": 0,
             "analyses_stored": 0,
@@ -133,7 +137,7 @@ class ContextMemory:
                 obj_id = f"{det.label}_{det.track_id}"
                 current_objects.add(obj_id)
 
-                # Update or create tracked object
+                # Update or create tracked object in active list
                 if obj_id not in self.scene_understanding["tracked_objects"]:
                     self.scene_understanding["tracked_objects"][obj_id] = {
                         "label": det.label,
@@ -154,8 +158,74 @@ class ContextMemory:
                     )
                     obj["trajectory"].append(det.bbox)
 
-        # Clean up old objects
+                # Update or create in persistent memory (permanence)
+                if obj_id not in self.persistent_objects:
+                    self.persistent_objects[obj_id] = {
+                        "label": det.label,
+                        "track_id": det.track_id,
+                        "first_seen": frame.timestamp,
+                        "last_seen": frame.timestamp,
+                        "detection_count": 1,
+                        "average_confidence": det.confidence,
+                        "trajectory": [det.bbox],
+                        "status": "present",
+                        "last_near_objects": [],
+                        "spatial_history": []
+                    }
+                else:
+                    p_obj = self.persistent_objects[obj_id]
+                    p_obj["last_seen"] = frame.timestamp
+                    p_obj["detection_count"] += 1
+                    p_obj["average_confidence"] = (
+                        (p_obj["average_confidence"] * (p_obj["detection_count"] - 1) +
+                        det.confidence) / p_obj["detection_count"]
+                    )
+                    p_obj["trajectory"].append(det.bbox)
+                    if len(p_obj["trajectory"]) > self.max_persistent_trajectory:
+                        p_obj["trajectory"] = p_obj["trajectory"][-self.max_persistent_trajectory:]
+                    p_obj["status"] = "present"
+
+        # Update status for objects not currently seen
         current_time = frame.timestamp
+        for obj_id, obj in self.persistent_objects.items():
+            if obj_id not in current_objects and current_time - obj["last_seen"] > 2.0:
+                obj["status"] = "absent"
+
+        # Compute spatial proximity relationships in persistent memory
+        for obj_a_id in current_objects:
+            if obj_a_id not in self.persistent_objects:
+                continue
+            obj_a = self.persistent_objects[obj_a_id]
+            bbox_a = obj_a["trajectory"][-1]
+            centroid_a = ((bbox_a[0] + bbox_a[2]) / 2.0, (bbox_a[1] + bbox_a[3]) / 2.0)
+
+            near_list = []
+            for obj_b_id in current_objects:
+                if obj_b_id == obj_a_id:
+                    continue
+                if obj_b_id not in self.persistent_objects:
+                    continue
+                obj_b = self.persistent_objects[obj_b_id]
+                bbox_b = obj_b["trajectory"][-1]
+                centroid_b = ((bbox_b[0] + bbox_b[2]) / 2.0, (bbox_b[1] + bbox_b[3]) / 2.0)
+
+                dist = math.hypot(centroid_a[0] - centroid_b[0], centroid_a[1] - centroid_b[1])
+                # In normalized coordinates (0 to 1), a threshold of 0.25 represents proximity
+                if dist < 0.25:
+                    near_list.append(obj_b["label"])
+
+            if near_list:
+                labels = sorted(set(near_list))
+                obj_a["last_near_objects"] = labels
+                obj_a.setdefault("spatial_history", []).append({
+                    "timestamp": frame.timestamp,
+                    "relation": "NEAR",
+                    "objects": labels
+                })
+                if len(obj_a["spatial_history"]) > self.max_spatial_history:
+                    obj_a["spatial_history"] = obj_a["spatial_history"][-self.max_spatial_history:]
+
+        # Clean up old active objects (5 second TTL for UI dashboard list)
         self.scene_understanding["tracked_objects"] = {
             k: v for k, v in self.scene_understanding["tracked_objects"].items()
             if v["last_seen"] >= current_time - 5.0 or k in current_objects
@@ -207,6 +277,7 @@ class ContextMemory:
             "analyses_in_memory": len(self.scene_analysis),
             "total_analyses": self.stats["analyses_stored"],
             "tracked_objects": len(self.scene_understanding["tracked_objects"]),
+            "persistent_objects": len(self.persistent_objects),
             "ongoing_activities": len(self.scene_understanding["ongoing_activities"])
         }
 
@@ -224,6 +295,7 @@ class ContextMemory:
             "tracked_objects": {},
             "scene_state": {}
         }
+        self.persistent_objects.clear()
         self.stats = {
             "frames_stored": 0,
             "analyses_stored": 0,

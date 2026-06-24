@@ -1,0 +1,69 @@
+{
+  "folders": [
+    {
+      "name": "root",
+      "path": "."
+    },
+    {
+      "name": "mobile",
+      "path": "mobile"
+    },
+    {
+      "name": "desktop",
+      "path": "desktop"
+    },
+    {
+      "name": "website",
+      "path": "website"
+    },
+    {
+      "name": "signal",
+      "path": "signal"
+    },
+    {
+      "name": "research",
+      "path": "research"
+    },
+    {
+      "name": "server",
+      "path": "server"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "**/.venv": true,
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/DerivedData": true,
+      "**/*.code-workspace": true
+    },
+    "search.exclude": {
+      "**/.git": true,
+      "**/.venv": true,
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/DerivedData": true
+    },
+    "github.copilot.enable": {
+      "*": true
+    },
+    "terminal.integrated.defaultProfile.osx": "zsh",
+    "sweetpad.build.xcodeWorkspacePath": "mobile/Orion Live.xcodeproj"
+  },
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "github.copilot",
+      "github.copilot-chat",
+      "github.vscode-github-actions",
+      "redhat.vscode-yaml",
+      "swiftlang.swift-vscode",
+      "sweetpad.sweetpad",
+      "vadimcn.vscode-lldb",
+      "llvm-vs-code-extensions.lldb-dap"
+    ]
+  }
+}

@@ -101,7 +101,8 @@ class SettingsManager: ObservableObject {
         self.serverHost = UserDefaults.standard.string(forKey: UserDefaultsKeys.serverHost) ?? ServerConfig.host
         self.serverPort = UserDefaults.standard.object(forKey: UserDefaultsKeys.serverPort) as? Int ?? ServerConfig.port
         self.reconnectDelay = UserDefaults.standard.double(forKey: "reconnectDelay")
-        self.processingMode = UserDefaults.standard.string(forKey: UserDefaultsKeys.processingMode) ?? "split" // Default to split
+        self.processingMode = "server"
+        UserDefaults.standard.set("server", forKey: UserDefaultsKeys.processingMode)
         self.connectionMode = UserDefaults.standard.string(forKey: "connectionMode") ?? "direct" // Default to direct
 
         // Camera & Detection

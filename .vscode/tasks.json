@@ -1,0 +1,114 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev:web",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "dev:web"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:signal",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "dev:signal"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:server",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "dev:server"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:mobile",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "dev:mobile"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:mac",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "dev:mac"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build:web",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "build:web"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build:signal",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "build:signal"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build:mobile",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "build:mobile"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build:mac",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "build:mac"],
+      "problemMatcher": []
+    },
+    {
+      "label": "swift:build-server-config",
+      "type": "shell",
+      "command": "xcode-build-server",
+      "args": ["config", "-project", "${workspaceFolder}/mobile/Orion Live.xcodeproj", "-scheme", "Orion Live"],
+      "problemMatcher": []
+    },
+    {
+      "label": "xcode:mobile:build",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "-project",
+        "${workspaceFolder}/mobile/Orion Live.xcodeproj",
+        "-scheme",
+        "Orion Live",
+        "-configuration",
+        "Debug",
+        "-destination",
+        "generic/platform=iOS Simulator",
+        "build"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "xcode:mac:build",
+      "type": "shell",
+      "command": "xcodebuild",
+      "args": [
+        "-project",
+        "${workspaceFolder}/desktop/Orion Server.xcodeproj",
+        "-scheme",
+        "Orion Server",
+        "-configuration",
+        "Debug",
+        "build"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

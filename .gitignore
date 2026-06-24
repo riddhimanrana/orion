@@ -44,7 +44,9 @@ research/.env
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/mcp.json
 *.code-workspace
+!.code-workspace
 .history/
 
 # IDE - PyCharm
@@ -117,6 +119,8 @@ website/.next/
 **/.env.production.local
 
 # iOS
+mobile/Orion.xcodeproj/
+
 ## User settings
 xcuserdata/
 *.xcscmblueprint
@@ -149,6 +153,7 @@ Pods/
 
 # Local development
 docker-compose.override.yml
+buildServer.json
 
 
 
@@ -313,4 +318,3 @@ mobile/Orion/Detection/model
 ml-fastvlm/
 orion-icon.icon/
 *.pdf
-

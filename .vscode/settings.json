@@ -1,0 +1,32 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/.venv": true,
+    "**/.next": true,
+    "**/DerivedData": true,
+    "**/node_modules": true,
+    "**/*.xcuserstate": true,
+    "**/*.xcodeproj/xcuserdata": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/.venv": true,
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/DerivedData": true
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "swift.formatter": "swiftformat",
+  "sweetpad.build.xcodeWorkspacePath": "mobile/Orion Live.xcodeproj",
+  "sweetpad.build.derivedDataPath": "${workspaceFolder}/.derivedData",
+  "sourcekit-lsp.serverPath": "sourcekit-lsp",
+  "sourcekit-lsp.trace.server": "off",
+  "swift.updateBuildServerOnStart": "auto",
+  "files.associations": {
+    "*.pbxproj": "text",
+    "*.xcconfig": "plaintext",
+    "*.entitlements": "xml"
+  }
+}

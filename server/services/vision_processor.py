@@ -35,7 +35,7 @@ except ImportError as e:
 
 class VisionProcessor:
     """Handles vision processing, object detection, and Re-ID tracking."""
-    
+
     def __init__(self, model_manager: ModelManager):
         self.model_manager = model_manager
         self.stats = {
@@ -43,39 +43,48 @@ class VisionProcessor:
             "total_detections": 0
         }
         self.engine: Optional[Any] = None
+        self.db_manager: Optional[Any] = None
         self.is_initialized = False
-        
-    async def initialize(self) -> None:
+        self._next_mock_id = 1
+        self._mock_tracks = {} # Track ID mapping for mock fallback
+
+    async def initialize(self, db_manager: Optional[Any] = None) -> None:
         """Initialize the real Orion PerceptionEngine if available."""
         if self.is_initialized:
             return
-            
+
+        self.db_manager = db_manager
+
         if ORION_RESEARCH_AVAILABLE:
             try:
-                # Load theExtra Large YOLO26x balanced config
+                # Load the Extra Large YOLO26x balanced config
                 config = get_accurate_config()
-                # Disable 3D SLAM / depth mapping on live websocket thread to minimize latency
-                config.enable_3d = False
-                config.enable_hands = False
-                
+                # Enable 3D SLAM / depth mapping & hand tracking as requested by our orion research
+                config.enable_3d = True
+                config.enable_hands = True
+                config.use_memgraph = (db_manager is not None)
+                if db_manager is not None:
+                    config.memgraph_host = db_manager.host
+                    config.memgraph_port = db_manager.port
+
                 # Initialize Orion PerceptionEngine (which manages weights and model loadings)
-                self.engine = PerceptionEngine(config=config)
-                logger.info("Orion PerceptionEngine and tracker successfully initialized.")
+                self.engine = PerceptionEngine(config=config, db_manager=db_manager)
+                logger.info("Orion PerceptionEngine and tracker successfully initialized with 3D space tracking.")
             except Exception as e:
                 logger.error(f"Failed to instantiate Orion PerceptionEngine: {e}")
                 self.engine = None
         else:
             logger.info("Orion research package not available. Using mock vision processor.")
-            
+
         self.is_initialized = True
         logger.info("Vision processor ready")
-        
+
     async def analyze_frame(self, frame: FrameDataMessage) -> Dict[str, Any]:
         """Analyzes a frame using YOLO detection, V-JEPA2 embedding, and Re-ID tracking."""
         try:
             detections: List[Detection] = []
             vlm_description: Optional[str] = None
-            
+
             # Resolve frame index and timestamp
             frame_number = 0
             if frame.frame_id:
@@ -87,18 +96,18 @@ class VisionProcessor:
                         frame_number = int(frame.frame_id)
                     except ValueError:
                         frame_number = self.stats["frames_processed"]
-                        
+
             timestamp = frame.timestamp if frame.timestamp else 0.0
 
             if settings.PROCESSING_MODE == "full":
                 if not frame.image_data:
                     raise ValueError("Image data is required for full processing mode.")
-                
+
                 # Decode base64 image data
                 image_bytes = base64.b64decode(frame.image_data)
                 pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
                 frame_width, frame_height = pil_image.size
-                
+
                 # Convert PIL image to BGR numpy array for OpenCV/YOLO
                 bgr_frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
@@ -114,7 +123,7 @@ class VisionProcessor:
                         frame_width,
                         frame_height
                     )
-                    
+
                     # 2. Extract V-JEPA2 appearance embeddings for Re-ID
                     if raw_detections and self.engine.embedder:
                         raw_detections = await loop.run_in_executor(
@@ -122,7 +131,7 @@ class VisionProcessor:
                             self.engine.embedder.embed_detections,
                             raw_detections
                         )
-                        
+
                     # 3. Update EnhancedTracker with 2D/3D boxes and embeddings
                     active_tracks = []
                     if raw_detections and self.engine.enhanced_tracker:
@@ -135,7 +144,7 @@ class VisionProcessor:
                             None,  # Camera pose omitted
                             frame_number
                         )
-                    
+
                     # Map tracks back to response detections
                     if active_tracks:
                         for track in active_tracks:
@@ -146,6 +155,9 @@ class VisionProcessor:
                                 bbox=td.get("bbox_2d", [0, 0, 0, 0]),
                                 track_id=td.get("track_id")
                             ))
+
+                        # Sync active tracks to Memgraph database if available
+                        self._sync_tracks_to_memgraph(active_tracks, frame_number)
                     else:
                         # Fallback to raw detections if tracking hasn't confirmed hits yet (min_hits threshold)
                         for d in raw_detections:
@@ -159,7 +171,8 @@ class VisionProcessor:
                     # Fallback mockup if PerceptionEngine failed to load
                     await asyncio.sleep(0.1)
                     yolo_results = await self.model_manager.process_image_for_yolo(frame.image_data)
-                    detections = [Detection(**d) for d in yolo_results]
+                    raw_dets = [Detection(**d) for d in yolo_results]
+                    detections = self._mock_track(raw_dets)
 
                 # 4. Generate scene description using FastVLM
                 vlm_prompt = self._build_vlm_prompt(detections)
@@ -173,13 +186,13 @@ class VisionProcessor:
             else:  # Split mode (detections and VLM done on iOS client)
                 detections = frame.detections or []
                 vlm_description = frame.vlm_description or ""
-                
+
                 logger.info(f"Received iOS Detections Count: {len(detections)}")
                 logger.info(f"Received iOS VLM Description: {vlm_description}")
-            
+
             detection_info = [f"{d.label} (ID: {d.track_id if d.track_id is not None else 'None'})" for d in detections]
             logger.debug(f"Detections: {', '.join(detection_info)}")
-            
+
             analysis = {
                 "description": vlm_description,
                 "detections": [self._enhance_detection(d) for d in detections],
@@ -189,14 +202,14 @@ class VisionProcessor:
                 },
                 "error": None
             }
-                
+
             self.stats["frames_processed"] += 1
             if detections:
                 self.stats["total_detections"] += len(detections)
-                
+
             logger.info(f"Vision analysis complete for frame {frame.frame_id}. Detections count: {len(detections)}.")
             return analysis
-            
+
         except Exception as e:
             logger.error(f"Error analyzing frame {frame.frame_id}: {e}")
             import traceback
@@ -212,10 +225,10 @@ class VisionProcessor:
         """Builds a concise prompt for the VLM based on YOLO detections."""
         if not detections:
             return "Describe the scene briefly."
-        
+
         labels = [det.label for det in detections]
         return f"Describe the scene containing: {', '.join(labels)}. Be concise."
-            
+
     def _enhance_detection(self, detection: Detection) -> Dict[str, Any]:
         return {
             "label": detection.label,
@@ -225,14 +238,14 @@ class VisionProcessor:
             "category": self._get_category(detection.label),
             "is_moving": detection.track_id is not None
         }
-        
+
     def _get_category(self, label: str) -> str:
         categories = {
             "person": "human", "car": "vehicle", "truck": "vehicle", "bus": "vehicle",
             "chair": "furniture", "table": "furniture", "dog": "animal", "cat": "animal"
         }
         return categories.get(label.lower(), "object")
-        
+
     def get_stats(self) -> Dict[str, Any]:
         return {
             "frames_processed": self.stats["frames_processed"],
@@ -242,16 +255,112 @@ class VisionProcessor:
                 if self.stats["frames_processed"] > 0 else 0
             )
         }
-        
+
     def is_healthy(self) -> bool:
         if self.engine is not None:
             return True
         return self.model_manager.is_healthy()
-        
+
     async def cleanup(self) -> None:
         self.stats = {
             "frames_processed": 0,
             "total_detections": 0
         }
         self.engine = None
+        self.db_manager = None
         self.is_initialized = False
+
+    def _sync_tracks_to_memgraph(self, active_tracks: List[Any], frame_number: int) -> None:
+        """Write live track observations and NEAR relations when Memgraph is available."""
+        memgraph = self.db_manager or getattr(self.engine, "memgraph", None)
+        if memgraph is None or not active_tracks:
+            return
+
+        try:
+            observations_to_sync = []
+            for track in active_tracks:
+                if self.engine is not None and hasattr(self.engine, "_track_to_observation_dict"):
+                    observations_to_sync.append(self.engine._track_to_observation_dict(track, frame_number))
+                else:
+                    bbox = self._track_bbox(track)
+                    observations_to_sync.append({
+                        "entity_id": int(getattr(track, "id")),
+                        "frame_idx": frame_number,
+                        "class_name": str(getattr(track, "class_name", "object")),
+                        "confidence": float(getattr(track, "confidence", 0.0)),
+                        "bbox": bbox
+                    })
+
+            if hasattr(memgraph, "add_observations_batch"):
+                memgraph.add_observations_batch(observations_to_sync)
+
+            for i, track_a in enumerate(active_tracks):
+                bbox_a = self._track_bbox(track_a)
+                center_a = ((bbox_a[0] + bbox_a[2]) / 2.0, (bbox_a[1] + bbox_a[3]) / 2.0)
+
+                for track_b in active_tracks[i + 1:]:
+                    bbox_b = self._track_bbox(track_b)
+                    center_b = ((bbox_b[0] + bbox_b[2]) / 2.0, (bbox_b[1] + bbox_b[3]) / 2.0)
+
+                    import math
+                    dist = math.hypot(center_a[0] - center_b[0], center_a[1] - center_b[1])
+                    if dist < 0.25 and hasattr(memgraph, "add_spatial_relationship"):
+                        confidence = 1.0 - (dist / 0.25)
+                        memgraph.add_spatial_relationship(
+                            entity1_id=int(getattr(track_a, "id")),
+                            entity2_id=int(getattr(track_b, "id")),
+                            relationship_type="NEAR",
+                            confidence=float(confidence),
+                            frame_idx=frame_number
+                        )
+        except Exception as db_err:
+            logger.error(f"Memgraph live write failed: {db_err}")
+
+    def _track_bbox(self, track: Any) -> List[float]:
+        bbox = getattr(track, "bbox_2d", [0, 0, 0, 0])
+        if isinstance(bbox, np.ndarray):
+            bbox = bbox.tolist()
+        return [float(v) for v in bbox]
+
+    def _mock_track(self, detections: List[Detection]) -> List[Detection]:
+        """Simple centroid-based tracking fallback for mock environment."""
+        updated_detections = []
+        import math
+
+        current_frame_tracks = {}
+        for det in detections:
+            bbox = det.bbox
+            center_x = (bbox[0] + bbox[2]) / 2.0
+            center_y = (bbox[1] + bbox[3]) / 2.0
+
+            # Find closest previous track of same label
+            best_id = None
+            best_dist = 0.15 # Max distance threshold
+
+            for prev_id, prev_track in self._mock_tracks.items():
+                if prev_track["label"] == det.label:
+                    prev_center = prev_track["center"]
+                    dist = math.hypot(center_x - prev_center[0], center_y - prev_center[1])
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_id = prev_id
+
+            if best_id is None:
+                best_id = self._next_mock_id
+                self._next_mock_id += 1
+
+            current_frame_tracks[best_id] = {
+                "label": det.label,
+                "center": (center_x, center_y),
+                "bbox": bbox
+            }
+
+            updated_detections.append(Detection(
+                label=det.label,
+                confidence=det.confidence,
+                bbox=det.bbox,
+                track_id=best_id
+            ))
+
+        self._mock_tracks = current_frame_tracks
+        return updated_detections

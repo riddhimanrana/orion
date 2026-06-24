@@ -10,11 +10,14 @@ import SwiftUI
 import Combine
 import Supabase
 import SafariServices
+import WebRTC
 
 struct SettingsTabView: View {
     @StateObject private var settings = SettingsManager.shared
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var wsManager: WebSocketManager
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var deviceManager: DeviceManager
     @EnvironmentObject var compatibilityManager: SystemCompatibilityManager
@@ -40,6 +43,7 @@ struct SettingsTabView: View {
                 modelProviderSection
                 chatSection
                 processingModeSection
+                serverRuntimeSection
                 connectionSettingsSection
                 cameraAndDetectionSection
                 devicePairingSection
@@ -200,10 +204,6 @@ struct SettingsTabView: View {
                     Image(systemName: "arrow.up.right.square")
                         .foregroundColor(.secondary)
                 }
-                
-            
-
-            
             }
         }
     }
@@ -233,15 +233,48 @@ struct SettingsTabView: View {
 
     private var processingModeSection: some View {
         Section(header: Label("Processing Mode", systemImage: "gearshape.2.fill")) {
-            Picker("Mode", selection: $settings.processingMode) {
-                Text("Hybrid").tag("hybrid")
-                Text("Server").tag("server")
+            VStack(alignment: .leading, spacing: 12) {
+                Picker("Mode", selection: $settings.processingMode) {
+                    Text("Hybrid Beta").tag("hybrid")
+                    Text("Server").tag("server")
+                }
+                .pickerStyle(.segmented)
+                .disabled(true)
+
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "server.rack")
+                        .foregroundStyle(.purple)
+                        .frame(width: 28, height: 28)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Server reasoning active")
+                            .font(.headline)
+                        Text("Hybrid on-device ML is paused for beta testing. Visual tracking, Re-ID, Gemma reasoning, spatial memory, and query answers run on the macOS server.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(12)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
-            .pickerStyle(.segmented)
-            .onChange(of: settings.processingMode) { _, newMode in
-                wsManager.sendConfiguration(mode: newMode)
-                cameraManager.configure(for: newMode)
+        }
+    }
+
+    private var serverRuntimeSection: some View {
+        Section(header: Label("Server Runtime", systemImage: "waveform.path.ecg")) {
+            RuntimeStatusCard(
+                wsManager: wsManager,
+                webRTCManager: webRTCManager,
+                signalingClient: signalingClient
+            )
+
+            Button {
+                wsManager.refreshRuntimeStatus()
+            } label: {
+                Label("Refresh Server Status", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
+            .buttonStyle(.bordered)
         }
     }
 
@@ -252,7 +285,7 @@ struct SettingsTabView: View {
                 Text("Remote P2P").tag("webrtc")
             }
             .pickerStyle(.segmented)
-            
+
             if settings.connectionMode == "direct" {
                 HStack {
                     Text("Host")
@@ -273,26 +306,91 @@ struct SettingsTabView: View {
                 HStack {
                     Text("Status")
                     Spacer()
-                    Text(wsManager.status == .connected ? "Connected" : (wsManager.status == .connecting ? "Connecting" : "Disconnected"))
-                        .foregroundColor(wsManager.status == .connected ? .green : .yellow)
+                    Label(wsManager.status.description, systemImage: wsManager.status == .connected ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                        .foregroundColor(wsManager.status == .connected ? .green : .orange)
                 }
+
+                if let rtt = wsManager.lastRoundTripTime {
+                    HStack {
+                        Text("Frame RTT")
+                        Spacer()
+                        Text("\(Int(rtt * 1000)) ms")
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Button {
+                    updateConnection()
+                    wsManager.refreshRuntimeStatus()
+                } label: {
+                    Label("Reconnect Local Server", systemImage: "arrow.triangle.2.circlepath")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
             } else {
                 Button("Pair with macOS Server") {
                     showingPairingSheet = true
                 }
-                
+                .frame(minHeight: 44)
+
                 HStack {
                     Text("P2P Status")
                     Spacer()
-                    if UserDefaults.standard.string(forKey: "paired_server_device_id") != nil {
-                        Text("Ready")
-                            .foregroundColor(.green)
-                    } else {
-                        Text("Not Paired")
-                            .foregroundColor(.yellow)
+                    Label(p2pStatusText, systemImage: p2pStatusIcon)
+                        .foregroundColor(p2pStatusColor)
+                }
+
+                if let rtt = webRTCManager.lastPingRTT {
+                    HStack {
+                        Text("P2P RTT")
+                        Spacer()
+                        Text("\(Int(rtt * 1000)) ms")
+                            .foregroundColor(.secondary)
                     }
                 }
+
+                Button {
+                    Task { await webRTCManager.connect() }
+                } label: {
+                    Label("Connect P2P", systemImage: "point.3.connected.trianglepath.dotted")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(UserDefaults.standard.string(forKey: "paired_server_device_id") == nil)
             }
+        }
+    }
+
+    private var p2pStatusText: String {
+        if UserDefaults.standard.string(forKey: "paired_server_device_id") == nil {
+            return "Not Paired"
+        }
+        if (webRTCManager.connectionState == .connected || webRTCManager.connectionState == .completed) && webRTCManager.dataChannelState == .open {
+            return "Connected"
+        }
+        if signalingClient.connectionState == .connecting || webRTCManager.connectionState == .checking {
+            return "Connecting"
+        }
+        if signalingClient.connectionState == .connected {
+            return "Signaling Ready"
+        }
+        return "Ready"
+    }
+
+    private var p2pStatusIcon: String {
+        switch p2pStatusText {
+        case "Connected": return "checkmark.circle.fill"
+        case "Connecting": return "clock.fill"
+        case "Not Paired": return "link.badge.plus"
+        default: return "antenna.radiowaves.left.and.right"
+        }
+    }
+
+    private var p2pStatusColor: Color {
+        switch p2pStatusText {
+        case "Connected", "Signaling Ready": return .green
+        case "Not Paired": return .orange
+        default: return .yellow
         }
     }
 
@@ -303,6 +401,8 @@ struct SettingsTabView: View {
     }
 
     private func startPolling() {
+        wsManager.refreshRuntimeStatus()
+
         // Fetch immediately on appear
         Task {
             await deviceManager.fetchPairedDevices()
@@ -529,6 +629,9 @@ struct SettingsTabView_Previews: PreviewProvider {
         let ws = WebSocketManager()
         let compat = SystemCompatibilityManager()
         let appState = AppStateManager()
+        let apiService = APIService(supabase: auth.supabase)
+        let signalingClient = SignalingClient(apiService: apiService, deviceManager: device)
+        let webRTCManager = WebRTCManager(signalingClient: signalingClient)
 
         // Pre-populated preview data for the account section
         let previewVM = AccountViewModel.previewSample()
@@ -536,6 +639,8 @@ struct SettingsTabView_Previews: PreviewProvider {
         return SettingsTabView()
             .environmentObject(appState)
             .environmentObject(ws)
+            .environmentObject(webRTCManager)
+            .environmentObject(signalingClient)
             .environmentObject(camera)
             .environmentObject(device)
             .environmentObject(compat)
@@ -545,6 +650,159 @@ struct SettingsTabView_Previews: PreviewProvider {
     }
 }
 #endif
+
+private struct RuntimeStatusCard: View {
+    @ObservedObject var wsManager: WebSocketManager
+    @ObservedObject var webRTCManager: WebRTCManager
+    @ObservedObject var signalingClient: SignalingClient
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: overallStatusIcon)
+                    .font(.title3)
+                    .foregroundStyle(overallStatusColor)
+                    .frame(width: 32, height: 32)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(overallStatusTitle)
+                        .font(.headline)
+                    Text(overallStatusDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Divider()
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                RuntimeMetric(label: "Gemma", value: modelText("gemma"), color: modelColor("gemma"))
+                RuntimeMetric(label: "Re-ID", value: reidText, color: reidColor)
+                RuntimeMetric(label: "Memory", value: memoryText, color: .blue)
+                RuntimeMetric(label: "Graph", value: graphText, color: graphColor)
+                RuntimeMetric(label: "Local WS", value: wsManager.status.description, color: wsManager.status == .connected ? .green : .orange)
+                RuntimeMetric(label: "P2P", value: p2pText, color: p2pColor)
+            }
+
+            if let error = wsManager.runtimeStatusError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+
+    private var status: ServerRuntimeStatus? { wsManager.runtimeStatus }
+
+    private var overallStatusTitle: String {
+        if wsManager.status == .connected && status?.status == "ready" {
+            return "Ready for server reasoning"
+        }
+        if wsManager.status == .connecting {
+            return "Connecting to local server"
+        }
+        if status == nil {
+            return "Status not checked"
+        }
+        return "Server degraded"
+    }
+
+    private var overallStatusDetail: String {
+        if let status {
+            let mode = status.processingMode == "full" ? "server" : status.processingMode
+            return "Mode: \(mode). Queue: \(status.queueSize). Objects remembered: \(status.memory?.persistentObjects ?? 0)."
+        }
+        return "Start the macOS server, then refresh status or connect over Direct Wi-Fi."
+    }
+
+    private var overallStatusIcon: String {
+        wsManager.status == .connected && status?.status == "ready" ? "checkmark.seal.fill" : "server.rack"
+    }
+
+    private var overallStatusColor: Color {
+        wsManager.status == .connected && status?.status == "ready" ? .green : .orange
+    }
+
+    private func modelText(_ key: String) -> String {
+        guard let loaded = status?.models[key] else { return "Unknown" }
+        return loaded ? "Loaded" : "Missing"
+    }
+
+    private func modelColor(_ key: String) -> Color {
+        status?.models[key] == true ? .green : .orange
+    }
+
+    private var reidText: String {
+        status?.services["vision_processor"] == true ? "Tracker On" : "Waiting"
+    }
+
+    private var reidColor: Color {
+        status?.services["vision_processor"] == true ? .green : .orange
+    }
+
+    private var memoryText: String {
+        guard let memory = status?.memory else { return "Unknown" }
+        return "\(memory.persistentObjects ?? 0) objects"
+    }
+
+    private var graphText: String {
+        status?.memgraphConnected == true ? "Memgraph" : "In-memory"
+    }
+
+    private var graphColor: Color {
+        status?.memgraphConnected == true ? .green : .blue
+    }
+
+    private var p2pText: String {
+        if (webRTCManager.connectionState == .connected || webRTCManager.connectionState == .completed) && webRTCManager.dataChannelState == .open {
+            return "Connected"
+        }
+        if signalingClient.connectionState == .connected {
+            return "Signal"
+        }
+        return signalingClient.connectionState.description
+    }
+
+    private var p2pColor: Color {
+        p2pText == "Connected" || p2pText == "Signal" ? .green : .orange
+    }
+}
+
+private struct RuntimeMetric: View {
+    let label: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(minHeight: 52)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
 
 // MARK: - In-app Safari Wrapper
 private struct SafariView: UIViewControllerRepresentable {
@@ -798,7 +1056,7 @@ struct FeatureRowModel: Identifiable, Hashable {
 struct CompatibilityExpandableView: View {
     @EnvironmentObject var compatibilityManager: SystemCompatibilityManager
     @State private var isExpanded = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Main compatibility row
@@ -811,20 +1069,20 @@ struct CompatibilityExpandableView: View {
                     Image(systemName: compatibilityManager.isCompatible ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .foregroundColor(compatibilityManager.isCompatible ? .green : .orange)
                         .font(.system(size: 20))
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("System Compatibility")
                             .font(.body)
                             .fontWeight(.medium)
                             .foregroundColor(.primary)
-                        
+
                         Text(compatibilityManager.isCompatible ? "Compatible" : "Some issues detected")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    
+
                     Spacer()
-                    
+
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .foregroundColor(.secondary)
                         .font(.system(size: 12, weight: .semibold))
@@ -833,13 +1091,13 @@ struct CompatibilityExpandableView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
-            
+
             // Expandable content
             if isExpanded {
                 VStack(spacing: 8) {
                     Divider()
                         .padding(.vertical, 8)
-                    
+
                     // Device information
                     VStack(spacing: 6) {
                         InfoRow(icon: "iphone", label: "Model", value: compatibilityManager.deviceModel)
@@ -847,12 +1105,12 @@ struct CompatibilityExpandableView: View {
                         InfoRow(icon: "cpu", label: "Processor", value: compatibilityManager.chipType)
                         InfoRow(icon: "memorychip", label: "RAM", value: "\(compatibilityManager.ramGB) GB")
                     }
-                    
+
                     // Compatibility details
                     if !compatibilityManager.compatibilityDetails.isEmpty {
                         Divider()
                             .padding(.vertical, 8)
-                        
+
                         VStack(spacing: 8) {
                             HStack {
                                 Text("Compatibility Checks")
@@ -861,13 +1119,13 @@ struct CompatibilityExpandableView: View {
                                     .foregroundColor(.primary)
                                 Spacer()
                             }
-                            
+
                             ForEach(compatibilityManager.compatibilityDetails) { check in
                                 HStack(spacing: 8) {
                                     Image(systemName: check.status ? "checkmark.circle.fill" : "xmark.circle.fill")
                                         .foregroundColor(check.status ? .green : .red)
                                         .font(.system(size: 14))
-                                    
+
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(check.name)
                                             .font(.caption)
@@ -877,7 +1135,7 @@ struct CompatibilityExpandableView: View {
                                             .foregroundColor(.secondary)
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
-                                    
+
                                     Spacer()
                                 }
                             }

@@ -111,7 +111,7 @@ struct StartView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                         .scaleEffect(2.0)
-                    Text("Loading Models...")
+                    Text("Connecting to macOS Server...")
                         .font(.title3)
                         .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
                 }
@@ -238,17 +238,10 @@ struct StartView: View {
             isLoading = true
         }
         triggerHyperspeed()
-        objectDetector.loadModel()
-
-        // Observe model readiness
-        var modelCancellable: AnyCancellable? = nil
-        modelCancellable = objectDetector.$isModelReady
-            .filter { $0 }
-            .sink { _ in
-                Logger.shared.log("YOLO11n model is ready.")
-                onStart { }
-                modelCancellable?.cancel()
-            }
+        // Local model execution is deprecated. Mark model as ready instantly and proceed to camera view.
+        objectDetector.isModelReady = true
+        Logger.shared.log("Bypassed local YOLO11n loading (running server-side).")
+        onStart { }
     }
 }
 
@@ -392,4 +385,3 @@ struct StartView_Previews: PreviewProvider {
             .environmentObject(signalingClient)
     }
 }
-

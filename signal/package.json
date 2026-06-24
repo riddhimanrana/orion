@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "bun --watch index.ts",
-    "build": "npm exec -- tsc",
+    "build": "bunx tsc",
     "start": "node dist/index.js",
     "verify:connections": "node ./scripts/verify-connections.mjs",
     "render:deploy": "node ./scripts/render-deploy.mjs",

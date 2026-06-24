@@ -69,6 +69,16 @@ class SignalingClient: NSObject, ObservableObject {
     func webrtcDeviceId() -> String? { deviceManager.deviceId }
     func webrtcAPI() -> APIService { apiService }
 
+    func prepareICECredentials() async throws -> ICECredentials {
+        guard let deviceId = deviceManager.deviceId else {
+            throw WSError.connectionFailed
+        }
+        let token = try await getValidToken(deviceId: deviceId, forceRefresh: false)
+        self.currentToken = token
+        self.pairId = try decodePairId(from: token)
+        return try await apiService.fetchEphemeralICE(token: token)
+    }
+
     func connect() async {
         isManualDisconnect = false
         reconnectTask?.cancel()

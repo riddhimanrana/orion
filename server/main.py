@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 import time
 import sys
 from pathlib import Path
@@ -40,6 +40,8 @@ model_manager: Optional[ModelManager] = None
 vision_processor: Optional[VisionProcessor] = None # Add vision_processor
 frame_queue: Optional[asyncio.Queue] = None # The new task queue
 supabase_service: Optional[SupabaseService] = None
+memgraph_backend: Optional[Any] = None
+rag_client: Optional[Any] = None
 
 
 def normalize_processing_mode(value: str) -> str:
@@ -78,7 +80,7 @@ async def frame_processor_worker():
     while True:
         try:
             client_id, frame = await frame_queue.get()
-            
+
             # Notify dashboard that an item is being processed
             if websocket_manager and frame_queue:
                 queue_contents = []
@@ -94,7 +96,7 @@ async def frame_processor_worker():
                     "frame_processing_started",
                     {"queue_size": frame_queue.qsize(), "frame_id": frame.frame_id, "queue_contents": queue_contents}
                 )
-                
+
             await process_frame(client_id, frame)
             frame_queue.task_done()
         except asyncio.CancelledError:
@@ -107,15 +109,15 @@ async def frame_processor_worker():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown."""
-    global websocket_manager, llm_processor, context_memory, model_manager, vision_processor, frame_queue, supabase_service
-    
+    global websocket_manager, llm_processor, context_memory, model_manager, vision_processor, frame_queue, supabase_service, memgraph_backend, rag_client
+
     console.print("[bold green]🚀 Starting Orion Server (MLX)...[/bold green]")
-    
+
     try:
         # Initialize model manager first
         model_manager = ModelManager()
         await model_manager.initialize()
-        
+
         # Initialize core services
         context_memory = ContextMemory()
         llm_processor = LLMProcessor(model_manager)
@@ -124,31 +126,45 @@ async def lifespan(app: FastAPI):
         frame_queue = asyncio.Queue()
         supabase_service = SupabaseService()
         supabase_service.initialize()
-        
+
+        # Initialize Memgraph/RAG if available
+        try:
+            from orion.graph.backends.memgraph import MemgraphBackend
+            from orion.query.rag_v2 import OrionRAG
+
+            logger.info("Connecting to Memgraph backend...")
+            memgraph_backend = MemgraphBackend(host="127.0.0.1", port=7687)
+            rag_client = OrionRAG(host="127.0.0.1", port=7687, enable_llm=False)
+            logger.info("✓ Connected to Memgraph database & RAG pipeline successfully")
+        except Exception as db_err:
+            logger.warning(f"Could not connect to Memgraph, falling back to local persistent memory. Error: {db_err}")
+            memgraph_backend = None
+            rag_client = None
+
         # Start the background worker
         worker_task = asyncio.create_task(frame_processor_worker())
 
         # Initialize processors
         await llm_processor.initialize()
-        await vision_processor.initialize() # Initialize vision_processor
-        
+        await vision_processor.initialize(db_manager=memgraph_backend) # Initialize vision_processor with database
+
         if not check_services():
             raise RuntimeError("Failed to initialize all services")
-        
+
         console.print("[bold green]✅ All services initialized successfully![/bold green]")
         logger.info("Server startup completed successfully")
-        
+
         yield
-        
+
     except Exception as e:
         console.print(f"[bold red]❌ Failed to initialize services: {e}[/bold red]")
         logger.error(f"Startup failed: {e}")
         raise
-    
+
     finally:
         # Cleanup on shutdown
         console.print("[bold yellow]🛑 Shutting down Orion Server...[/bold yellow]")
-        
+
         # Stop the worker
         if 'worker_task' in locals() and not worker_task.done():
             worker_task.cancel()
@@ -156,14 +172,18 @@ async def lifespan(app: FastAPI):
 
         if websocket_manager:
             await websocket_manager.shutdown()
-        
+
         if llm_processor:
             await llm_processor.cleanup()
         if model_manager:
             await model_manager.cleanup()
         if vision_processor:
             await vision_processor.cleanup()
-            
+        if rag_client and hasattr(rag_client, "close"):
+            rag_client.close()
+        if memgraph_backend and hasattr(memgraph_backend, "close"):
+            memgraph_backend.close()
+
         console.print("[bold green]✅ Shutdown completed successfully![/bold green]")
         logger.info("Server shutdown completed")
 
@@ -209,7 +229,7 @@ async def get_webrtc_token(body: dict):
     user_id = body.get("userId")
     if not pair_id or not user_id:
         raise HTTPException(status_code=400, detail="Missing pairId or userId")
-        
+
     # Generate token using the shared secret
     token_payload = {
         "userId": user_id,
@@ -217,25 +237,25 @@ async def get_webrtc_token(body: dict):
         "deviceId": settings.SERVER_DEVICE_ID,
         "exp": int(time.time()) + 3600
     }
-    
+
     import base64
     import json
     import hmac
     import hashlib
-    
+
     def base64url_encode(data: bytes) -> str:
         return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
-        
+
     try:
         secret = settings.P2P_SIGNAL_JWT_SECRET
         header = {"alg": "HS256", "typ": "JWT"}
         header_json = json.dumps(header, separators=(',', ':')).encode('utf-8')
         payload_json = json.dumps(token_payload, separators=(',', ':')).encode('utf-8')
-        
+
         data = f"{base64url_encode(header_json)}.{base64url_encode(payload_json)}".encode('utf-8')
         signature = hmac.new(secret.encode('utf-8'), data, hashlib.sha256).digest()
         token = f"{data.decode('utf-8')}.{base64url_encode(signature)}"
-        
+
         return {"token": token, "deviceId": settings.SERVER_DEVICE_ID}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to sign signaling token: {str(e)}")
@@ -252,9 +272,9 @@ async def health_check():
             "context_memory": context_memory.is_healthy() if context_memory else False,
             "vision_processor": vision_processor.is_healthy() if vision_processor else False # Check vision_processor
         }
-        
+
         all_healthy = all(services_status.values())
-        
+
         return HealthCheck(
             status="healthy" if all_healthy else "degraded",
             timestamp=time.time(),
@@ -262,7 +282,7 @@ async def health_check():
             version="1.0.0",
             error=None if all_healthy else "Some services are degraded"
         )
-        
+
     except Exception as e:
         error_msg = f"Health check failed: {str(e)}"
         logger.error(error_msg)
@@ -274,18 +294,42 @@ async def health_check():
             error=error_msg
         )
 
+@app.get("/status")
+async def runtime_status():
+    """Runtime status for local iOS diagnostics."""
+    services_status = {
+        "model_manager": model_manager.is_healthy() if model_manager else False,
+        "llm_processor": llm_processor.is_healthy() if llm_processor else False,
+        "websocket_manager": websocket_manager.is_healthy() if websocket_manager else False,
+        "context_memory": context_memory.is_healthy() if context_memory else False,
+        "vision_processor": vision_processor.is_healthy() if vision_processor else False
+    }
+
+    return {
+        "status": "ready" if all(services_status.values()) else "degraded",
+        "timestamp": time.time(),
+        "processing_mode": settings.PROCESSING_MODE,
+        "services": services_status,
+        "models": model_manager.get_model_health() if model_manager else {},
+        "memory": context_memory.get_stats() if context_memory else {},
+        "vision": vision_processor.get_stats() if vision_processor else {},
+        "queue_size": frame_queue.qsize() if frame_queue else 0,
+        "memgraph_connected": memgraph_backend is not None,
+        "rag_connected": rag_client is not None
+    }
+
 @app.websocket("/ios")
 async def ios_websocket(websocket: WebSocket):
     """WebSocket endpoint for iOS app connections."""
     if not websocket_manager or not check_services():
         await websocket.close(code=1013, reason="Server not ready")
         return
-        
+
     client_id = f"ios_{id(websocket)}"
-    
+
     try:
         await websocket_manager.add_ios_client(websocket, client_id)
-        
+
         # Send a connection acknowledgment to the iOS client
         try:
             await websocket.send_json({"type": "connection_ack", "status": "connected", "client_id": client_id})
@@ -310,7 +354,7 @@ async def ios_websocket(websocket: WebSocket):
                     else:
                         # In split mode, use the queue
                         await frame_queue.put((client_id, frame_data_message))
-                        
+
                         # Notify dashboard about the new item in queue
                         if websocket_manager and frame_queue:
                             # Get current queue contents without removing them
@@ -367,7 +411,7 @@ async def ios_websocket(websocket: WebSocket):
                 # Depending on the error, you might want to break or continue
                 # For now, let's break to prevent a loop of errors
                 break
-            
+
     except WebSocketDisconnect:
         logger.info(f"iOS client {client_id} disconnected")
     except Exception as e:
@@ -386,7 +430,7 @@ async def dashboard_websocket(websocket: WebSocket):
     client_id = f"dashboard_{id(websocket)}"
     try:
         await websocket_manager.add_dashboard_client(websocket, client_id)
-        
+
         # Send a connection acknowledgment to the dashboard client
         try:
             await websocket.send_json({"type": "connection_ack", "status": "connected", "client_id": client_id})
@@ -440,7 +484,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
                 "message": "Server services not ready"
             })
         return
-        
+
     packet_events = [] # Initialize list to store packet events
     processing_start_time = time.time()
 
@@ -471,7 +515,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
         # Process vision (YOLO + VLM) based on processing mode
         vision_analysis_start_time = time.time()
         vision_analysis = await vision_processor.analyze_frame(frame)
-        
+
         # Ensure vision_analysis is not None or empty before proceeding
         if not vision_analysis or not isinstance(vision_analysis, dict):
             logger.error(f"Vision analysis failed or returned invalid data for frame {frame.frame_id}")
@@ -585,7 +629,7 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             }
         ).model_dump())
         await websocket_manager.send_to_ios_client(client_id, {"type": "frame_processed", "frame_id": frame.frame_id})
-        
+
         # Create a copy of packet_events before broadcasting to avoid "dictionary changed size during iteration"
         # if the list is modified elsewhere or during asynchronous processing.
         packet_events_copy = list(packet_events)
@@ -626,11 +670,11 @@ async def process_frame(client_id: str, frame: FrameDataMessage):
             )
 
         logger.debug(f"Processed frame {frame.frame_id} successfully and broadcast to dashboards")
-        
+
     except Exception as e:
         error_msg = f"Error processing frame: {str(e)}"
         logger.error(f"Error processing frame from {client_id}: {e}")
-        
+
         # Send error response
         if websocket_manager:
             await websocket_manager.send_to_ios_client(client_id, {
@@ -660,8 +704,13 @@ async def process_user_prompt(client_id: str, prompt_message: UserPromptMessage)
         # For now, let's get the most recent context. This can be enhanced later.
         context = context_memory.get_recent_context(prompt_message.prompt_id, limit=10) # Get more context for prompts
 
-        # Process the question with LLM
-        answer = await llm_processor.answer_question(prompt_message.question, context)
+        # Process the question with LLM (passing persistent_objects and RAG client)
+        answer = await llm_processor.answer_question(
+            prompt_message.question,
+            context,
+            persistent_objects=context_memory.persistent_objects,
+            rag=rag_client
+        )
 
         response = PromptResponse(
             response_id=prompt_message.prompt_id,
@@ -670,7 +719,7 @@ async def process_user_prompt(client_id: str, prompt_message: UserPromptMessage)
             timestamp=time.time(),
             error=None
         )
-        
+
         await websocket_manager.send_to_ios_client(client_id, response.model_dump())
         logger.info(f"Sent response for prompt {prompt_message.prompt_id} to {client_id}")
 
@@ -698,7 +747,7 @@ async def process_user_prompt(client_id: str, prompt_message: UserPromptMessage)
 if __name__ == "__main__":
     # Setup logging
     setup_logger(settings.LOG_LEVEL)
-    
+
     # Run server
     uvicorn.run(
         "main:app",

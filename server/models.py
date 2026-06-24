@@ -41,6 +41,7 @@ class DetectionFrame(BaseModel):
 
 class PromptResponse(BaseModel):
     """Response to a user prompt."""
+    type: str = "user_prompt_response"
     response_id: str
     question: str
     answer: str
@@ -77,6 +78,7 @@ class AnalysisResult(BaseModel):
 
 class ServerResponse(BaseModel):
     """Server response message."""
+    type: str = "live_update"
     frame_id: str
     analysis: AnalysisResult
     timestamp: float

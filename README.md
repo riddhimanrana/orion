@@ -88,7 +88,7 @@ bun run build:mac
 
 ## VS Code Integration
 
-Open [Orion.code-workspace](file:///Users/riddhiman.rana/Desktop/Coding/orion/.code-workspace) in VS Code. It is pre-configured with workspace recommendations, settings for Copilot, SweetPad, and xcodebuild server integrations.
+Open `.code-workspace` in VS Code. It is pre-configured with workspace recommendations, settings for Copilot, SweetPad, and xcodebuild server integrations.
 
 ## Branching Model
 
