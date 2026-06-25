@@ -19,6 +19,10 @@ class DashboardSocket: ObservableObject {
     @Published var sceneDescription = "Waiting for live feed..."
     @Published var queueSize = 0
     @Published var processingMode = "full"
+    @Published var frameId = "-"
+    @Published var modelHealth: [String: Bool] = [:]
+    @Published var latestReasoningPayload = "No reasoning payload yet."
+    @Published var packetEventCount = 0
     
     private var webSocketTask: URLSessionWebSocketTask?
     private let session = URLSession(configuration: .default)
@@ -79,6 +83,12 @@ class DashboardSocket: ObservableObject {
                let event = json["type"] as? String {
                 
                 if event == "response_sent_to_ios" {
+                    if let frameId = json["frame_id"] {
+                        DispatchQueue.main.async {
+                            self.frameId = "\(frameId)"
+                        }
+                    }
+
                     // Extract image data
                     if let base64Image = json["image_data"] as? String,
                        let imageData = Data(base64Encoded: base64Image),
@@ -107,6 +117,24 @@ class DashboardSocket: ObservableObject {
                                 self.processingMode = mode
                             }
                         }
+                        if let health = serverStatus["model_health"] as? [String: Bool] {
+                            DispatchQueue.main.async {
+                                self.modelHealth = health
+                            }
+                        }
+                    }
+
+                    if let reasoning = json["llm_reasoning"] {
+                        let formatted = Self.prettyPrinted(reasoning) ?? "\(reasoning)"
+                        DispatchQueue.main.async {
+                            self.latestReasoningPayload = formatted
+                        }
+                    }
+
+                    if let events = json["packet_events"] as? [Any] {
+                        DispatchQueue.main.async {
+                            self.packetEventCount = events.count
+                        }
                     }
                     
                     // Extract detections
@@ -134,5 +162,13 @@ class DashboardSocket: ObservableObject {
         } catch {
             // Skip parsing errors silently
         }
+    }
+
+    private static func prettyPrinted(_ object: Any) -> String? {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
     }
 }

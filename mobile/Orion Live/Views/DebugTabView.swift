@@ -19,7 +19,6 @@ struct DebugTabView: View {
     @EnvironmentObject var signalingClient: SignalingClient
     @EnvironmentObject var deviceManager: DeviceManager
     @EnvironmentObject var batteryMonitoringManager: BatteryMonitoringManager
-    @EnvironmentObject var fastVLMModel: FastVLMModel
 
     // State
     @State private var frameAnalysisLogs: [FrameAnalysisLog] = []
@@ -33,24 +32,16 @@ struct DebugTabView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if SettingsManager.shared.processingMode.lowercased() == "server" {
-                    Section(header: Label("P2P Connection", systemImage: "network")) {
-                        p2pConnectionSection
-                    }
-                    
-                    Section(header: Label("Signaling", systemImage: "wifi")) {
-                        signalingStatusSection
-                    }
+                Section(header: Label("P2P Connection", systemImage: "network")) {
+                    p2pConnectionSection
+                }
 
-                    Section(header: Label("Packets & Relay", systemImage: "point.3.connected.trianglepath.dotted")) {
-                        signalTrafficSection
-                    }
-                } else {
-                    Section(header: Label("Processing Mode", systemImage: "info.circle")) {
-                        Text("Hybrid mode is currently active. P2P connection details are only available in Server mode.")
-                            .foregroundColor(.secondary)
-                            .font(.callout)
-                    }
+                Section(header: Label("Signaling", systemImage: "wifi")) {
+                    signalingStatusSection
+                }
+
+                Section(header: Label("Packets & Relay", systemImage: "point.3.connected.trianglepath.dotted")) {
+                    signalTrafficSection
                 }
 
                 Section(header: Label("Live System Metrics", systemImage: "speedometer")) {
@@ -61,7 +52,7 @@ struct DebugTabView: View {
                     modelRouteSection
                 }
                 
-                Section(header: Label("On-Device Analysis Log", systemImage: "memorychip")) {
+                Section(header: Label("Pipeline Log", systemImage: "memorychip")) {
                     analysisLogSection
                 }
                 
@@ -101,10 +92,6 @@ struct DebugTabView: View {
         .onChange(of: webRTCManager.connectionState) { _, newState in
             let connected = (newState == .connected || newState == .completed)
             batteryMonitoringManager.updateActivity(webrtcConnected: connected)
-        }
-        .onChange(of: fastVLMModel.evaluationState) { _, state in
-            let active = (state == .processingPrompt || state == .generatingResponse)
-            batteryMonitoringManager.updateActivity(mlActive: active)
         }
     }
 
@@ -205,7 +192,7 @@ struct DebugTabView: View {
     private var modelRouteSection: some View {
         VStack(spacing: 8) {
             ConnectionStatusRow(label: "Processing", value: "Server", color: .green)
-            ConnectionStatusRow(label: "Local YOLO/VLM", value: "Bypassed", color: .secondary)
+            ConnectionStatusRow(label: "iOS Local ML", value: "Not bundled", color: .secondary)
             ConnectionStatusRow(label: "Reasoning", value: "Gemma on macOS server", color: .secondary)
             ConnectionStatusRow(label: "3D Depth", value: "Depth Anything 3", color: .secondary)
             ConnectionStatusRow(label: "Tracking", value: "Server persistent memory", color: .secondary)
@@ -257,7 +244,7 @@ struct DebugTabView: View {
         }
     }
     
-    private func vlmMetricsView(_ result: FastVLMModel.VLMResult) -> some View {
+    private func vlmMetricsView(_ result: VLMAnalysisResult) -> some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading) {
                 Text("TTFT").font(.caption2).foregroundColor(.secondary)
@@ -422,7 +409,7 @@ struct FrameDetailView: View {
                     InfoRow(icon: "calendar", label: "Timestamp", value: log.formattedTimestamp)
                 }
                 
-                Section("YOLO11n Detections (\(log.yoloDetections.count))") {
+                Section("Server Detections (\(log.yoloDetections.count))") {
                     if log.yoloDetections.isEmpty {
                         Text("No objects detected.")
                     } else {
@@ -433,7 +420,7 @@ struct FrameDetailView: View {
                     InfoRow(icon: "timer", label: "Processing Time", value: String(format: "%.1f ms", log.yoloProcessingTime))
                 }
                 
-                Section("FastVLM Analysis") {
+                Section("Server Visual Analysis") {
                     if let result = log.vlmResult {
                         Text(result.description).padding(.vertical, 4)
                         InfoRow(icon: "clock", label: "TTFT", value: String(format: "%.0f ms", result.timeToFirstToken * 1000))

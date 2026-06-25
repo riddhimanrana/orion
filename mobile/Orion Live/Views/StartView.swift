@@ -12,7 +12,6 @@ import WebRTC
 
 struct StartView: View {
     @Environment(\.colorScheme) var colorScheme
-    @EnvironmentObject var objectDetector: ObjectDetector
     @EnvironmentObject var webRTCManager: WebRTCManager
     @EnvironmentObject var signalingClient: SignalingClient
     @Binding var isCameraActive: Bool
@@ -123,7 +122,6 @@ struct StartView: View {
             HStack {
                 ServerStatusPill()
                 Spacer(minLength: 16)
-                ProcessingModePill()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
@@ -238,9 +236,7 @@ struct StartView: View {
             isLoading = true
         }
         triggerHyperspeed()
-        // Local model execution is deprecated. Mark model as ready instantly and proceed to camera view.
-        objectDetector.isModelReady = true
-        Logger.shared.log("Bypassed local YOLO11n loading (running server-side).")
+        Logger.shared.log("Starting macOS-server streaming path. Local iOS YOLO/FastVLM is not initialized.")
         onStart { }
     }
 }
@@ -376,10 +372,8 @@ struct StartView_Previews: PreviewProvider {
         let signalingClient = SignalingClient(apiService: apiService, deviceManager: deviceManager)
         let webRTCManager = WebRTCManager(signalingClient: signalingClient)
         let webSocketManager = WebSocketManager()
-        let objectDetector = ObjectDetector()
         
         StartView(isCameraActive: .constant(false), onStart: { completion in completion() })
-            .environmentObject(objectDetector)
             .environmentObject(webSocketManager)
             .environmentObject(webRTCManager)
             .environmentObject(signalingClient)

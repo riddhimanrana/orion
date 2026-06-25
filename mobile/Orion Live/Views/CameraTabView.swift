@@ -9,6 +9,7 @@
 
 import SwiftUI
 import Combine
+import WebRTC
 
 // Fallback stub for environments where the overlay file isn't indexed (e.g., some analyzers on macOS)
 #if !canImport(UIKit)
@@ -49,6 +50,8 @@ struct CameraTabView: View {
     @Environment(\.colorScheme) var colorScheme
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
     @ObservedObject var wsManager: WebSocketManager
 
     @Binding var latestAnalysis: SceneAnalysis?
@@ -223,10 +226,10 @@ struct CameraTabView: View {
     private var connectionStatusView: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(webSocketStatusColor)
+                .fill(connectionStatusColor)
                 .frame(width: 10, height: 10)
 
-            Text(webSocketStatusText)
+            Text(connectionStatusText)
                 .font(.caption.weight(.medium))
                 .foregroundColor(colorScheme == .dark ? .white : .black)
         }
@@ -236,25 +239,40 @@ struct CameraTabView: View {
         .cornerRadius(20)
     }
 
-    private var webSocketStatusColor: Color {
-        switch wsManager.status {
-        case .connected:
+    private var connectionStatusColor: Color {
+        if (webRTCManager.connectionState == .connected || webRTCManager.connectionState == .completed) && webRTCManager.dataChannelState == .open {
             return .green
-        case .connecting:
-            return .yellow
-        case .disconnected:
-            return .red
         }
+
+        if webRTCManager.connectionState == .checking ||
+            webRTCManager.dataChannelState == .connecting ||
+            signalingClient.connectionState == .connecting {
+            return .yellow
+        }
+
+        if signalingClient.connectionState == .connected {
+            return .blue
+        }
+
+        return .red
     }
 
-    private var webSocketStatusText: String {
-        switch wsManager.status {
+    private var connectionStatusText: String {
+        if (webRTCManager.connectionState == .connected || webRTCManager.connectionState == .completed) && webRTCManager.dataChannelState == .open {
+            return "Mac Connected"
+        }
+
+        if webRTCManager.connectionState == .checking || webRTCManager.dataChannelState == .connecting {
+            return "WebRTC"
+        }
+
+        switch signalingClient.connectionState {
         case .connected:
-            return "Connected"
+            return "Signal Ready"
         case .connecting:
-            return "Connecting..."
+            return "Signaling"
         case .disconnected:
-            return "Disconnected"
+            return "Mac Offline"
         }
     }
 
@@ -312,6 +330,11 @@ struct CameraTabView_Previews: PreviewProvider {
         let appState = AppStateManager()
         let cameraManager = CameraManager()
         let wsManager = WebSocketManager()
+        let authManager = AuthManager()
+        let deviceManager = DeviceManager(supabase: authManager.supabase)
+        let apiService = APIService(supabase: authManager.supabase)
+        let signalingClient = SignalingClient(apiService: apiService, deviceManager: deviceManager)
+        let webRTCManager = WebRTCManager(signalingClient: signalingClient)
 
         appState.performanceMetrics = PerformanceMetrics(
             fps: 29.5,
@@ -327,5 +350,7 @@ struct CameraTabView_Previews: PreviewProvider {
         )
         .environmentObject(appState)
         .environmentObject(cameraManager)
+        .environmentObject(webRTCManager)
+        .environmentObject(signalingClient)
     }
 }

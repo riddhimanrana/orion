@@ -55,7 +55,7 @@ struct Orion_ServerApp: App {
                     Group {
                         if let deviceManager = deviceManager, let p2pManagers = p2pManagers {
                             let dashboard = MainDashboard()
-                                .frame(minWidth: 800, minHeight: 600)
+                                .frame(minWidth: 980, minHeight: 640)
 
                             dashboard
                                 .environmentObject(deviceManager)
@@ -108,21 +108,15 @@ struct Orion_ServerApp: App {
                 }
             }
         }
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .defaultSize(width: 400, height: 600)
+        .windowToolbarStyle(.unified)
+        .defaultSize(width: 1180, height: 760)
         .handlesExternalEvents(matching: Set(arrayLiteral: "main"))
         .commands {
-            // Replace the entire View menu to only keep "Enter Full Screen"
-            CommandGroup(replacing: .toolbar) {}
-            CommandGroup(replacing: .sidebar) {}
-
-            // Disable window tabbing options
-            CommandGroup(replacing: .windowArrangement) {}
-
-            // Remove new window command (Cmd+N)
             CommandGroup(replacing: .newItem) {
-                // Empty group removes the "New" commands
+                Button("Open Dashboard") {
+                    openWindow(id: "main")
+                }
+                .keyboardShortcut("1", modifiers: [.command])
             }
         }
 
@@ -140,7 +134,7 @@ struct Orion_ServerApp: App {
                     }
 
                     Button("Settings...") {
-                        openWindow(id: "settings")
+                        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                     }
 
                     Divider()
@@ -165,8 +159,8 @@ struct Orion_ServerApp: App {
             }
         }
 
-        // MARK: - Settings Window
-        Window("Settings", id: "settings") {
+        // MARK: - Native Settings Scene
+        Settings {
             Group {
                 if let deviceManager = deviceManager, let p2pManagers = p2pManagers {
                     SettingsWindow(userViewModel: userViewModel, authManager: authManager)
@@ -188,6 +182,10 @@ struct Orion_ServerApp: App {
                     .frame(minWidth: 500, minHeight: 400)
                 }
             }
+            .frame(width: 560, height: 560)
+            .environmentObject(authManager)
+            .environmentObject(menuBarManager)
+            .environmentObject(userViewModel)
             .task {
                 // Initialize managers if authenticated but not yet initialized
                 if authManager.session != nil && deviceManager == nil {
@@ -200,8 +198,5 @@ struct Orion_ServerApp: App {
                 }
             }
         }
-        .defaultPosition(.center)
-        .defaultSize(width: 600, height: 500)
-        .handlesExternalEvents(matching: Set(arrayLiteral: "settings"))
     }
 }

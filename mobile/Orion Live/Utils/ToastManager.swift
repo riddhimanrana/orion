@@ -31,7 +31,7 @@ class ToastManager: ObservableObject {
         }
     }
     
-    func showNetworkError(_ message: String = "A network error occurred: The internet connection appears to be offline", duration: TimeInterval = 10.0) {
+    func showNetworkError(_ message: String = "No internet connection", duration: TimeInterval = 5.0) {
         showToast(message: message, type: .error, duration: duration)
     }
     

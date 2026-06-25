@@ -130,6 +130,21 @@ struct MenuItemButton: View {
     }
 }
 
+struct MonogramAvatar: View {
+    let initials: String
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.accentColor.opacity(0.15))
+            Text(initials)
+                .font(.headline)
+                .foregroundColor(.accentColor)
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+}
+
 #Preview {
     UserMenuView(
         userViewModel: UserProfileViewModel(),

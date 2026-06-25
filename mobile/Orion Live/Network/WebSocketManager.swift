@@ -246,8 +246,10 @@ class WebSocketManager: ObservableObject {
         self.processingMode = "server"
         UserDefaults.standard.set("server", forKey: UserDefaultsKeys.processingMode)
         
-        log("WebSocketManager initialized. Server: ws://\(currentHost):\(currentPort)/ios")
-        startNetworkMonitoring()
+        log("WebSocketManager initialized as developer fallback. Server: ws://\(currentHost):\(currentPort)/ios")
+        if UserDefaults.standard.bool(forKey: "directLocalFallbackEnabled") {
+            startNetworkMonitoring()
+        }
     }
     
     func setCameraManager(_ manager: CameraManager) {
@@ -333,11 +335,12 @@ class WebSocketManager: ObservableObject {
         // If we're not connected, try to connect first instead of immediately showing error
         guard readStatus() == .connected else {
             // Only show error if we've actually tried to connect and failed multiple times
-            if connectionAttempts >= 3 && hasShownNetworkError == false {
+            if UserDefaults.standard.bool(forKey: "directLocalFallbackEnabled"),
+               connectionAttempts >= 3 && hasShownNetworkError == false {
                 hasShownNetworkError = true
                 onError?(.connectionFailed)
                 Task { @MainActor in
-                    ToastManager.shared.showNetworkError()
+                    ToastManager.shared.showToast(message: "Local server unavailable", type: .warning)
                 }
             }
             return
@@ -399,9 +402,9 @@ class WebSocketManager: ObservableObject {
                             self.hasShownNetworkError = true
                             Task { @MainActor in
                                 if self.isNetworkUnavailable(nsError) {
-                                    ToastManager.shared.showNetworkError()
+                                    ToastManager.shared.showNetworkError("No internet connection")
                                 } else {
-                                    ToastManager.shared.showToast(message: "Server connection lost: Attempting to reconnect...", type: .warning)
+                                    ToastManager.shared.showToast(message: "Local server unavailable", type: .warning)
                                 }
                             }
                         }
@@ -554,9 +557,9 @@ class WebSocketManager: ObservableObject {
                 DispatchQueue.main.async {
                     self.hasShownNetworkError = false
                 }
-                if self.status == .disconnected { 
-                    DispatchQueue.main.async {
-                        if !self.isCleaningUp {
+            if self.status == .disconnected && UserDefaults.standard.bool(forKey: "directLocalFallbackEnabled") {
+                DispatchQueue.main.async {
+                    if !self.isCleaningUp {
                             self.connect()
                         }
                     }
@@ -571,7 +574,7 @@ class WebSocketManager: ObservableObject {
                             if !self.hasShownNetworkError {
                                 self.hasShownNetworkError = true
                                 Task { @MainActor in
-                                    ToastManager.shared.showNetworkError()
+                                    ToastManager.shared.showNetworkError("No internet connection")
                                 }
                             }
                         }

@@ -25,8 +25,8 @@ struct SettingsWindow: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
+            Form {
+                VStack(spacing: 18) {
                     // MARK: - Account Section
                     SettingsSection(title: "Account") {
                         SettingsInfoRow(icon: "envelope", title: "Email", value: userViewModel.email)
@@ -36,7 +36,7 @@ struct SettingsWindow: View {
 
                     // MARK: - App Section
                     SettingsSection(title: "App") {
-                        SettingsPickerRow(icon: "menubar.rectangle", title: "Show in Menu Bar", selection: $showInMenuBar, options: ["When App is Running", "Always", "Never"])
+                        SettingsPickerRow(icon: "menubar.rectangle", title: "Menu Bar", selection: $showInMenuBar, options: ["When App is Running", "Always", "Never"])
                     }
 
                     // MARK: - P2P Connection Section
@@ -104,7 +104,6 @@ struct SettingsWindow: View {
                         }
                     }
 
-                    // MARK: - Manage Section
                     SettingsSection(title: "Manage") {
                         SettingsLinkRow(
                             icon: "creditcard",
@@ -129,7 +128,6 @@ struct SettingsWindow: View {
                         )
                     }
 
-                    // MARK: - About Section
                     SettingsSection(title: "About") {
                         SettingsLinkRow(
                             icon: "doc.text",
@@ -161,7 +159,6 @@ struct SettingsWindow: View {
                         }
                     }
 
-                    // The Log Out button is in its own section for consistent spacing.
                     SettingsSection {
                         SettingsButtonRow(icon: "rectangle.portrait.and.arrow.right", title: "Log Out", role: .destructive) {
                             showingLogoutAlert = true
@@ -174,11 +171,12 @@ struct SettingsWindow: View {
             .onDisappear(perform: stopPolling)
             .navigationTitle("Settings")
         }
-        .frame(minWidth: 500, maxWidth: 500)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 520)
         .alert("Log out of Orion Server?", isPresented: $showingLogoutAlert) {
             Button("Log Out", role: .destructive) {
-                // Add your logout logic here, e.g., authManager.logout()
-                print("Logout action confirmed for \(userViewModel.email)")
+                Task {
+                    await authManager.signOut()
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {

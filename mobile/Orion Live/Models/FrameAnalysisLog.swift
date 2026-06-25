@@ -8,6 +8,23 @@
 import Foundation
 import UIKit
 
+struct VLMAnalysisResult: Identifiable, Hashable, Codable {
+    var id = UUID()
+    let description: String
+    let timeToFirstToken: TimeInterval
+    let totalGenerationTime: TimeInterval
+    let tokensGenerated: Int
+
+    var tokensPerSecond: Double {
+        guard totalGenerationTime > 0 else { return 0 }
+        return Double(tokensGenerated) / totalGenerationTime
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case description, timeToFirstToken, totalGenerationTime, tokensGenerated
+    }
+}
+
 struct FrameAnalysisLog: Identifiable, Hashable, Codable {
     var id = UUID()
     let frameId: String
@@ -17,7 +34,7 @@ struct FrameAnalysisLog: Identifiable, Hashable, Codable {
     let yoloProcessingTime: TimeInterval
 
     let vlmPrompt: String
-    let vlmResult: FastVLMModel.VLMResult?
+    let vlmResult: VLMAnalysisResult?
 
     let cpuUsage: Double
     let gpuUsage: Double
@@ -45,7 +62,7 @@ struct FrameAnalysisLog: Identifiable, Hashable, Codable {
             ],
             yoloProcessingTime: 16.7,
             vlmPrompt: "The following objects were detected...",
-            vlmResult: FastVLMModel.VLMResult(description: "A person is sitting at a desk with a laptop. They appear to be working.", timeToFirstToken: 0.18, totalGenerationTime: 1.32, tokensGenerated: 22),
+            vlmResult: VLMAnalysisResult(description: "Server-side visual reasoning result placeholder.", timeToFirstToken: 0.18, totalGenerationTime: 1.32, tokensGenerated: 22),
             cpuUsage: 0.65,
             gpuUsage: 0.88,
             aneUsage: 0.95,

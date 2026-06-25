@@ -26,14 +26,6 @@ struct ServerStatusPill: View {
     }
     
     private var serverStatusText: String {
-        let isServerMode = SettingsManager.shared.processingMode.lowercased() == "server"
-        
-        if !isServerMode {
-            return "Hybrid"
-        }
-        
-        // Only check WebRTC/signaling status in server mode
-        // Show 'Connected' only if WebRTC is connected and data channel is open
         if (webRTCManager.connectionState == .connected || webRTCManager.connectionState == .completed) && webRTCManager.dataChannelState == .open {
             return "Connected"
         } else if webRTCManager.connectionState == .checking || webRTCManager.dataChannelState == .connecting {
@@ -57,13 +49,6 @@ struct ServerStatusPill: View {
     }
 
     private var serverStatusColor: Color {
-        let isServerMode = SettingsManager.shared.processingMode.lowercased() == "server"
-        
-        if !isServerMode {
-            return .blue  // Hybrid mode color
-        }
-        
-        // Only check WebRTC/signaling status in server mode
         if (webRTCManager.connectionState == .connected || webRTCManager.connectionState == .completed) && webRTCManager.dataChannelState == .open {
             return .green
         } else if webRTCManager.connectionState == .checking || webRTCManager.dataChannelState == .connecting {
@@ -87,12 +72,6 @@ struct ServerStatusPill: View {
     }
 
     private var isConnecting: Bool {
-        let isServerMode = SettingsManager.shared.processingMode.lowercased() == "server"
-        
-        if !isServerMode {
-            return false  // No animation in hybrid mode
-        }
-        
         return webRTCManager.connectionState == .checking ||
                webRTCManager.dataChannelState == .connecting ||
                signalingClient.connectionState == .connecting

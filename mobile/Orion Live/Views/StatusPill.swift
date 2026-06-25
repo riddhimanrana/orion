@@ -106,8 +106,8 @@ struct StatusPill_Previews: PreviewProvider {
             
             StatusPill(
                 title: "Mode",
-                status: "Hybrid",
-                statusColor: .blue
+                status: "Mac Server",
+                statusColor: .green
             )
             
             StatusPill(

@@ -42,6 +42,7 @@ private struct ActionButtonStyle: ButtonStyle {
 struct ChatView: View {
     @EnvironmentObject var wsManager: WebSocketManager
     @EnvironmentObject var deviceManager: DeviceManager
+    @StateObject private var settings = SettingsManager.shared
 
     @State private var messageText: String = ""
     @State private var messages: [ChatMessage] = []
@@ -521,8 +522,13 @@ struct ChatView: View {
         guard !trimmedText.isEmpty else { return }
         guard !isRequestInFlight else { return }
 
+        guard settings.directLocalFallbackEnabled else {
+            showToast("Chat uses Developer Mode Direct Local Fallback for this build")
+            return
+        }
+
         guard wsManager.status == .connected else {
-            showToast("Connect to Orion server to chat")
+            showToast("Local server unavailable")
             return
         }
         

@@ -8,7 +8,6 @@
 //
 import SwiftUI
 import Combine
-import MLXVLM
 
 @main
 struct OrionApp: App {
@@ -24,11 +23,6 @@ struct OrionApp: App {
     @StateObject private var apiService: APIService
     @StateObject private var batteryMonitoringManager: BatteryMonitoringManager
     @StateObject private var networkMonitor: NetworkMonitor
-
-    // Lazily initialize model-related objects asynchronously
-    @State private var objectDetector: ObjectDetector?
-    @State private var fastVLMModel: FastVLMModel?
-    @State private var isInitializingModels = false
 
     init() {
         // Initialize lightweight managers first
@@ -93,31 +87,6 @@ struct OrionApp: App {
         }
     }
     
-    // Initialize heavy ML models asynchronously in background
-    private func initializeModelsAsync() async {
-        guard !isInitializingModels else { return }
-        
-        await MainActor.run {
-            isInitializingModels = true
-        }
-        
-        // Initialize models in background
-        async let objectDetectorInit: ObjectDetector = ObjectDetector()
-        
-        async let fastVLMInit: FastVLMModel = await MainActor.run {
-            FastVLMModel()
-        }
-        
-        let (detector, vlmModel) = await (objectDetectorInit, fastVLMInit)
-        
-        await MainActor.run {
-            self.objectDetector = detector
-            self.fastVLMModel = vlmModel
-            self.isInitializingModels = false
-            logInfo("ML models initialized successfully", category: .vision)
-        }
-    }
-
     var body: some Scene {
         WindowGroup {
             mainContentView
@@ -132,8 +101,6 @@ struct OrionApp: App {
                 .environmentObject(apiService)
                 .environmentObject(batteryMonitoringManager)
                 .environmentObject(networkMonitor)
-                .environmentObject(objectDetector ?? ObjectDetector()) // Provide a default instance
-                .environmentObject(fastVLMModel ?? FastVLMModel()) // Provide a default instance
                 .onOpenURL { url in
                     Task {
                         await authManager.handleSessionCallback(from: url)
@@ -144,13 +111,6 @@ struct OrionApp: App {
                         Task {
                             await deviceManager.registerDeviceIfNeeded(type: "ios")
                         }
-                    }
-                }
-                .onAppear {
-                    // Initialize ML models after a short delay to allow UI to render
-                    Task {
-                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                        await initializeModelsAsync()
                     }
                 }
                 // Enable/disable idle timer when streaming starts/stops (iOS17+ style)
@@ -179,7 +139,7 @@ struct OrionApp: App {
                         ToastManager.shared.showToast(message: "Back online", type: .success)
                         authManager.isOffline = false
                     } else {
-                        ToastManager.shared.showNetworkError()
+                        ToastManager.shared.showNetworkError("No internet connection")
                         authManager.isOffline = true
                     }
                 }
@@ -201,7 +161,6 @@ struct OrionApp: App {
                     Task {
                         // Wait a bit for UI to settle before connecting
                         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                        await signalingClient.connect()
                         await webRTCManager.connect()
                     }
 
@@ -362,4 +321,3 @@ class PerformanceMonitor {
 }
 
 /// Shared debug flags
-

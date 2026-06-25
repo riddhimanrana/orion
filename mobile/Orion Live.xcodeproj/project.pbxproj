@@ -194,17 +194,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				8496D2132E4ED8A000639DA5 /* WebRTC in Frameworks */,
-				8423D9072E0A696E00463407 /* MLX in Frameworks */,
-				8423D9122E0A69A300463407 /* MLXVLM in Frameworks */,
 				8439DE382E2F155700C3850B /* Storage in Frameworks */,
 				8439DE322E2F155700C3850B /* Functions in Frameworks */,
 				8439DE362E2F155700C3850B /* Realtime in Frameworks */,
 				8439DE342E2F155700C3850B /* PostgREST in Frameworks */,
-				8423D90D2E0A696E00463407 /* MLXRandom in Frameworks */,
 				8439DE302E2F155700C3850B /* Auth in Frameworks */,
 				8439DE3A2E2F155700C3850B /* Supabase in Frameworks */,
-				8423D9102E0A69A300463407 /* MLXLMCommon in Frameworks */,
-				84080BC12E28474600F965A1 /* FastVLM.framework in Frameworks */,
 				844535F32DFAB1CC00F0BC04 /* Starscream in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -430,23 +425,16 @@
 				84270E552DFAAB5D00AF2664 /* Sources */,
 				84270E562DFAAB5D00AF2664 /* Frameworks */,
 				84270E572DFAAB5D00AF2664 /* Resources */,
-				84080BC22E28474600F965A1 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				84080BC02E28474600F965A1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				84080BA12E28467600F965A1 /* FastVLM */,
 			);
 			name = "Orion Live";
 			packageProductDependencies = (
 				844535F22DFAB1CC00F0BC04 /* Starscream */,
-				8423D9062E0A696E00463407 /* MLX */,
-				8423D90C2E0A696E00463407 /* MLXRandom */,
-				8423D90F2E0A69A300463407 /* MLXLMCommon */,
-				8423D9112E0A69A300463407 /* MLXVLM */,
 				8439DE2F2E2F155700C3850B /* Auth */,
 				8439DE312E2F155700C3850B /* Functions */,
 				8439DE332E2F155700C3850B /* PostgREST */,
@@ -555,12 +543,10 @@
 				8494C51F2E516A9C004AB96F /* Detection.swift in Sources */,
 				8494C5202E516A9C004AB96F /* AuthManager.swift in Sources */,
 				8494C5212E516A9C004AB96F /* CameraView.swift in Sources */,
-				8494C5222E516A9C004AB96F /* FastVLMModel.swift in Sources */,
 				8494C5232E516A9C004AB96F /* LoginView.swift in Sources */,
 				84ED6BDE2E753F9800A282EF /* ChatMessage.swift in Sources */,
 				84FA5AE62E776E670028330E /* BatteryMonitoringManager.swift in Sources */,
 				8494C5242E516A9C004AB96F /* CameraSwitcherOverlay.swift in Sources */,
-				8494C5252E516A9C004AB96F /* yolo11n.mlpackage in Sources */,
 				8494C5262E516A9C004AB96F /* KeyframeVideoCapturer.swift in Sources */,
 				8494C5272E516A9C004AB96F /* CameraTabView.swift in Sources */,
 				8494C5282E516A9C004AB96F /* H264Encoder.swift in Sources */,
@@ -576,9 +562,7 @@
 				8494C5302E516A9C004AB96F /* NetworkDetection.swift in Sources */,
 				84FA5A592E7768910028330E /* ServerStatusPill.swift in Sources */,
 				845445742E5421AA003F9283 /* ChatView.swift in Sources */,
-				8494C5312E516A9C004AB96F /* ObjectDetector.swift in Sources */,
 				8494C5322E516A9C004AB96F /* WebSocketManager.swift in Sources */,
-				84FA5A5D2E7768C00028330E /* ProcessingModePill.swift in Sources */,
 				8494C5332E516A9C004AB96F /* SettingsTabView.swift in Sources */,
 				8494C5342E516A9C004AB96F /* SettingsManager.swift in Sources */,
 				8494C5352E516A9C004AB96F /* AccountView.swift in Sources */,

@@ -95,6 +95,12 @@ class SettingsManager: ObservableObject {
             UserDefaults.standard.set(enableWebsocketDebug, forKey: "enableWebsocketDebug")
         }
     }
+    @Published var developerModeEnabled: Bool {
+        didSet { UserDefaults.standard.set(developerModeEnabled, forKey: "developerModeEnabled") }
+    }
+    @Published var directLocalFallbackEnabled: Bool {
+        didSet { UserDefaults.standard.set(directLocalFallbackEnabled, forKey: "directLocalFallbackEnabled") }
+    }
 
     private init() {
         // Server Configuration
@@ -103,7 +109,8 @@ class SettingsManager: ObservableObject {
         self.reconnectDelay = UserDefaults.standard.double(forKey: "reconnectDelay")
         self.processingMode = "server"
         UserDefaults.standard.set("server", forKey: UserDefaultsKeys.processingMode)
-        self.connectionMode = UserDefaults.standard.string(forKey: "connectionMode") ?? "direct" // Default to direct
+        self.connectionMode = UserDefaults.standard.string(forKey: "connectionMode") ?? "webrtc"
+        UserDefaults.standard.set("webrtc", forKey: "connectionMode")
 
         // Camera & Detection
         self.showDetectionBoxes = UserDefaults.standard.bool(forKey: "showDetectionBoxes")
@@ -133,6 +140,8 @@ class SettingsManager: ObservableObject {
         self.enableProcessingLogs = UserDefaults.standard.bool(forKey: "enableProcessingLogs")
         self.enablePerformanceMetrics = UserDefaults.standard.bool(forKey: "enablePerformanceMetrics")
         self.enableWebsocketDebug = UserDefaults.standard.bool(forKey: "enableWebsocketDebug")
+        self.developerModeEnabled = UserDefaults.standard.bool(forKey: "developerModeEnabled")
+        self.directLocalFallbackEnabled = UserDefaults.standard.bool(forKey: "directLocalFallbackEnabled")
 
         // Set initial values
         DebugConfig.enableNetworkLogs = enableNetworkLogging

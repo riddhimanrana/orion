@@ -7,6 +7,7 @@
 //  Copyright (C) 2025 Riddhiman Rana. All Rights Reserved.
 //
 import SwiftUI
+import WebRTC
 import Combine
 import Supabase
 
@@ -14,42 +15,49 @@ struct ContentView: View {
     @EnvironmentObject var cameraManager: CameraManager
     @EnvironmentObject var appState: AppStateManager
     @EnvironmentObject var webRTCManager: WebRTCManager
-    @EnvironmentObject var webSocketManager: WebSocketManager // Use the existing one from environment
+    @EnvironmentObject var webSocketManager: WebSocketManager
+    @EnvironmentObject var signalingClient: SignalingClient
+    @EnvironmentObject var deviceManager: DeviceManager
+    @EnvironmentObject var authManager: AuthManager
+    @StateObject private var settings = SettingsManager.shared
 
-    @State private var latestAnalysis: SceneAnalysis? // This will be populated via WebRTC data channel
+    @State private var latestAnalysis: SceneAnalysis?
     @State private var analysisTimestamp: TimeInterval = 0
     @State private var showErrorAlert = false
     @State private var alertMessage = ""
 
     var body: some View {
         TabView {
-            // Tab 1: Home (Camera)
             CameraTabView(
-                wsManager: webSocketManager, // Use the environment object instead of creating a new one
+                wsManager: webSocketManager,
                 latestAnalysis: $latestAnalysis,
                 analysisTimestamp: $analysisTimestamp
             )
                 .tabItem {
-                    Label("Home", systemImage: "house.fill")
+                    Label("Live", systemImage: "camera.fill")
                 }
 
-            // Tab 2: Chat
             ChatView()
                 .tabItem {
-                    Label("Chat", systemImage: "message.fill")
+                    Label("Ask", systemImage: "message.fill")
                 }
 
-            // Tab 3: Debug
-            DebugTabView()
+            ServerSurfaceView()
                 .tabItem {
-                    Label("Debug", systemImage: "ladybug.fill")
+                    Label("Server", systemImage: "server.rack")
                 }
-            
-            // Tab 4: Settings (Now includes Account)
+
             SettingsTabView()
                 .tabItem {
-                    Label("Settings", systemImage: "gear")
+                    Label("Account", systemImage: "person.crop.circle")
                 }
+
+            if settings.developerModeEnabled {
+                DebugTabView()
+                    .tabItem {
+                        Label("Debug", systemImage: "ladybug.fill")
+                    }
+            }
         }
         .onAppear {
             // Managers are now set up in OrionApp.swift
@@ -69,6 +77,190 @@ struct ContentView: View {
         } message: {
             Text(alertMessage)
         }
+    }
+}
+
+private struct ServerSurfaceView: View {
+    @EnvironmentObject var webRTCManager: WebRTCManager
+    @EnvironmentObject var signalingClient: SignalingClient
+    @EnvironmentObject var deviceManager: DeviceManager
+    @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var wsManager: WebSocketManager
+    @StateObject private var settings = SettingsManager.shared
+    @State private var showingPairingSheet = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Label(serverTitle, systemImage: serverIcon)
+                            .font(.headline)
+                            .foregroundStyle(serverColor)
+                        Text(serverDetail)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section("Connection") {
+                    ServerInfoRow(label: "Paired", value: pairedText, color: pairedColor)
+                    ServerInfoRow(label: "Signaling", value: signalingClient.connectionState.description, color: signalingColor)
+                    ServerInfoRow(label: "WebRTC", value: webRTCStateText, color: webRTCColor)
+                    ServerInfoRow(label: "Data Channel", value: dataChannelText, color: dataChannelColor)
+                    ServerInfoRow(label: "Streaming", value: webRTCManager.dataChannelState == .open ? "Ready" : "Waiting", color: webRTCManager.dataChannelState == .open ? .green : .secondary)
+                    ServerInfoRow(label: "Signal Host", value: "signal.orionlive.ai", color: .secondary)
+                }
+
+                Section {
+                    Button {
+                        showingPairingSheet = true
+                    } label: {
+                        Label(deviceManager.pairedDevices.isEmpty ? "Pair Mac Server" : "Manage Pairing", systemImage: "link")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        Task { await webRTCManager.connect() }
+                    } label: {
+                        Label("Connect to Mac", systemImage: "point.3.connected.trianglepath.dotted")
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(deviceManager.deviceId == nil)
+                }
+
+                if settings.developerModeEnabled {
+                    Section("Developer Local Fallback") {
+                        Toggle("Enable Direct Local Fallback", isOn: $settings.directLocalFallbackEnabled)
+                        Text("Use only when testing the FastAPI server directly on local Wi-Fi. Normal streaming uses Signal P2P.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if settings.directLocalFallbackEnabled {
+                            TextField("Host", text: $settings.serverHost)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                            TextField("Port", value: $settings.serverPort, formatter: NumberFormatter())
+                                .keyboardType(.numberPad)
+                            ServerInfoRow(label: "Local WebSocket", value: wsManager.status.description, color: wsManager.status == .connected ? .green : .orange)
+                            Button("Reconnect Local Fallback") {
+                                wsManager.updateServerURL(host: settings.serverHost, port: settings.serverPort)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Server")
+            .navigationBarTitleDisplayMode(.large)
+            .task {
+                await deviceManager.fetchPairedDevices()
+            }
+            .sheet(isPresented: $showingPairingSheet) {
+                PairingView(authManager: authManager)
+            }
+        }
+    }
+
+    private var serverTitle: String {
+        if webRTCManager.dataChannelState == .open { return "Mac server connected" }
+        if signalingClient.connectionState == .connected { return "Signal ready" }
+        if deviceManager.pairedDevices.isEmpty { return "Pair your Mac server" }
+        return "Connect to Mac server"
+    }
+
+    private var serverDetail: String {
+        if webRTCManager.dataChannelState == .open {
+            return "Video and control data are routed through encrypted WebRTC. Reasoning runs on your macOS server."
+        }
+        if deviceManager.pairedDevices.isEmpty {
+            return "Open Orion Server on macOS, generate a pairing code, then link this iPhone."
+        }
+        return "Use Connect to Mac when Orion Server is open on your Mac."
+    }
+
+    private var serverIcon: String {
+        webRTCManager.dataChannelState == .open ? "checkmark.seal.fill" : "server.rack"
+    }
+
+    private var serverColor: Color {
+        webRTCManager.dataChannelState == .open ? .green : .accentColor
+    }
+
+    private var pairedText: String {
+        deviceManager.pairedDevices.isEmpty ? "Not paired" : deviceManager.pairedDevices.first?.serverDevice.name ?? "Paired"
+    }
+
+    private var pairedColor: Color {
+        deviceManager.pairedDevices.isEmpty ? .orange : .green
+    }
+
+    private var signalingColor: Color {
+        switch signalingClient.connectionState {
+        case .connected: .green
+        case .connecting: .yellow
+        case .disconnected: .secondary
+        }
+    }
+
+    private var webRTCColor: Color {
+        switch webRTCManager.connectionState {
+        case .connected, .completed: .green
+        case .checking: .yellow
+        case .failed, .disconnected, .closed: .orange
+        default: .secondary
+        }
+    }
+
+    private var dataChannelColor: Color {
+        webRTCManager.dataChannelState == .open ? .green : .secondary
+    }
+
+    private var webRTCStateText: String {
+        switch webRTCManager.connectionState {
+        case .new: "New"
+        case .checking: "Checking"
+        case .connected: "Connected"
+        case .completed: "Completed"
+        case .failed: "Failed"
+        case .disconnected: "Disconnected"
+        case .closed: "Closed"
+        case .count: "Count"
+        @unknown default: "Unknown"
+        }
+    }
+
+    private var dataChannelText: String {
+        switch webRTCManager.dataChannelState {
+        case .connecting: "Connecting"
+        case .open: "Open"
+        case .closing: "Closing"
+        case .closed: "Closed"
+        @unknown default: "Unknown"
+        }
+    }
+}
+
+private struct ServerInfoRow: View {
+    let label: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Label(value, systemImage: "circle.fill")
+                .labelStyle(.titleAndIcon)
+                .font(.callout)
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(minHeight: 44)
     }
 }
 

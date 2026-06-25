@@ -37,20 +37,30 @@ struct SettingsTabView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // In production, AccountSection uses its own @StateObject view model.
-                // In previews, we can override with a mock via environment.
                 AccountSection()
-                modelProviderSection
-                chatSection
-                processingModeSection
-                serverRuntimeSection
-                connectionSettingsSection
-                cameraAndDetectionSection
-                devicePairingSection
-                systemCompatibilitySection
+
+                Section(header: Label("Preferences", systemImage: "slider.horizontal.3")) {
+                    Toggle("Show detection boxes", isOn: $settings.showDetectionBoxes)
+                    Toggle("Show detection labels", isOn: $settings.showDetectionLabels)
+                        .disabled(!settings.showDetectionBoxes)
+                    Toggle("Stats for Nerds", isOn: $settings.showChatStats)
+                }
+
+                Section(header: Label("Developer", systemImage: "hammer")) {
+                    Toggle("Developer Mode", isOn: $settings.developerModeEnabled)
+                    Text("Enables Debug tab and Direct Local Fallback controls. Normal use stays on Signal P2P with macOS server reasoning.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if settings.developerModeEnabled {
+                        Toggle("Network Logs", isOn: $settings.enableNetworkLogging)
+                        Toggle("Processing Logs", isOn: $settings.enableProcessingLogs)
+                        Toggle("Performance Metrics", isOn: $settings.enablePerformanceMetrics)
+                    }
+                }
+
                 aboutSection
 
-                // Bottom unnamed logout section
                 Section {
                     Button(role: .destructive) {
                         showingSignOutAlert = true
@@ -62,8 +72,8 @@ struct SettingsTabView: View {
                     }
                 }
             }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.automatic)
+            .navigationTitle("Account")
+            .navigationBarTitleDisplayMode(.large)
             .onAppear(perform: startPolling)
             .onDisappear(perform: stopPolling)
             .alert("Log Out", isPresented: $showingSignOutAlert) {
